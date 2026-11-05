@@ -256,7 +256,14 @@ def main():
             h = m["本年度"]
             checks = {}
             if side == "歳出":
-                if not m["説明"] and not m["説明の残り"]:
+                if not m["説明"] and m["説明の残り"] and h is not None:
+                    # 説明欄に事項が1つだけで金額の記載がない目（例「○病院事業会計への負担金」、R8 p180 で確認）。
+                    # その事項の額は目の額。照合で確かめたものではないので印を付けて別に数える
+                    m["説明"] = [{"name": m["説明の残り"], "amount": h, "y": None, "x": None, "金額の記載なし": True}]
+                    m["説明の残り"] = ""
+                    stat["A金額なし"] += 1
+                    checks["A"] = True
+                elif not m["説明"] and not m["説明の残り"]:
                     # 説明欄に何も書かれていない目（税交付金・公債費の元金など）。対象外として別に数える
                     m["説明なし"] = True
                     stat["A対象外"] += 1
@@ -297,6 +304,7 @@ def main():
             print(f"[{side}] 目 {n} 件: " + " / ".join(f"{k} {stat[k]}" for k in ("A", "B", "C", "D") if k in stat or side == "歳出")
                   + (f"（うち A は説明欄が空で対象外 {stat['A対象外']}）" if stat["A対象外"] else "")
                   + (f"（うち A は入れ子の内訳を除いて一致 {stat['A入れ子']}）" if stat["A入れ子"] else "")
+                  + (f"（うち A は1事項で金額の記載なし＝目の額を当てた {stat['A金額なし']}）" if stat["A金額なし"] else "")
                   + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
     # 項の「計」の行と目の合計
     acc = defaultdict(int)
