@@ -40,19 +40,25 @@ MOKU_BAND = (40.0, 290.0)     # 款・項・目の行の予算現額の内訳（
 
 
 def rows_of(page):
+    # 2層で描かれていないページもある（R6 の p55・p156。1語の層の色 (0,) が無い）。
+    # そのページでは色で層を選ばず、列の位置だけで読む（選ぶと節の金額が全行 None になり、行ごと捨てていた実例）
+    # 判定は節の金額の列の数字に限る（ページの他の場所には 1層のページにも (0,) の文字がある。p55 で確認）
+    two_layers = any(repr(c.get("non_stroking_color")) == "(0,)" and c["text"].isdigit() and 340.0 <= c["x0"]
+                     and c["x1"] <= 399.5 for c in page.chars)
     rows: dict[int, list] = {}
     for c in page.chars:
         rows.setdefault(round(c["top"] / 2) * 2, []).append(c)
     out = []
     for _, cs in sorted(rows.items()):
         cs = sorted(cs, key=lambda c: c["x0"])
-        rec = {"label": "".join(c["text"] for c in cs if LABEL_BAND[0] <= c["x0"] < LABEL_BAND[1]),
+        rec = {"two_layers": two_layers,
+               "label": "".join(c["text"] for c in cs if LABEL_BAND[0] <= c["x0"] < LABEL_BAND[1]),
                # ページ上端の款・項の見出し（「1 議会費」が3層で描かれる）やページ番号にも数字があるので、
                # 4桁以上「続く」数字があるときだけ金額（＝款・項・目の行）とみなす
                "moku_digits": re.search(r"\d{4,}", "".join(c["text"] for c in cs if MOKU_BAND[0] <= c["x0"] < MOKU_BAND[1]))
                is not None}
         for name, a, b in BANDS:
-            if name == "節の金額":
+            if name == "節の金額" and two_layers:
                 # 2つの層は文字色の値の型だけが違う（1文字ずつの層は (0.0,)、1語の層は (0,)。R6 で確認）。
                 # 桁の多い金額は 1語の層でも x≈373 から始まるので、x ではなく色の型で層を選ぶ
                 ds = "".join(c["text"] for c in cs if 340.0 <= c["x0"] and c["x1"] <= b and c["text"].isdigit()
@@ -71,11 +77,13 @@ def main():
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
             for row in rows_of(page):
-                if row["moku_digits"] and row["節の金額"] is None:
+                if row["moku_digits"] and (row["節の金額"] is None or not row["two_layers"]):
                     groups.append({"pdf_page": pno, "節": []})
                     continue
                 label = row["label"].strip()
-                if row["節の金額"] is None or row["支出済額"] is None or not groups:
+                # 2層のページでは、節の金額が読めない行は節ではない（款・項の合計の行など。拾うと 7目が崩れた実例）。
+                # 1層のページでは節の金額の列の位置が違い読めないので、それを条件にしない（節の金額は下で他の列から求める）
+                if (row["two_layers"] and row["節の金額"] is None) or row["支出済額"] is None or not groups:
                     continue
                 m = re.match(r"^(\d{1,2})\s*(.*)$", label)
                 rec = {"no": int(m.group(1)) if m else None, **{c: (row[c] or 0) for c, _, _ in BANDS}, "pdf_page": pno}
