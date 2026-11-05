@@ -184,11 +184,14 @@ def choose_kou(title: str, cands, prev_no):
     名前の近さ・読めた番号・並び順（前の項の次）で選ぶ。新しい項の見出しでなければ None。"""
     import difflib
     t = re.sub(r"[（(][^）)]*[）)]", "", title)          # （単位：千円）（歳出）
-    t = re.sub(r"[-—－‐]\s*\d+\s*[-—－‐]?", "", t)      # ページ番号「-12-」
+    # ページ番号「-12-」。末尾・先頭の「-」は「一」「ー」と読まれることがある（PP-OCRv6 で「-138一」。
+    # 除き残した「一」を項の名前とみなして項を進めた実例）
+    t = re.sub(r"[-—－‐一ー]\s*\d+\s*[-—－‐一ー]?", "", t)
     t = re.sub(r"^\d{2,3}(?=\D)", "", t)                 # 行頭のページ番号「490」「1613旧法…」の 16
     t = re.sub(r"\d+\s*款\S*?(?=\d+\s*[项項填頂顶]|$)", "", t)  # 「12款繰入金」の款の部分
     name = re.sub(r"[\d\s项項填頂顶]", "", t)
-    if not re.search(r"[぀-ヿ一-鿿]", name) or not cands:
+    # 項の名前は2文字以上（「税」1文字の項はなく、1文字の残りは読み取りのかけら）
+    if len(re.findall(r"[぀-ヿ一-鿿]", name)) < 2 or not cands:
         return None
     nums = [int(x) for x in re.findall(r"\d{1,2}", t)]
     best, best_score = None, -1.0
