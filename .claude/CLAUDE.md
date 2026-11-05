@@ -11,4 +11,12 @@
 
 - `main` は本家（upstream = team-mirai-volunteer/rs-vis）のミラー。直接変更・コミットしない。
 - 地方版の本流は `local-main`。作業ブランチは `local-main` から切り、PR で `local-main` にマージする。
-- 本家（upstream）への push・PR は行わない。
+- 本家（upstream）への push・PR は行わない。`local-main` への PR もユーザーの指示があってから作る。
+- **作業は必ず worktree で行う**（メインのディレクトリ `rs-vis-fukuoka` では変更しない。mirai-gikai-fukuoka-city と同じ運用）:
+  ```bash
+  git worktree add ../rs-vis-fukuoka-<短い名前> -b <種類>/<名前> local-main
+  # .claude/settings.local.json・.env があればコピーする（2026-11-06 時点ではどちらもない）
+  # 画面・ビルドの作業なら依存を入れる: cd ../rs-vis-fukuoka-<短い名前> && npm ci
+  ```
+  未マージの作業ブランチの文書に依存するときは、そのブランチの上に重ねて切り、マージの順番を PR の説明に書く。
+- **作業の前に設計書を書いて確認を取る**（`docs/local-gov/tasks/`）。調査は設計の材料として先に行ってよい。
