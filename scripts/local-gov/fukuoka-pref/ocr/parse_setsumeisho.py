@@ -161,20 +161,104 @@ def sum_amounts(items):
     return sum(a for a in (amount(d["text"]) for d in items) if a is not None)
 
 
+def moku_name(items):
+    """目の列の文字列から (目番号, 目名) を取る。
+    目番号は名前の左に縦中央で印字されるので、名前が2行だと番号が2行の間の高さに単独の文字として読まれる。
+    番号ごと行にまとめると2行が1行に混ざり、x 順で「指導費生活衛生」のように前後が入れ替わる（実例）。
+    単独の番号を外してから行にまとめる。"""
+    nums = [d for d in items if re.fullmatch(r"\s*\d{1,2}\s*", d["text"])]
+    rest = [d for d in items if d not in nums]
+    txt = "".join(d["text"] for row in lines_of(rest) for d in row)
+    mno = re.search(r"(\d{1,2})", nums[0]["text"]) if nums else re.search(r"(\d{1,2})", txt)
+    if not nums:
+        txt = re.sub(r"\d{1,2}", "", txt, count=1)
+    return (int(mno.group(1)) if mno else None), txt
+
+
+# 「特別会計歳入歳出予算事項別明細書」。間の「歳入歳出予算事項別」（9字）は OCR で崩れて字数が変わる（「入出予算事项别」）
+def choose_kou(title: str, cands, prev_no):
+    """表の見出しから項を決める。見出しの「項」の字は OCR で落ちる・別の字になる（填・頂・项）、
+    番号が名前の後ろに回る（「場利用税6」）ので、正規表現だけでは項の切り替わりを見落とす
+    （実例: 歳入 1款の 2項以降の目がすべて 1項 県民税に入った。款の合計は合うので金額の検算では見つからない）。
+    見出しから款・ページ番号・単位を除いて文字が残れば新しい項とみなし、予算書の項の一覧（cands: [(no, name)]）から
+    名前の近さ・読めた番号・並び順（前の項の次）で選ぶ。新しい項の見出しでなければ None。"""
+    import difflib
+    t = re.sub(r"[（(][^）)]*[）)]", "", title)          # （単位：千円）（歳出）
+    t = re.sub(r"[-—－‐]\s*\d+\s*[-—－‐]?", "", t)      # ページ番号「-12-」
+    t = re.sub(r"^\d{2,3}(?=\D)", "", t)                 # 行頭のページ番号「490」「1613旧法…」の 16
+    t = re.sub(r"\d+\s*款\S*?(?=\d+\s*[项項填頂顶]|$)", "", t)  # 「12款繰入金」の款の部分
+    name = re.sub(r"[\d\s项項填頂顶]", "", t)
+    if not re.search(r"[぀-ヿ一-鿿]", name) or not cands:
+        return None
+    nums = [int(x) for x in re.findall(r"\d{1,2}", t)]
+    best, best_score = None, -1.0
+    for no, cname in cands:
+        cn = re.sub(r"[^぀-ヿ一-鿿]", "", cname)
+        s = difflib.SequenceMatcher(None, name, cn).ratio()
+        if no in nums:
+            s += 0.5
+        if no == (prev_no or 0) + 1:
+            s += 0.3
+        if s > best_score:
+            best, best_score = (no, cname), s
+    return best
+
+
+KAIKEI_RE = re.compile(r"特[别別]会[計计].{0,12}明[細细]書")
+
+
+def page_title_text(page_rec) -> str:
+    parts = [d["text"] for d in page_rec.get("page_text", [])[:15]]
+    for t in page_rec.get("tables", [])[:1]:
+        parts += [d["text"] for d in t["title"]]
+    return "".join(parts).replace(" ", "")
+
+
 def main():
     ocr_dir, rng = sys.argv[1], sys.argv[2]
     keijou = json.load(open(sys.argv[sys.argv.index("--keijou") + 1], encoding="utf-8")) if "--keijou" in sys.argv else None
+    # 特別会計の説明書（281299.pdf）: 会計ごとに「令和8年度福岡県○○特別会計歳入歳出予算事項別明細書 1 総括」で始まる。
+    # 会計の並びは計上額調の特別会計予算額調と同じなので、見出しが出るたびに次の会計へ進む（会計名は OCR で崩れるため名前では引かない）
+    tokubetsu = "--tokubetsu" in sys.argv
+    kaikei_names = [k["会計名"] for k in keijou["特別会計"]["会計"]] if (tokubetsu and keijou) else []
     a, b = (int(x) for x in rng.split("-"))
     moku_list: list[dict] = []
     cur_kan = cur_kou = None
+    cur_kaikei = None if tokubetsu else "一般会計"
+    kaikei_i = -1
+    skipping = False
+    cur_side = None
+    # 予算書の本体の款・項（extract_yosansho.py の出力）。項の決定と、項の合計の照合に使う
+    yo = json.load(open(sys.argv[sys.argv.index("--yosansho") + 1], encoding="utf-8")) if "--yosansho" in sys.argv else None
+    kou_names: dict = {}
+    for k in (yo or {}).get("会計", []):
+        kname = "一般会計" if k["会計"] == "一般会計" else re.sub(r"特別会計$", "", k["会計"])
+        for side in ("歳入", "歳出"):
+            for kan in k.get(side, []):
+                kou_names[(kname, side, kan["no"])] = [(x["no"], x["name"]) for x in kan["項"]]
     for page in range(a, b + 1):
         path = os.path.join(ocr_dir, f"p{page:04d}.json")
         if not os.path.exists(path):
             print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
             continue
         page_rec = json.load(open(path, encoding="utf-8"))
+        if tokubetsu:
+            pt = page_title_text(page_rec)
+            if KAIKEI_RE.search(pt) and re.search(r"[総总稔公]?括", pt):
+                kaikei_i += 1
+                cur_kaikei = kaikei_names[kaikei_i] if kaikei_i < len(kaikei_names) else f"会計{kaikei_i + 1}"
+                cur_kan = cur_kou = None
+                skipping = False
+                print(f"INFO p{page}: 会計の始まり → {cur_kaikei}（見出し「{pt[:40]}」）", file=sys.stderr)
+            if re.search(r"給与[費费]明[細细]", pt) or re.search(r"見[開込]?[調调]|現在高", pt):
+                # 給与費明細書・地方債の現在高の調書は予算の目ではない。2ページ目以降に見出しがないので、次の会計まで読み飛ばす
+                skipping = True
+            if skipping:
+                continue
         for t in page_rec.get("tables", []):
             rec = page_rec  # 表ごとの補正（縦線の補い）がページの他の表に波及しないよう、毎回ページの元の値から始める
+            if t.get("vlines"):
+                rec = dict(page_rec, vlines=t["vlines"])  # 表ごとに検出した縦線（ocr_pages.py の新しい出力）
             if len(t["cols"]) == 7:
                 # 歳入の表: 0 目 / 1 本年度 / 2 前年度 / 3 比較 / 4 節の区分 / 5 節の金額 / 6 説明
                 # 歳出と同じ処理にのせるため、財源の4列を空として差し込む
@@ -195,16 +279,32 @@ def main():
                 print(f"WARN p{page}: 列数 {len(t['cols'])}（歳出は11列、歳入は7列）", file=sys.stderr)
                 continue
             title = "".join(d["text"] for d in t["title"]).replace(" ", "")
-            mk = re.search(r"(\d+)款", title)
-            if mk:
-                cur_kan = int(mk.group(1))
-            mq = re.search(r"(\d+)[项項]([^（(]*)", title)
-            if mq:
-                cur_kou = (int(mq.group(1)), norm_name(mq.group(2)))
+            side_now = "歳入" if t.get("revenue") else "歳出"
+            if side_now != cur_side:
+                cur_side, cur_kan, cur_kou = side_now, None, None
+            # ページ番号（「-492-」「492」）が款の番号とつながる（「4923款」）ので先に除く
+            title = re.sub(r"[-—－‐]\s*\d+\s*[-—－‐]?", "", title)
+            title = re.sub(r"^\d{3}(?=\D|\d款)", "", title)
+            mk = re.search(r"(?<!\d)(\d{1,2})款", title)
+            kan_changed = False
+            if mk and int(mk.group(1)) != cur_kan:
+                cur_kan, cur_kou, kan_changed = int(mk.group(1)), None, True
+            cands = kou_names.get((cur_kaikei, side_now, cur_kan))
+            if cands:
+                ch = choose_kou(title, cands, cur_kou[0] if cur_kou else None)
+                if ch is None and kan_changed:
+                    ch = cands[0]  # 款の見出しだけで項の部分が読めない（「11款寄1寄金附」）→ 款の最初の項
+                if ch:
+                    cur_kou = ch
+            else:
+                mq = re.search(r"(\d+)[项項填頂顶]([^（(]*)", title)
+                if mq:
+                    cur_kou = (int(mq.group(1)), norm_name(mq.group(2)))
             cell_bounds.clear()
             cells = cells_of_table(t)
             for ci, cell in enumerate(cells):
                 cy0, cy1 = cell_bounds[ci]
+                mno_val, name_body = moku_name(cell[0])
                 name_txt = "".join(d["text"] for row in lines_of(cell[0]) for d in row)
                 honnen = first_amount(cell[1])
                 is_total = norm_name(name_txt) in ("計", "合計") or "計" == norm_name(name_txt)[-1:] and honnen is not None and not re.search(r"\d", name_txt)
@@ -234,15 +334,14 @@ def main():
                     m["pages"].append(page)
                     continue
                 if is_total:
-                    moku_list.append({"kind": "計", "side": "歳入" if t.get("revenue") else "歳出", "款": cur_kan, "項": cur_kou,
+                    moku_list.append({"kind": "計", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
+                                      "款": cur_kan, "項": cur_kou,
                                       "本年度": honnen, "前年度": first_amount(cell[2]), "pages": [page]})
                     continue
-                # 目番号は名前の左に縦中央で印字されるので、名前が2行以上だと途中に入る（「市町村連絡2調整費」）
-                mno = re.search(r"(\d{1,2})", name_txt)
                 moku_list.append({
-                    "kind": "目", "side": "歳入" if t.get("revenue") else "歳出",
-                    "款": cur_kan, "項": cur_kou, "目番号": int(mno.group(1)) if mno else None,
-                    "目名": norm_name(re.sub(r"\d{1,2}", "", name_txt, count=1)),
+                    "kind": "目", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
+                    "款": cur_kan, "項": cur_kou, "目番号": mno_val,
+                    "目名": norm_name(name_body),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
                     "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
@@ -258,10 +357,27 @@ def main():
             if side == "歳出":
                 if not m["説明"] and m["説明の残り"] and h is not None:
                     # 説明欄に事項が1つだけで金額の記載がない目（例「○病院事業会計への負担金」、R8 p180 で確認）。
-                    # その事項の額は目の額。照合で確かめたものではないので印を付けて別に数える
-                    m["説明"] = [{"name": m["説明の残り"], "amount": h, "y": None, "x": None, "金額の記載なし": True}]
+                    # その事項の額は目の額。照合で確かめたものではないので印を付けて別に数える。
+                    # 注記が同じ欄に並ぶことがある（画像で確認）: 「○事業費支弁職員 2人」（p292。続く「○漁港修築事業費」が事項）、
+                    # 「○県営住宅課所管」（p407。事項ではなく所管の注記）、「○職員費 11,264人」（p365。人数は事項名に含めない）
+                    rest_txt = m["説明の残り"]
+                    notes = re.findall(r"○?事業費支弁職員[\d,，]+人", rest_txt)
+                    rest_txt = re.sub(r"○?事業費支弁職員[\d,，]+人", "", rest_txt)
+                    mshokan = re.fullmatch(r"○?(\S+?所管)", rest_txt)
+                    if mshokan:
+                        notes.append(mshokan.group(1))
+                        rest_txt = ""
+                    mnin = re.search(r"([\d,，]+)人$", rest_txt)
+                    item = {"name": re.sub(r"[\d,，]+人$", "", rest_txt), "amount": h, "y": None, "x": None, "金額の記載なし": True}
+                    if mnin:
+                        item["人数"] = int(re.sub(r"[,，]", "", mnin.group(1)))
+                    m["説明"] = [item] if rest_txt else []
+                    if notes:
+                        m["注記"] = notes
                     m["説明の残り"] = ""
-                    stat["A金額なし"] += 1
+                    stat["A金額なし" if rest_txt else "A対象外"] += 1
+                    if not rest_txt:
+                        m["説明なし"] = True
                     checks["A"] = True
                 elif not m["説明"] and not m["説明の残り"]:
                     # 説明欄に何も書かれていない目（税交付金・公債費の元金など）。対象外として別に数える
@@ -310,7 +426,7 @@ def main():
     acc = defaultdict(int)
     tot_ok = tot_n = 0
     for m in moku_list:
-        key = (m.get("side"), m["款"], (m["項"] or (None,))[0])
+        key = (m.get("会計"), m.get("side"), m["款"], (m["項"] or (None,))[0])
         if m["kind"] == "目" and m["本年度"] is not None:
             acc[key] += m["本年度"]
         elif m["kind"] == "計":
@@ -324,7 +440,48 @@ def main():
     if tot_n:
         print(f"計の行 {tot_n} 件中 {tot_ok} 件一致", file=sys.stderr)
     # 款の合計と計上額調
-    if keijou:
+    # 項の合計と予算書の本体（第1表・別表の款・項の金額。extract_yosansho.py の出力）
+    if "--yosansho" in sys.argv:
+        yo = json.load(open(sys.argv[sys.argv.index("--yosansho") + 1], encoding="utf-8"))
+        ref_kou = {}
+        for k in yo["会計"]:
+            name = "一般会計" if k["会計"] == "一般会計" else re.sub(r"特別会計$", "", k["会計"])
+            for side in ("歳入", "歳出"):
+                for kan in k.get(side, []):
+                    for kou in kan["項"]:
+                        ref_kou[(name, side, kan["no"], kou["no"])] = (kou["金額"], kou["name"])
+        got = defaultdict(int)
+        for m in moku_list:
+            if m["kind"] == "目" and m["本年度"] is not None and m["項"]:
+                got[(m["会計"], m["side"], m["款"], m["項"][0])] += m["本年度"]
+        kaikei_here = {m["会計"] for m in moku_list}
+        n_ok = n = 0
+        for key, (v, kname) in sorted(ref_kou.items(), key=lambda x: str(x[0])):
+            if key[0] not in kaikei_here:
+                continue
+            n += 1
+            ok = got.get(key, 0) == v
+            n_ok += int(ok)
+            if not ok:
+                print(f"NG  項 {key} {kname}: 目の合計 {got.get(key, 0):,} / 予算書 {v:,}（差 {v - got.get(key, 0):,}）",
+                      file=sys.stderr)
+        extra = [k for k in got if k not in ref_kou]
+        for k in extra:
+            print(f"NG  項 {k}: 予算書にない項に目が入っている（目の合計 {got[k]:,}）", file=sys.stderr)
+        print(f"項 {n} 件中 {n_ok} 件が予算書と一致（予算書にない項 {len(extra)} 件）", file=sys.stderr)
+    if keijou and tokubetsu:
+        # 特別会計は計上額調に会計ごとの予算額（歳入 = 歳出）しかない。会計ごとに 歳入の目の合計・歳出の目の合計 と照合する
+        ref = {k["会計名"]: k["当年度"] for k in keijou["特別会計"]["会計"]}
+        tot = defaultdict(int)
+        for m in moku_list:
+            if m["kind"] == "目" and m["本年度"] is not None:
+                tot[(m["会計"], m["side"])] += m["本年度"]
+        for name, v in ref.items():
+            for side in ("歳入", "歳出"):
+                got = tot.get((name, side), 0)
+                print(f"{'OK  ' if got == v else 'NG  '} [{name}] {side}: 目の合計 {got:,} / 計上額調 {v:,}（差 {v - got:,}）",
+                      file=sys.stderr)
+    elif keijou:
         for side, key in (("歳出", "一般会計歳出"), ("歳入", "一般会計歳入")):
             ref = {k["no"]: k for k in keijou[key]["款"]}
             by_kan = defaultdict(int)
