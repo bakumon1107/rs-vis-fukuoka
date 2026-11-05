@@ -159,8 +159,15 @@ def main():
             continue
         rec = json.load(open(path, encoding="utf-8"))
         for t in rec.get("tables", []):
-            if len(t["cols"]) != 11:
-                print(f"WARN p{page}: 列数 {len(t['cols'])}（歳出の表は11列）", file=sys.stderr)
+            if len(t["cols"]) == 7:
+                # 歳入の表: 0 目 / 1 本年度 / 2 前年度 / 3 比較 / 4 節の区分 / 5 節の金額 / 6 説明
+                # 歳出と同じ処理にのせるため、財源の4列を空として差し込む
+                t = dict(t)
+                c = t["cols"]
+                t["cols"] = [c[0], c[1], c[2], c[3], [], [], [], [], c[4], c[5], c[6]]
+                t["revenue"] = True
+            elif len(t["cols"]) != 11:
+                print(f"WARN p{page}: 列数 {len(t['cols'])}（歳出は11列、歳入は7列）", file=sys.stderr)
                 continue
             title = "".join(d["text"] for d in t["title"]).replace(" ", "")
             mk = re.search(r"(\d+)款", title)
@@ -187,53 +194,72 @@ def main():
                     m["pages"].append(page)
                     continue
                 if is_total:
-                    moku_list.append({"kind": "計", "款": cur_kan, "項": cur_kou, "本年度": honnen,
-                                      "前年度": first_amount(cell[2]), "pages": [page]})
+                    moku_list.append({"kind": "計", "side": "歳入" if t.get("revenue") else "歳出", "款": cur_kan, "項": cur_kou,
+                                      "本年度": honnen, "前年度": first_amount(cell[2]), "pages": [page]})
                     continue
-                mno = re.match(r"^\s*(\d{1,2})", name_txt)
+                # 目番号は名前の左に縦中央で印字されるので、名前が2行以上だと途中に入る（「市町村連絡2調整費」）
+                mno = re.search(r"(\d{1,2})", name_txt)
                 moku_list.append({
-                    "kind": "目", "款": cur_kan, "項": cur_kou, "目番号": int(mno.group(1)) if mno else None,
-                    "目名": norm_name(re.sub(r"^\s*\d{1,2}", "", name_txt)),
+                    "kind": "目", "side": "歳入" if t.get("revenue") else "歳出",
+                    "款": cur_kan, "項": cur_kou, "目番号": int(mno.group(1)) if mno else None,
+                    "目名": norm_name(re.sub(r"\d{1,2}", "", name_txt, count=1)),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
                     "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page]})
     # 検算
-    stat = defaultdict(int)
-    for m in moku_list:
-        if m["kind"] != "目":
-            continue
-        h = m["本年度"]
-        checks = {}
-        if h is None:
-            checks = {"A": False, "B": False, "C": False, "D": False}
-        else:
-            checks["A"] = sum(e["amount"] for e in m["説明"]) == h
-            checks["B"] = sum(m["財源"].values()) == h
-            if m["前年度"] is not None and m["比較"] is not None:
-                checks["C"] = abs(h - m["前年度"]) == abs(m["比較"])
-            else:
-                checks["C"] = False
+    for side in ("歳出", "歳入"):
+        stat = defaultdict(int)
+        for m in moku_list:
+            if m["kind"] != "目" or m["side"] != side:
+                continue
+            h = m["本年度"]
+            checks = {}
+            if side == "歳出":
+                checks["A"] = h is not None and sum(e["amount"] for e in m["説明"]) == h
+                checks["B"] = h is not None and sum(m["財源"].values()) == h
+            checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
+                           and abs(h - m["前年度"]) == abs(m["比較"]))
             setsu_top = [s for s in m["節"] if s["no"] is not None]
-            checks["D"] = sum(s["amount"] for s in setsu_top) == h
-        m["checks"] = checks
-        stat["目"] += 1
-        for k, v in checks.items():
-            stat[k] += int(v)
-        if all(checks.values()):
-            stat["全部OK"] += 1
-    n = stat["目"] or 1
-    print(f"目 {stat['目']} 件: A(説明欄) {stat['A']} / B(財源) {stat['B']} / C(比較) {stat['C']} / D(節) {stat['D']} / "
-          f"全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
+            checks["D"] = h is not None and sum(s["amount"] for s in setsu_top) == h
+            m["checks"] = checks
+            stat["目"] += 1
+            for k, v in checks.items():
+                stat[k] += int(v)
+            if all(checks.values()):
+                stat["全部OK"] += 1
+        if stat["目"]:
+            n = stat["目"]
+            print(f"[{side}] 目 {n} 件: " + " / ".join(f"{k} {stat[k]}" for k in ("A", "B", "C", "D") if k in stat or side == "歳出")
+                  + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
+    # 項の「計」の行と目の合計
+    acc = defaultdict(int)
+    tot_ok = tot_n = 0
+    for m in moku_list:
+        key = (m.get("side"), m["款"], (m["項"] or (None,))[0])
+        if m["kind"] == "目" and m["本年度"] is not None:
+            acc[key] += m["本年度"]
+        elif m["kind"] == "計":
+            tot_n += 1
+            ok = acc[key] == m["本年度"]
+            tot_ok += int(ok)
+            m["check"] = ok
+            if not ok:
+                print(f"NG  計 {key}: 目の合計 {acc[key]:,} / 計の行 {m['本年度']}", file=sys.stderr)
+            acc[key] = 0
+    if tot_n:
+        print(f"計の行 {tot_n} 件中 {tot_ok} 件一致", file=sys.stderr)
     # 款の合計と計上額調
     if keijou:
-        ref = {k["no"]: k for k in keijou["一般会計歳出"]["款"]}
-        by_kan = defaultdict(int)
-        for m in moku_list:
-            if m["kind"] == "目" and m["本年度"] is not None and m["款"] is not None:
-                by_kan[m["款"]] += m["本年度"]
-        for k, v in sorted(by_kan.items()):
-            r = ref.get(k)
-            ok = r is not None and r["当年度"] == v
-            print(f"{'OK  ' if ok else 'FAIL'} {k}款 {r['款名'] if r else '?'}: 目の合計 {v:,} / 計上額調 {r['当年度'] if r else None:,}", file=sys.stderr)
+        for side, key in (("歳出", "一般会計歳出"), ("歳入", "一般会計歳入")):
+            ref = {k["no"]: k for k in keijou[key]["款"]}
+            by_kan = defaultdict(int)
+            for m in moku_list:
+                if m["kind"] == "目" and m["side"] == side and m["本年度"] is not None and m["款"] is not None:
+                    by_kan[m["款"]] += m["本年度"]
+            for k, v in sorted(by_kan.items()):
+                r = ref.get(k)
+                ok = r is not None and r["当年度"] == v
+                print(f"{'OK  ' if ok else 'NG  '} [{side}] {k}款 {r['款名'] if r else '?'}: 目の合計 {v:,} / 計上額調 "
+                      f"{(r['当年度'] if r else 0):,}（差 {((r['当年度'] if r else 0) - v):,}）", file=sys.stderr)
     json.dump(moku_list, sys.stdout, ensure_ascii=False, indent=1)
 
 

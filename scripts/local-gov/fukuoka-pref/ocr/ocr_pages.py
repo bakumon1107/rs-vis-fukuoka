@@ -11,6 +11,7 @@ OCR は時間がかかるので、この段階では「どの列の、どの高�
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -144,9 +145,15 @@ def main():
                     # 列見出しの下の線: 表の上端より下で、表の幅いっぱいに引かれた最初の横線
                     full = [d["y"] for d in hlines if d["x1"] - d["x0"] > width * 0.9 and vtop + 20 < d["y"] < vbottom]
                     head = min(full) if full else vtop
+                    header = ocr_region(eng, img, vlines[0], vtop, vlines[-1], head)
+                    # 前のページから続く表には列見出しがない（R8 一般会計 p151 で確認）。最初の全幅の線は目の区切り。
+                    # 見出し語がなければ表の上端から本文として読む（見出しと誤認すると前の目の節を取りこぼす）
+                    htext = "".join(d["text"] for d in header)
+                    if not re.search(r"年度|区分|説明|節|款名|財源", htext) or head - vtop > 400:
+                        head, header = vtop, []
                     t = {"box": [vlines[0], vtop, vlines[-1], vbottom], "head": head,
                          "title": ocr_region(eng, img, 0, prev_bottom, w, vtop + 4),
-                         "header": ocr_region(eng, img, vlines[0], vtop, vlines[-1], head),
+                         "header": header,
                          "rowlines": [d for d in hlines if head < d["y"] < vbottom - 4],
                          "cols": [ocr_column(eng, img, x0, head + 4, x1, vbottom - 4)
                                   for x0, x1 in zip(vlines, vlines[1:])]}
