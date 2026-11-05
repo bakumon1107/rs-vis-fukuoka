@@ -93,14 +93,16 @@ def lines_of(items, tol=0.6):
 
 def parse_explanations(items):
     """説明欄: 名前の断片を貯め、金額が出たら1件にする。"""
-    out, buf = [], []
+    out, buf, bx = [], [], None
     for row in lines_of(items):
         for d in row:
             a = amount(d["text"])
             if a is not None and (d["x1"] - d["x0"]) < 400:
-                out.append({"name": norm_name("".join(buf)), "amount": a, "y": d["y0"]})
-                buf = []
+                out.append({"name": norm_name("".join(buf)), "amount": a, "y": d["y0"], "x": bx})
+                buf, bx = [], None
             else:
+                if not buf:
+                    bx = d["x0"]  # 事項名の書き出し位置（入れ子の内訳は字下げされる）
                 buf.append(d["text"])
     rest = norm_name("".join(buf)) if buf else ""
     return out, rest
@@ -257,6 +259,18 @@ def main():
                     checks["A"] = True
                 else:
                     checks["A"] = h is not None and sum(e["amount"] for e in m["説明"]) == h
+                    if not checks["A"] and h is not None:
+                        # 説明欄は入れ子になることがある（親「中小企業振興資金融資費」の下に字下げした内訳）。
+                        # 書き出し位置が最も左の事項から 25px 以内を親とみなし、親だけの合計で照合する
+                        xs = [e["x"] for e in m["説明"] if e.get("x") is not None]
+                        if xs:
+                            left = min(xs)
+                            top = [e for e in m["説明"] if e.get("x") is None or e["x"] - left < 25]
+                            if sum(e["amount"] for e in top) == h:
+                                checks["A"] = True
+                                stat["A入れ子"] += 1
+                                for e in m["説明"]:
+                                    e["内訳"] = not (e.get("x") is None or e["x"] - left < 25)
                 checks["B"] = h is not None and sum(m["財源"].values()) == h
             checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
                            and abs(h - m["前年度"]) == abs(m["比較"]))
@@ -277,6 +291,7 @@ def main():
             n = stat["目"]
             print(f"[{side}] 目 {n} 件: " + " / ".join(f"{k} {stat[k]}" for k in ("A", "B", "C", "D") if k in stat or side == "歳出")
                   + (f"（うち A は説明欄が空で対象外 {stat['A対象外']}）" if stat["A対象外"] else "")
+                  + (f"（うち A は入れ子の内訳を除いて一致 {stat['A入れ子']}）" if stat["A入れ子"] else "")
                   + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
     # 項の「計」の行と目の合計
     acc = defaultdict(int)
