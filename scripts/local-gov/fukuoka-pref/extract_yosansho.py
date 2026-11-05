@@ -16,7 +16,9 @@ PDF の癖（R8 で確認）:
 検証（完全一致。FAIL で終了コード 1）:
 - 項の合計 = 款（会計・歳入/歳出ごと）
 - 款の合計 = 第1条の「歳入歳出それぞれ X千円」（歳入・歳出とも）
-結果（R8）: 一般会計と特別会計14会計のすべてで一致（FAIL=0）。公営企業会計5会計は様式が違うので対象外
+- 公営企業会計（病院・流域下水道・電気・工業用水道・工業用地造成）は第1表がなく、条文の
+  第3条（収益的収入及び支出）・第4条（資本的収入及び支出）に款・項が「○千円」で並ぶ。項の合計 = 款 を確かめる
+結果（R8）: 一般会計・特別会計14会計・公営企業会計5会計のすべてで一致（FAIL=0）
 """
 import json
 import re
@@ -66,6 +68,35 @@ def main():
             mt = re.search(r"歳入歳出それぞれ([\d,]+)千円", text)
             if mt and cur["総額"] is None:
                 cur["総額"] = int(mt.group(1).replace(",", ""))
+            if cur["会計"].endswith("事業会計"):
+                # 公営企業会計: 第3条（収益的収入及び支出）・第4条（資本的収入及び支出）の条文に
+                # 「収入／支出」の見出しと「第N款 名前 X千円」「第N項 名前 X千円」が並ぶ（第5条以降は企業債など）
+                for line in text.splitlines():
+                    # 条の始まりは「第N条」の直後が漢字・かなの行（「第3条に定めた…」のような後ろの条文の折り返しを除く。
+                    # 除かないと第3条の記録を作り直して消す実例あり）
+                    if re.match(r"^第\d+条(?!に|の|及び|から|第)", line):
+                        art = int(re.match(r"^第(\d+)条", line).group(1))
+                        cur["_art"] = art
+                        if (art == 3 and line.startswith("第3条収益的")) or (art == 4 and line.startswith("第4条資本的")):
+                            cur.setdefault("条", {})[art] = {"名前": "収益的収入及び支出" if art == 3 else "資本的収入及び支出",
+                                                              "収入": [], "支出": []}
+                    art = cur.get("_art")
+                    if art not in (3, 4):
+                        continue
+                    if line in ("収入", "支出"):
+                        cur["_side"] = line
+                        continue
+                    # 金額 0 は「〇千円」と印字される（電気事業会計の資本的収入）
+                    mm = re.match(r"^第(\d+)(款|項)(.+?)([\d,]+|〇)千円$", line)
+                    if mm and cur.get("_side"):
+                        amt = 0 if mm.group(4) == "〇" else int(mm.group(4).replace(",", ""))
+                        rec = {"no": int(mm.group(1)), "name": mm.group(3), "金額": amt}
+                        lst = cur["条"][art][cur["_side"]]
+                        if mm.group(2) == "款":
+                            lst.append({**rec, "項": []})
+                        elif lst:
+                            lst[-1]["項"].append(rec)
+                continue
             if re.search(r"(第1表|別表)歳入歳出予算", text):
                 in_table = True
             elif in_table and re.search(r"第\d表(継続費|債務負担行為|地方債)|^第\d条", text, re.M) and not re.search(r"款項金額", text):
@@ -119,9 +150,24 @@ def main():
                     if kou["no_印字"] not in (None, j):
                         print(f"WARN {k['会計']} {side} {i}款: 項の印字番号 {kou['no_印字']} が並び順 {j} と違う（{kou['name']}）",
                               file=sys.stderr)
+        k.pop("_art", None)
+        k.pop("_side", None)
         if k["総額"] is None:
-            # 公営企業会計の予算は款項の第1表ではなく「収益的収入及び支出」等の条文の形（別に扱う）
-            print(f"{k['会計']}: 第1条の総額なし（公営企業会計の様式）", file=sys.stderr)
+            # 公営企業会計: 条文の款・項（項の合計 = 款）を確かめる
+            arts = k.get("条", {})
+            if set(arts) != {3, 4}:
+                fail(f"{k['会計']}: 第3条・第4条が見つからない（{sorted(arts)}）")
+            for art, a in sorted(arts.items()):
+                for side in ("収入", "支出"):
+                    if not a[side]:
+                        fail(f"{k['会計']} 第{art}条 {side}: 款がない")
+                    for kan in a[side]:
+                        s = sum(x["金額"] for x in kan["項"])
+                        if s != kan["金額"]:
+                            fail(f"{k['会計']} 第{art}条 {side} {kan['name']}: 項の合計 {s:,} / 款 {kan['金額']:,}")
+            print(f"{k['会計']}: 公営企業会計 " + " / ".join(
+                f"第{art}条 収入 {sum(x['金額'] for x in a['収入']):,}・支出 {sum(x['金額'] for x in a['支出']):,}"
+                for art, a in sorted(arts.items())) + " 千円", file=sys.stderr)
             continue
         for side in ("歳入", "歳出"):
             for kan in k[side]:
