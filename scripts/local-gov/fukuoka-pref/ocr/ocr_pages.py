@@ -120,7 +120,12 @@ def main():
     dpi = int(sys.argv[sys.argv.index("--dpi") + 1]) if "--dpi" in sys.argv else 300
     a, b = (int(x) for x in rng.split("-"))
     os.makedirs(outdir, exist_ok=True)
-    eng = RapidOCR()
+    # 既定の det_limit_type=min（短い辺を 736px に拡大）だと、細長い列の切り出しが数倍に引き伸ばされて非常に遅い
+    # （幅 250px × 高さ 1,700px → 高さ 5,000px 級）。長い辺の上限で縮めるだけにする。
+    # 回転の判定（cls）は横書きの表には不要。スレッド数は並列実行で取り合わないよう絞る。
+    threads = int(os.environ.get("OCR_THREADS", "5"))
+    eng = RapidOCR(det_limit_type="max", det_limit_side_len=2400, use_cls=False,
+                   intra_op_num_threads=threads, inter_op_num_threads=1)
     with tempfile.TemporaryDirectory() as tmp:
         for page in range(a, b + 1):
             dst = os.path.join(outdir, f"p{page:04d}.json")
