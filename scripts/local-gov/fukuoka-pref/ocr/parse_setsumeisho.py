@@ -204,6 +204,54 @@ def choose_kou(title: str, cands, prev_no):
     return best
 
 
+def apply_corrections(moku_list):
+    """--corrections <json> の修正表を当てる。OCR で読めない・読み誤る数字を、画像を見て確かめた値で直す。
+
+    修正表の形式: {"修正": [{"page": 22, "目名": "証紙収入", "列": "前年度", "値": 1, "根拠": "画像で「1」を確認"}, ...]}
+    - page と目名（部分一致）で目を特定する。見つからない・複数見つかる場合は止める
+    - 列: 本年度 / 前年度 / 比較 / 節（"節番号" も指定。その節の金額）/ 説明（"事項" に事項名の一部。その事項の金額）/ 財源（"区分"）
+    直した値も検算（A〜D・計の行・項と款の合計）を通ることが条件。直したことは目の「修正」に記録する。"""
+    if "--corrections" not in sys.argv:
+        return
+    fixes = json.load(open(sys.argv[sys.argv.index("--corrections") + 1], encoding="utf-8"))["修正"]
+    for fx in fixes:
+        hits = [m for m in moku_list if m["kind"] == "目" and fx["page"] in m["pages"] and fx["目名"] in m["目名"]
+                and (fx.get("side") is None or m["side"] == fx["side"])]
+        if len(hits) != 1:
+            sys.exit(f"修正表: p{fx['page']}「{fx['目名']}」に当たる目が {len(hits)} 件（1件に絞れない）")
+        m = hits[0]
+        col, val = fx["列"], fx["値"]
+        if col in ("本年度", "前年度", "比較"):
+            old = m[col]
+            m[col] = val
+        elif col == "節":
+            ss = [s for s in m["節"] if s["no"] == fx["節番号"] and s.get("top", True)]
+            if ss:
+                old = ss[0]["amount"]
+                ss[0]["amount"] = val
+            else:
+                old = None
+                m["節"].append({"label": fx.get("節名", ""), "no": fx["節番号"], "top": True, "amount": val, "y": None})
+        elif col == "説明":
+            es = [e for e in m["説明"] if fx["事項"] in e["name"]]
+            if len(es) == 1:
+                old = es[0]["amount"]
+                es[0]["amount"] = val
+            elif not es and fx.get("追加"):
+                old = None
+                m["説明"].append({"name": fx["事項"], "amount": val, "y": None, "x": None})
+            else:
+                sys.exit(f"修正表: p{fx['page']}「{fx['目名']}」の説明欄で「{fx['事項']}」が {len(es)} 件")
+        elif col == "財源":
+            old = m["財源"].get(fx["区分"])
+            m["財源"][fx["区分"]] = val
+        else:
+            sys.exit(f"修正表: 列「{col}」は扱えない")
+        m.setdefault("修正", []).append({"列": col, "読み取り": old, "値": val, "根拠": fx["根拠"],
+                                        **{k: fx[k] for k in ("節番号", "事項", "区分") if k in fx}})
+    print(f"修正表: {len(fixes)} 件を当てた", file=sys.stderr)
+
+
 KAIKEI_RE = re.compile(r"特[别別]会[計计].{0,12}明[細细]書")
 
 
@@ -329,6 +377,7 @@ def main():
                     m = last_moku
                     m["説明"] += expl
                     m["節"] += setsu
+                    m["節の欄の文字数"] += len(cell[8]) + len(cell[9])
                     for k, v in zaigen.items():
                         m["財源"][k] += v
                     m["pages"].append(page)
@@ -344,8 +393,10 @@ def main():
                     "目名": norm_name(name_body),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
                     "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
+                    "節の欄の文字数": len(cell[8]) + len(cell[9]),
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
                              "x1": (rec.get("vlines") or [0, 0, 0])[2]}})
+    apply_corrections(moku_list)
     # 目番号: 項の中で 1 からの連番。読めない（None）ものは並び順で補い、読めた番号が並び順と違えば知らせる
     # （目番号は名前の左に小さく印字され、名前が2行だと読めないことが多い。補わないと施策別資料の科目と対応しない）
     seq = defaultdict(int)
@@ -431,6 +482,11 @@ def main():
                 checks = {k: True for k in checks}
             setsu_top = [s for s in m["節"] if s.get("top", s["no"] is not None)]
             checks["D"] = h is not None and sum(s["amount"] for s in setsu_top) == h
+            if not checks["D"] and not m["節"] and m.get("節の欄の文字数", 1) == 0 and m.get("説明なし", True):
+                # 節の欄が区分・金額とも完全に空の目（予備費。R8 p419 を画像で確認）。D は対象外
+                checks["D"] = True
+                m["節なし"] = True
+                stat["D対象外"] += 1
             m["checks"] = checks
             stat["目"] += 1
             for k, v in checks.items():
@@ -444,6 +500,7 @@ def main():
                   + (f"（うち A は入れ子の内訳を除いて一致 {stat['A入れ子']}）" if stat["A入れ子"] else "")
                   + (f"（うち A は1事項で金額の記載なし＝目の額を当てた {stat['A金額なし']}）" if stat["A金額なし"] else "")
                   + (f"（うち C は空欄を 0 とみなして一致 {stat['C空欄']}）" if stat["C空欄"] else "")
+                  + (f"（うち D は節の欄が空で対象外 {stat['D対象外']}）" if stat["D対象外"] else "")
                   + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
     # 項の「計」の行と目の合計
     acc = defaultdict(int)
