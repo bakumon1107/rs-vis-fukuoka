@@ -52,8 +52,22 @@ class Row:
     extra: dict = field(default_factory=dict)
 
 
+# 備考は行の右端。本体は「最後に数字が来て、2文字以上の空白の後に数字以外で始まる文字列が続く」位置まで（貪欲）。
+# 行頭の目番号の直後（「2    賦課徴収費 …」）を備考と取り違えないよう、非貪欲にはしない。
+NOTE_RE = re.compile(r"^(?P<body>.*[\d,])\s{2,}(?P<note>[^\d\s▲,(（].*)$")
+
+
+def split_note(line: str) -> tuple[str, str | None]:
+    """数値の後ろに続く備考欄（例「予備費補充 3,280」「流用」）を切り離す。"""
+    m = NOTE_RE.match(line)
+    if m and re.search(r"[\d,]{3,}\s*$", m.group("body")):
+        return m.group("body"), re.sub(r"\s+", " ", m.group("note")).strip()
+    return line, None
+
+
 def assemble_rows(lines: list[str], want: int, *, split_income_col: int | None = None,
-                  skipped: list[str] | None = None, label: str = "") -> list[tuple[str, Row | str]]:
+                  skipped: list[str] | None = None, label: str = "",
+                  strip_notes: bool = False) -> list[tuple[str, Row | str]]:
     """lines（見出しを除いた非空行）から表の行を組み立てる。
 
     want: 数値列の数。split_income_col: 過誤納金で次の行に出る列の位置（歳入の収入済額 = 2）。
@@ -71,11 +85,25 @@ def assemble_rows(lines: list[str], want: int, *, split_income_col: int | None =
             pending_no = (int(line), len(line) - len(line.lstrip()))
             expect_below = None
             continue
+        note = None
+        if strip_notes:
+            line, note = split_note(line)
+        # C) 名前が番号行をはさんで上下に分かれ、数値だけの行が後に来る形（R6 財政調整基金特別会計繰出金など）
+        only_nums = re.fullmatch(rf"\s*((?:{NUM}\s+)*{NUM})\s*", line)
+        if only_nums and pending_no is not None and len(re.findall(NUM, only_nums.group(1))) == want:
+            line = " " * pending_no[1] + "\x01 " + only_nums.group(1)
         m = DATA_RE.match(line)
         nums = re.findall(NUM, m.group("nums")) if m else []
         is_data = m is not None and m.group("label").strip() != "" and len(nums) in (want, want - 1)
         if not is_data:
             if PAREN_RE.fullmatch(line):
+                continue
+            # D) 名前の前半の行 / 「6 事務費」（番号＋名前の後半、数値なし）/ 数値だけの行（R6 都市計画開発行為許可事務費）
+            md = re.match(r"^(\s*)(\d+)\s+(\D.*)$", line)
+            if md and not re.search(r"\d{3}", md.group(3)) and expect_below is None:
+                pending_no = (int(md.group(2)), len(md.group(1)))
+                buf.append(" " * (len(md.group(1)) + 20) + md.group(3))
+                out.append(("text", line))
                 continue
             if expect_below is not None and len(line) - len(line.lstrip()) > expect_below.indent:
                 expect_below.name += flat(line)
@@ -84,7 +112,7 @@ def assemble_rows(lines: list[str], want: int, *, split_income_col: int | None =
                 buf.append(line)
                 out.append(("text", line))
             continue
-        extra: dict = {}
+        extra: dict = {"備考": note} if note else {}
         if len(nums) == want - 1:
             if split_income_col is None:
                 buf.append(line)
@@ -112,7 +140,7 @@ def assemble_rows(lines: list[str], want: int, *, split_income_col: int | None =
                       [to_int(x) for x in nums], i, extra)
             expect_below = row if frags else None
         elif pending_no is not None:
-            row = Row(pending_no[1], pending_no[0], "".join(flat(b) for b in frags) + flat(lab),
+            row = Row(pending_no[1], pending_no[0], "".join(flat(b) for b in frags) + flat(lab).replace("\x01", ""),
                       [to_int(x) for x in nums], i, extra)
             expect_below = None
         else:
