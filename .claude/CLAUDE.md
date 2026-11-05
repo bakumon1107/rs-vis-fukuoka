@@ -4,3 +4,10 @@
 
 - **`docs/プロンプトログ.ignore.md`**: ユーザーの作業ログ。Agentは直接修正・編集・変更しないこと。内容の参照（読み取り）は可。
 - **回答の出力先**: 設計・調査・分析などの回答を出力する場合は `docs/tasks/YYYYMMDD_HHMM_{タイトル}.md` に保存すること（日時は `TZ=Asia/Tokyo date +%Y%m%d_%H%M` で取得）。
+  - **地方版（local-gov）の作業**は `docs/local-gov/tasks/` に置く（自治体固有の調査は `docs/local-gov/<自治体>/`）。方針・ブランチ運用は `docs/local-gov/README.md` を参照。
+
+## 地方版のブランチ運用
+
+- `main` は本家（upstream = team-mirai-volunteer/rs-vis）のミラー。直接変更・コミットしない。
+- 地方版の本流は `local-main`。作業ブランチは `local-main` から切り、PR で `local-main` にマージする。
+- 本家（upstream）への push・PR は行わない。
