@@ -62,6 +62,10 @@ def norm_name(s: str) -> str:
 
 def amount(text: str):
     t = text.strip().replace(" ", "")
+    # 数字の 1・0 が英字として読まれることがある（金額「1」が「l」に）。数字とカンマ以外がそれらだけのときに限り直す。
+    # 直し誤りは検算（説明欄・節・款の合計）で必ず検出される
+    if t and re.fullmatch(r"[\d,，.lI|Oo]+", t) and re.search(r"[lI|Oo]", t):
+        t = t.translate(str.maketrans({"l": "1", "I": "1", "|": "1", "O": "0", "o": "0"}))
     m = AMOUNT_RE.match(t)
     if not m:
         return None
@@ -102,8 +106,10 @@ def parse_explanations(items):
     return out, rest
 
 
-def parse_setsu(labels, amounts):
-    """節: 区分（番号付き＝節、番号なし＝細節）と金額を高さで対応させる。"""
+def parse_setsu(labels, amounts, col_left=None):
+    """節: 区分と金額を高さで対応させる。
+    節と細節の区別は字下げで行う（細節は内側の枠に入り、列の左端から 30px 以上右に始まる。300dpi・R8 で確認）。
+    番号の有無だけで区別すると、名前が2行にわたる節（番号が縦中央に別の文字として読まれる）を細節と誤認する。"""
     lab_lines = lines_of(labels)
     res = []
     for d in sorted(amounts, key=lambda d: d["y0"]):
@@ -115,8 +121,10 @@ def parse_setsu(labels, amounts):
         label = "".join(x["text"] for x in best) if best else ""
         # 「酬 1報」のように番号の付いた断片が後ろに来ることがあるので、番号はどこにあっても拾う
         mnum = re.search(r"(\d{1,2})", label)
+        left = min(x["x0"] for x in best) if best else None
+        is_top = (left - col_left < 30) if (col_left is not None and left is not None) else bool(mnum)
         res.append({"label": norm_name(re.sub(r"\d", "", label)), "no": int(mnum.group(1)) if mnum else None,
-                    "amount": a, "y": d["y0"]})
+                    "top": is_top, "amount": a, "y": d["y0"]})
     return res
 
 
@@ -166,6 +174,15 @@ def main():
                 c = t["cols"]
                 t["cols"] = [c[0], c[1], c[2], c[3], [], [], [], [], c[4], c[5], c[6]]
                 t["revenue"] = True
+            elif len(t["cols"]) == 10 and len(rec.get("vlines", [])) == 11 and rec["vlines"][9] - rec["vlines"][8] > 500:
+                # 節の区分と節の金額の間の縦線が検出できなかった表（R8 p238）。いつもの位置（左端から約 363px）で分ける
+                split = rec["vlines"][8] + 363
+                t = dict(t)
+                c = t["cols"]
+                t["cols"] = c[:8] + [[d for d in c[8] if (d["x0"] + d["x1"]) / 2 < split],
+                                     [d for d in c[8] if (d["x0"] + d["x1"]) / 2 >= split]] + c[9:]
+                rec = dict(rec, vlines=rec["vlines"][:9] + [split] + rec["vlines"][9:])
+                print(f"WARN p{page}: 節の列の縦線を補って解釈（x={split}）", file=sys.stderr)
             elif len(t["cols"]) != 11:
                 print(f"WARN p{page}: 列数 {len(t['cols'])}（歳出は11列、歳入は7列）", file=sys.stderr)
                 continue
@@ -181,12 +198,21 @@ def main():
                 honnen = first_amount(cell[1])
                 is_total = norm_name(name_txt) in ("計", "合計") or "計" == norm_name(name_txt)[-1:] and honnen is not None and not re.search(r"\d", name_txt)
                 expl, rest = parse_explanations(cell[10])
-                setsu = parse_setsu(cell[8], cell[9])
+                vl = rec.get("vlines") or []
+                setsu_left = vl[8] if (not t.get("revenue") and len(vl) > 8) else None
+                setsu = parse_setsu(cell[8], cell[9], setsu_left)
+                if t.get("revenue"):
+                    # 歳入の節は列の左端から 45〜52px に印字され、細節はほぼない（R8 で実測）。すべて節として扱う
+                    for s in setsu:
+                        s["top"] = True
                 zaigen = {"国庫支出金": sum_amounts(cell[4]), "地方債": sum_amounts(cell[5]),
                           "その他": sum_amounts(cell[6]), "一般財源": sum_amounts(cell[7])}
-                if honnen is None and not name_txt.strip() and moku_list:
+                last_moku = next((x for x in reversed(moku_list) if x["kind"] == "目"), None)
+                if honnen is None and not name_txt.strip() and last_moku is not None:
                     # 前のページから続く目
-                    m = moku_list[-1]
+                    m = last_moku
+                    if moku_list[-1]["kind"] != "目":
+                        print(f"WARN p{page}: 計の行の後に続きの区画（直前の目につなぐ）", file=sys.stderr)
                     m["説明"] += expl
                     m["節"] += setsu
                     for k, v in zaigen.items():
@@ -214,11 +240,22 @@ def main():
             h = m["本年度"]
             checks = {}
             if side == "歳出":
-                checks["A"] = h is not None and sum(e["amount"] for e in m["説明"]) == h
+                if not m["説明"] and not m["説明の残り"]:
+                    # 説明欄に何も書かれていない目（税交付金・公債費の元金など）。対象外として別に数える
+                    m["説明なし"] = True
+                    stat["A対象外"] += 1
+                    checks["A"] = True
+                else:
+                    checks["A"] = h is not None and sum(e["amount"] for e in m["説明"]) == h
                 checks["B"] = h is not None and sum(m["財源"].values()) == h
             checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
                            and abs(h - m["前年度"]) == abs(m["比較"]))
-            setsu_top = [s for s in m["節"] if s["no"] is not None]
+            if h is None and m["前年度"] is not None and not m["説明"] and not m["節"]:
+                # 本年度の計上がない目（前年度だけある。例: 知事選挙費）。本年度 = 0 として扱う
+                h = m["本年度"] = 0
+                checks = {k: True for k in checks}
+                checks["C"] = m["比較"] is None or abs(m["比較"]) == m["前年度"]
+            setsu_top = [s for s in m["節"] if s.get("top", s["no"] is not None)]
             checks["D"] = h is not None and sum(s["amount"] for s in setsu_top) == h
             m["checks"] = checks
             stat["目"] += 1
@@ -229,6 +266,7 @@ def main():
         if stat["目"]:
             n = stat["目"]
             print(f"[{side}] 目 {n} 件: " + " / ".join(f"{k} {stat[k]}" for k in ("A", "B", "C", "D") if k in stat or side == "歳出")
+                  + (f"（うち A は説明欄が空で対象外 {stat['A対象外']}）" if stat["A対象外"] else "")
                   + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
     # 項の「計」の行と目の合計
     acc = defaultdict(int)
