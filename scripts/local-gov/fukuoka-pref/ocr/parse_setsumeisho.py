@@ -346,6 +346,20 @@ def main():
                     "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
                              "x1": (rec.get("vlines") or [0, 0, 0])[2]}})
+    # 目番号: 項の中で 1 からの連番。読めない（None）ものは並び順で補い、読めた番号が並び順と違えば知らせる
+    # （目番号は名前の左に小さく印字され、名前が2行だと読めないことが多い。補わないと施策別資料の科目と対応しない）
+    seq = defaultdict(int)
+    for m in moku_list:
+        if m["kind"] != "目":
+            continue
+        key = (m["会計"], m["side"], m["款"], (m["項"] or (None,))[0])
+        seq[key] += 1
+        if m["目番号"] is None:
+            m["目番号"], m["目番号_補完"] = seq[key], True
+        elif m["目番号"] != seq[key]:
+            print(f"WARN 目番号 {key}: 読み取り {m['目番号']} / 並び順 {seq[key]}（{m['目名']}、p{m['pages'][0]}）。並び順を使う",
+                  file=sys.stderr)
+            m["目番号_読み取り"], m["目番号"] = m["目番号"], seq[key]
     # 検算
     for side in ("歳出", "歳入"):
         stat = defaultdict(int)
@@ -399,6 +413,14 @@ def main():
                                 for e in m["説明"]:
                                     e["内訳"] = not (e.get("x") is None or e["x"] - left < 25)
                 checks["B"] = h is not None and sum(m["財源"].values()) == h
+            # 新設の目は前年度が空欄、増減のない目は比較が空欄（R8 p88・p89・p287 などで確認）。
+            # 空欄を 0 とみなすのは、そうすると |本年度 − 前年度| = |比較| が成り立つときだけ（印を付ける）
+            if h is not None and m["前年度"] is None and m["比較"] is not None and abs(m["比較"]) == h:
+                m["前年度"], m["空欄を0とみなした"] = 0, "前年度"
+                stat["C空欄"] += 1
+            elif h is not None and m["比較"] is None and m["前年度"] is not None and m["前年度"] == h:
+                m["比較"], m["空欄を0とみなした"] = 0, "比較"
+                stat["C空欄"] += 1
             checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
                            and abs(h - m["前年度"]) == abs(m["比較"]))
             if (h is None and m["前年度"] is not None and not m["説明"] and not m["節"]
@@ -421,6 +443,7 @@ def main():
                   + (f"（うち A は説明欄が空で対象外 {stat['A対象外']}）" if stat["A対象外"] else "")
                   + (f"（うち A は入れ子の内訳を除いて一致 {stat['A入れ子']}）" if stat["A入れ子"] else "")
                   + (f"（うち A は1事項で金額の記載なし＝目の額を当てた {stat['A金額なし']}）" if stat["A金額なし"] else "")
+                  + (f"（うち C は空欄を 0 とみなして一致 {stat['C空欄']}）" if stat["C空欄"] else "")
                   + f" / 全部OK {stat['全部OK']}（{stat['全部OK']/n:.1%}）", file=sys.stderr)
     # 項の「計」の行と目の合計
     acc = defaultdict(int)
