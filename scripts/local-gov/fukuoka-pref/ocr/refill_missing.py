@@ -34,14 +34,20 @@ def main():
             subprocess.run(["pdftoppm", "-r", str(rec["dpi"]), "-gray", "-png", "-f", str(c["page"]), "-l", str(c["page"]),
                             "-singlefile", pdf, base], check=True)
             img = cv2.imread(base + ".png", cv2.IMREAD_GRAYSCALE)
-            crop = img[c["y0"] + 4:c["y1"] - 4, c["x0"] + 6:c["x1"] - 6]
-            crop = cv2.resize(crop, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
-            crop = cv2.copyMakeBorder(crop, 60, 60, 60, 60, cv2.BORDER_CONSTANT, value=255)
-            res, _ = eng(crop)
+            raw = img[c["y0"] + 4:c["y1"] - 4, c["x0"] + 6:c["x1"] - 6]
+            # 1) 3倍に拡大。2) かすれた文字（R8 p415 の「1」は「一」と読まれた）向けに大津の二値化をしてから2倍
+            _, bw = cv2.threshold(raw, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            res, scale = None, 3
+            for scale, variant in ((3, cv2.resize(raw, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)),
+                                   (2, cv2.resize(bw, None, fx=2, fy=2, interpolation=cv2.INTER_NEAREST))):
+                crop = cv2.copyMakeBorder(variant, 60, 60, 60, 60, cv2.BORDER_CONSTANT, value=255)
+                res, _ = eng(crop)
+                if res and any(ch.isdigit() for _, t, _ in res for ch in t):
+                    break
             found = []
             for box, text, score in res or []:
                 ys = [p[1] for p in box]
-                y = int(min(ys) / 3) - 20 + c["y0"]
+                y = int((min(ys) - 60) / scale) + 4 + c["y0"]
                 found.append({"y0": y, "y1": y + 30, "x0": c["x0"] + 10, "x1": c["x1"] - 10,
                               "text": text, "score": round(float(score), 3), "refill": True})
             print(f"p{c['page']} {m['目名']}: {[f['text'] for f in found]}", file=sys.stderr)

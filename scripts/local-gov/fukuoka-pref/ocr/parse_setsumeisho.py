@@ -172,8 +172,9 @@ def main():
         if not os.path.exists(path):
             print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
             continue
-        rec = json.load(open(path, encoding="utf-8"))
-        for t in rec.get("tables", []):
+        page_rec = json.load(open(path, encoding="utf-8"))
+        for t in page_rec.get("tables", []):
+            rec = page_rec  # 表ごとの補正（縦線の補い）がページの他の表に波及しないよう、毎回ページの元の値から始める
             if len(t["cols"]) == 7:
                 # 歳入の表: 0 目 / 1 本年度 / 2 前年度 / 3 比較 / 4 節の区分 / 5 節の金額 / 6 説明
                 # 歳出と同じ処理にのせるため、財源の4列を空として差し込む
@@ -218,11 +219,14 @@ def main():
                 zaigen = {"国庫支出金": sum_amounts(cell[4]), "地方債": sum_amounts(cell[5]),
                           "その他": sum_amounts(cell[6]), "一般財源": sum_amounts(cell[7])}
                 last_moku = next((x for x in reversed(moku_list) if x["kind"] == "目"), None)
-                if honnen is None and not name_txt.strip() and last_moku is not None:
+                after_total = bool(moku_list) and moku_list[-1]["kind"] == "計"
+                if honnen is None and not name_txt.strip() and last_moku is not None and after_total:
+                    # 「計」の行の直後なのに目名も本年度も読めない区画＝新しい項の最初の目の読み取り失敗（R8 p239）。
+                    # 前の目につなぐと項の合計が狂うので、本年度不明の目として立てる（refill_missing.py の対象になる）
+                    print(f"WARN p{page}: 計の行の直後に目名・本年度の読めない区画（新しい目として扱う）", file=sys.stderr)
+                elif honnen is None and not name_txt.strip() and last_moku is not None:
                     # 前のページから続く目
                     m = last_moku
-                    if moku_list[-1]["kind"] != "目":
-                        print(f"WARN p{page}: 計の行の後に続きの区画（直前の目につなぐ）", file=sys.stderr)
                     m["説明"] += expl
                     m["節"] += setsu
                     for k, v in zaigen.items():
@@ -274,11 +278,12 @@ def main():
                 checks["B"] = h is not None and sum(m["財源"].values()) == h
             checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
                            and abs(h - m["前年度"]) == abs(m["比較"]))
-            if h is None and m["前年度"] is not None and not m["説明"] and not m["節"]:
-                # 本年度の計上がない目（前年度だけある。例: 知事選挙費）。本年度 = 0 として扱う
+            if (h is None and m["前年度"] is not None and not m["説明"] and not m["節"]
+                    and m["比較"] is not None and abs(m["比較"]) == m["前年度"]):
+                # 本年度の計上がない目（例: 知事選挙費）。「比較 = 前年度」が成り立つときだけ本年度 = 0 とみなす。
+                # 成り立たないとき（繰越金: 前年度 34,237・比較 34,236 → 本年度は 1）は読み取り失敗として残す
                 h = m["本年度"] = 0
                 checks = {k: True for k in checks}
-                checks["C"] = m["比較"] is None or abs(m["比較"]) == m["前年度"]
             setsu_top = [s for s in m["節"] if s.get("top", s["no"] is not None)]
             checks["D"] = h is not None and sum(s["amount"] for s in setsu_top) == h
             m["checks"] = checks
