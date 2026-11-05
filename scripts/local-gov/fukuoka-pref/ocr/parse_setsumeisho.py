@@ -138,8 +138,13 @@ def cells_of_table(t):
     for a, b in zip(bounds, bounds[1:]):
         if b - a < 20:
             continue
-        cells.append([[d for d in col if a <= (d["y0"] + d["y1"]) / 2 < b] for col in t["cols"]])
+        cell = [[d for d in col if a <= (d["y0"] + d["y1"]) / 2 < b] for col in t["cols"]]
+        cell_bounds.append((a, b))
+        cells.append(cell)
     return cells
+
+
+cell_bounds: list[tuple[int, int]] = []  # cells_of_table が最後に返した区画の高さの範囲（再 OCR 用）
 
 
 def first_amount(items):
@@ -193,7 +198,10 @@ def main():
             mq = re.search(r"(\d+)[项項]([^（(]*)", title)
             if mq:
                 cur_kou = (int(mq.group(1)), norm_name(mq.group(2)))
-            for cell in cells_of_table(t):
+            cell_bounds.clear()
+            cells = cells_of_table(t)
+            for ci, cell in enumerate(cells):
+                cy0, cy1 = cell_bounds[ci]
                 name_txt = "".join(d["text"] for row in lines_of(cell[0]) for d in row)
                 honnen = first_amount(cell[1])
                 is_total = norm_name(name_txt) in ("計", "合計") or "計" == norm_name(name_txt)[-1:] and honnen is not None and not re.search(r"\d", name_txt)
@@ -230,7 +238,9 @@ def main():
                     "款": cur_kan, "項": cur_kou, "目番号": int(mno.group(1)) if mno else None,
                     "目名": norm_name(re.sub(r"\d{1,2}", "", name_txt, count=1)),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
-                    "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page]})
+                    "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
+                    "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
+                             "x1": (rec.get("vlines") or [0, 0, 0])[2]}})
     # 検算
     for side in ("歳出", "歳入"):
         stat = defaultdict(int)
