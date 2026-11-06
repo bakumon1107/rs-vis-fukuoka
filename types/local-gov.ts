@@ -46,19 +46,34 @@ export type Basis = 'initial' | 'supplementary' | 'settlement';
 export interface NumberedName {
   no: number;
   name: string;
-  /**
-   * 名前の出典。金額と違って名前は検算で確かめられないので、どこから取ったかを残す。
-   * text: テキスト PDF の資料（計上額調など）/ reference: 別年度のテキスト資料（R6 決算）で十分に近い名前 / ocr: OCR
-   */
+  /** 名前の出典（NameSource）。金額と違って名前は検算で確かめられないので、どこから取ったかを残す */
   name_src?: NameSource;
+  /** name_src が search のとき、名前が見つかった資料の id（index.json の sources の id） */
+  name_evidence?: string[];
 }
 
-export type NameSource = 'text' | 'reference' | 'ocr';
-export const NAME_SOURCES: readonly NameSource[] = ['text', 'reference', 'ocr'];
+/**
+ * 名前の出典。強い順に
+ * text: テキスト PDF の資料そのもの（計上額調など）/ reference: 別資料・別年度のテキスト（R6 決算・節番号の正式な節名）と照合 /
+ * search: 手元のテキスト資料の全文に同じ名前がある（name_evidence に資料）/ readings: 独立した読み取りの2つ以上が一致 /
+ * correction: 画像で確かめて修正表に記録 / ocr: 裏付けなし（画面で印を付ける）
+ */
+export type NameSource = 'text' | 'reference' | 'search' | 'readings' | 'correction' | 'ocr';
+export const NAME_SOURCES: readonly NameSource[] = ['text', 'reference', 'search', 'readings', 'correction', 'ocr'];
+
+/** 節番号の出典。ocr: 説明書の OCR（旧 OCR を含む）/ textlayer: 発行元の文字層 */
+export type SetsuNoSource = 'ocr' | 'textlayer';
+export const SETSU_NO_SOURCES: readonly SetsuNoSource[] = ['ocr', 'textlayer'];
+
+/** 名前とその出典（事項・節・細節） */
+export interface NameWithSource {
+  name: string;
+  name_src?: NameSource;
+  name_evidence?: string[];
+}
 
 /** 説明欄の ○事項 */
-export interface Item {
-  name: string;
+export interface Item extends NameWithSource {
   amount: Value;
   /** 入れ子の内訳は親の添字（items 配列の中の位置） */
   parent?: number;
@@ -69,12 +84,13 @@ export interface Item {
   links?: { kind: '施策別資料' | '行政評価'; id: string; match: 'amount+name' | 'name' }[];
 }
 
-export interface Setsu {
-  /** 節の番号。読めなかったときは null（並び順の番号をこしらえない。R8 歳入の節 59件が該当） */
+export interface Setsu extends NameWithSource {
+  /** 節の番号。読めなかったときは null（並び順の番号をこしらえない） */
   no: number | null;
-  name: string;
+  /** no の出典（no が null のときはない） */
+  no_src?: SetsuNoSource;
   amount: Value;
-  sub?: { name: string; amount: Value }[];
+  sub?: (NameWithSource & { amount: Value })[];
 }
 
 export interface Funding {

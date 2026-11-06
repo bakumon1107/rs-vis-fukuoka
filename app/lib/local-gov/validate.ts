@@ -9,9 +9,11 @@
 import {
   LOCAL_GOV_SCHEMA_VERSION,
   NAME_SOURCES,
+  SETSU_NO_SOURCES,
   VALUE_SOURCES,
   type LocalBudgetFile,
   type MokuRow,
+  type NameWithSource,
   type Value,
 } from '@/types/local-gov';
 
@@ -78,6 +80,16 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (!Number.isSafeInteger(x.v)) err(`${where}: 金額が整数でない（${x.v}）`);
   };
 
+  // 名前の出典: 値が決まった中にあること。search（全文検索）なら見つかった資料（name_evidence）があること
+  const checkName = (where: string, x: NameWithSource, required: boolean) => {
+    if (required && !x.name) err(`${where}: 名前がない`);
+    const ns = x.name_src;
+    if (ns !== undefined && !NAME_SOURCES.includes(ns)) err(`${where}: 名前の出典が不正（${String(ns)}）`);
+    if (ns === 'search' && !(x.name_evidence && x.name_evidence.length > 0 && x.name_evidence.every(s => !!s))) {
+      err(`${where}: 全文検索で確かめた名前に、見つかった資料（name_evidence）がない`);
+    }
+  };
+
   const rowIds = new Set<string>();
   for (const row of file.rows) {
     const where = row.id;
@@ -86,11 +98,7 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (row.id !== expectedRowId(row)) err(`${where}: ID が款・項・目の番号と合わない（期待 ${expectedRowId(row)}）`);
     if (!accountIds.has(row.account)) err(`${where}: 会計 ${row.account} が accounts にない`);
     if (!SIDES.includes(row.side)) err(`${where}: side が不正（${row.side}）`);
-    for (const level of ['kan', 'kou', 'moku'] as const) {
-      const ns = row[level].name_src;
-      if (ns !== undefined && !NAME_SOURCES.includes(ns)) err(`${where} ${level}: 名前の出典が不正（${String(ns)}）`);
-      if (!row[level].name) err(`${where} ${level}: 名前がない`);
-    }
+    for (const level of ['kan', 'kou', 'moku'] as const) checkName(`${where} ${level}`, row[level], true);
     if (row.pages.length === 0) err(`${where}: 出典のページがない`);
 
     checkValue(`${where} amount`, row.amount, true);
@@ -108,6 +116,7 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (row.items && row.items.length > 0) {
       row.items.forEach((it, i) => {
         checkValue(`${where} items[${i}]`, it.amount, true);
+        checkName(`${where} items[${i}]`, it, false);
         if (it.parent !== undefined && (it.parent < 0 || it.parent >= row.items!.length || it.parent === i)) {
           err(`${where} items[${i}]: parent が不正（${it.parent}）`);
         }
@@ -116,7 +125,15 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       if (s !== null && amount !== null && s !== amount) err(`${where}: 説明欄の事項の合計 ${s} ≠ 金額 ${amount}`);
     }
     if (row.setsu && row.setsu.length > 0) {
-      row.setsu.forEach((st, i) => checkValue(`${where} setsu[${i}]`, st.amount, true));
+      row.setsu.forEach((st, i) => {
+        checkValue(`${where} setsu[${i}]`, st.amount, true);
+        checkName(`${where} setsu[${i}]`, st, false);
+        if (st.no_src !== undefined && !SETSU_NO_SOURCES.includes(st.no_src)) {
+          err(`${where} setsu[${i}]: 節番号の出典が不正（${String(st.no_src)}）`);
+        }
+        if (st.no === null && st.no_src !== undefined) err(`${where} setsu[${i}]: 番号がないのに番号の出典がある`);
+        st.sub?.forEach((sb, j) => checkName(`${where} setsu[${i}].sub[${j}]`, sb, false));
+      });
       const s = sumKnown(row.setsu.map(st => st.amount));
       if (s !== null && amount !== null && s !== amount) err(`${where}: 節の合計 ${s} ≠ 金額 ${amount}`);
     }

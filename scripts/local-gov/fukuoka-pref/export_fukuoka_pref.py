@@ -21,8 +21,12 @@
 値の出典（Value.src）:
     ocr: OCR（PP-OCRv6 とセルの読み直し） / correction: 修正表（画像で確認） / textlayer: 文字層との突き合わせで採用 /
     blank-as-zero: 空欄を 0 とみなした / text: テキスト PDF
-名前の出典（name_src）:
-    text: テキスト PDF の資料（計上額調の款名） / reference: R6 決算（テキスト）の同じ款の中で十分に近い名前 / ocr: OCR
+名前の出典（name_src。款・項・目・事項・節・細節。決め方は name_evidence.py）:
+    text: テキスト PDF の資料（計上額調の款名） / reference: R6 決算（テキスト）の同じ款の中の名前と照合
+    （歳出の節は、節番号で決まる施行規則の節名と区分の文字が一致） / search: 手元のテキスト資料（sources.json の corpus）に
+    同じ名前がある（name_evidence に資料の id） / readings: 独立した読み取りの2つ以上が一致 /
+    correction: 名前の修正表（ocr/corrections/r8-names.json。画像で確認） / ocr: 裏付けなし
+節番号の出典（no_src）: ocr: 説明書の OCR / textlayer: OCR で読めず、同じ金額の節の番号を文字層から
 """
 import argparse
 import difflib
@@ -36,6 +40,8 @@ import unicodedata
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import name_evidence  # noqa: E402
 
 GOV_ID = "fukuoka-pref"
 YEAR, YEAR_LABEL = 2026, "令和8年度"
@@ -112,6 +118,31 @@ def is_ocr_variant(ocr: str, ref: str) -> bool:
     return deleted == 0 and dropped <= 3 and replaced <= 1
 
 
+def split_headcount(name: str):
+    """事項名の末尾の人数（「職員費 10人」）を分ける。(名前, 人数 or None)"""
+    mh = re.search(r"([\d,]+)人$", name)
+    if not mh:
+        return name, None
+    return name[:mh.start()].strip(), int(mh.group(1).replace(",", ""))
+
+
+def setsu_label_matches(label: str, no: int) -> bool:
+    """歳出の節の区分の文字（OCR）が、節番号で決まる節名と合うか（崩れとして説明がつくか）。
+    is_ocr_variant に加えて、2行の区分の字の順が混ざった形（「負及び交付担金補助金」＝「負担金、補助及び交付金」の字の並べ替え）と、
+    それに余分な字が1字だけ混じった形（「扶助力費」）、6字以上の節名で1字だけ欠けた形（「負及担交金補付助金」）を合うとみなす。
+    節名は27通りしかなく、使う字の組み合わせがそれぞれ違うので、字の集まりで比べても取り違えない
+    （どの2つの節名もこの規則で合わないことを単体テストで確かめる）。「補填」は「補塡」の異体字として同じに扱う。"""
+    official = SETSU_NAMES.get(no)
+    if not official or not label:
+        return False
+    lab = re.sub(r"^\d+", "", label).replace("填", "塡")
+    if lab == official or is_ocr_variant(lab, official):
+        return True
+    want, got = Counter(re.sub(r"[、・]", "", official)), Counter(re.sub(r"[、・]", "", lab))
+    missing, extra = sum((want - got).values()), sum((got - want).values())
+    return missing <= (1 if sum(want.values()) >= 6 else 0) and extra <= 1
+
+
 def yen(v):
     return None if v is None else int(v) * 1000
 
@@ -126,11 +157,12 @@ def val(v, src, agree=None, note=None):
 
 
 class Exporter:
-    def __init__(self, work, kmk, keijou, yosansho, vote):
+    def __init__(self, work, kmk, keijou, yosansho, vote, corpus=None):
         self.vote = vote
         self.kmk = kmk
         self.keijou = keijou
         self.yo = yosansho
+        self.corpus = corpus
         self.r6_names = {}  # (side, 款) → {"kou": [...], "moku": [...]}
         for side, key in (("歳入", "revenue"), ("歳出", "expense")):
             for kan in kmk[key]:
@@ -138,50 +170,84 @@ class Exporter:
                 for kou in kan["children"]:
                     d["kou"].append(kou["name"])
                     d["moku"].extend(mo["name"] for mo in kou["children"])
-        self.name_stats = Counter()
         self.replaced = []  # (項/目, OCR の名前, 置き換えた名前)。書き出しの後に一覧を出して目で確かめる
-        self.alt_names = {}
+        self.unresolved = []  # 裏付けのない名前（画像で確かめる一覧。款・項・目・歳入の節）
+        self.raw = []  # 読み取りごとの 目の行（key → 目）。[0] が採用した読み取り（cross）と同じ OCR
 
     def readings(self, paths):
+        """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。"""
         loaded = [self.vote.load(p) for p in paths]
-        # 名前が空のとき（OCR が目名を読めなかった）に使う、ほかの読み取りの名前。
-        # paths は（OCR・旧 OCR・文字層）の順。後に入れたものが優先なので、文字層 > 旧 OCR
-        for ms in loaded[1:]:
-            for m in ms:
-                if m["目名"]:
-                    self.alt_names[self.vote.key(m)] = m["目名"]
+        self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
         return [{self.vote.key(m): self.vote.values(m) for m in ms} for ms in loaded]
 
-    def pick_name(self, ocr_name, side, kan, level):
-        """一般会計の項・目名: R6 決算（テキスト）の同じ款の中に、OCR の名前が「崩れ」として説明のつく名前
-        （is_ocr_variant）がちょうど1つあればそれ、なければ OCR のまま。
-        同じ名前が R6 にあれば崩れていないので OCR のまま（ただし出典は reference: 別資料で同じ名前を確認できた）。"""
-        name = clean_name(ocr_name)
+    def reference(self, side, kan, level):
+        """一般会計の項・目名: R6 決算（テキスト）の同じ款の中に、名前が「崩れ」として説明のつく名前
+        （is_ocr_variant）がちょうど1つあればそれ。同じ名前が R6 にあればそのまま。"""
         cands = self.r6_names.get((side, kan), {}).get(level, [])
-        if name in cands:
-            self.name_stats[f"{level} reference"] += 1
-            return name, "reference"
-        hits = sorted({c for c in cands if is_ocr_variant(name, c)})
-        if len(hits) == 1:
-            self.name_stats[f"{level} reference"] += 1
-            self.replaced.append((level, name, hits[0]))
-            return hits[0], "reference"
-        self.name_stats[f"{level} ocr"] += 1
-        return name, "ocr"
 
-    def row(self, m, account_id, kan_name, kan_name_src, readings, special):
+        def look(name):
+            if name in cands:
+                return name
+            hits = sorted({c for c in cands if is_ocr_variant(name, c)})
+            return hits[0] if len(hits) == 1 else None
+        return look
+
+    def name(self, level, cands, where, reference=None, report=True):
+        """同じ箇所の名前の候補 [(名前, 系統)]（先頭が採用する読み取り）から、裏付けのいちばん強い名前を選ぶ
+        （name_evidence.resolve）。系統: bill＝予算書の本体（議案）の文字層、ocr＝説明書の OCR と旧 OCR（同じ切り抜きを読む
+        ので1つの系統）、textlayer＝説明書の文字層。"""
+        cands = [(clean_name(c), g) for c, g in cands if c and c.strip()]
+        name, src, ev = name_evidence.resolve(cands, self.corpus, reference)
+        name = clean_name(name)
+        first = cands[0][0] if cands else ""
+        if src == "reference" and name != first:
+            self.replaced.append((level, first, name))
+        if src == "ocr" and report:
+            self.unresolved.append((level, where, name, [c for c, _ in cands], ev))
+        return name, src, (ev if src == "search" else None)
+
+    def others(self, m):
+        """同じ目の、採用した読み取り以外の読み取り [(読み取りの種類, 目の行)]。文字層・旧 OCR の順
+        （裏付けがないとき、先の方の名前を使う）。self.raw は（OCR・旧 OCR・文字層）の順。"""
+        key = self.vote.key(m)
+        return [(kind, r[key]) for kind, r in zip(("textlayer", "v4"), (self.raw[2], self.raw[1])) if key in r]
+
+    @staticmethod
+    def by_amount(entries):
+        """目の中の (金額, 何番目) → 事項・節。読み取りの間で事項・節を金額で対応させる（vote.values と同じ考え方。
+        番号・順番で対応させると、節番号の読み違い・件数の違いで外れる）。"""
+        seen = Counter()
+        out = {}
+        for e in entries:
+            seen[e["amount"]] += 1
+            out[(e["amount"], seen[e["amount"]])] = e
+        return out
+
+    def row(self, m, account_id, kan_name, kan_name_src, readings, special, kan_bill=None):
         side = "revenue" if m["side"] == "歳入" else "expense"
-        kou_no, kou_name = m["項"]
-        if not m["目名"].strip():
-            # OCR が目名を読めなかった（R8 3款2項3目 難病等対策費）。ほかの読み取りの名前を使い、下の照合を通す
-            m = dict(m, 目名=self.alt_names.get(self.vote.key(m), ""))
-            print(f"名前の補い（目）: {self.vote.key(m)} 空 → {m['目名']}", file=sys.stderr)
+        kou_no, kou_bill = m["項"]
+        # 裏付けのない名前の一覧（画像での確認用）に載せる場所: 目の行・ページ・目の欄の位置（節は行の高さ y を足す）
+        where = {"id": f"{account_id}/{side}/{m['款']}-{kou_no}-{m['目番号']}",
+                 "row": f"{m.get('会計') or '一般会計'} {m['side']} {m['款']}-{kou_no}-{m['目番号']}",
+                 "source": "r8-setsumeisho-toku" if special else "r8-setsumeisho-ippan", "cell": m.get("cell")}
+        others = self.others(m)  # [(textlayer|v4, 目の行)]
+        group = {"textlayer": "textlayer", "v4": "ocr"}
+        # 項・款: 予算書の本体（議案）の名前（choose_kou が予算書の項の一覧から選んだ名前）と、OCR・旧 OCR の表の見出しの名前。
+        # 文字層の読み取りの見出しは OCR の見出しを借りている（textlayer_pages.py）ので候補に入れない
+        heads = [m] + [x for kind, x in others if kind == "v4"]
+        kou_cands = [(kou_bill, "bill")] + [(x.get("項_見出し"), "ocr") for x in heads]
+        moku_cands = [(m["目名"], "ocr")] + [(x["目名"], group[kind]) for kind, x in others]
+        kou_ref = moku_ref = None
+        if not special:
+            kou_ref = self.reference(m["side"], m["款"], "kou")
+            moku_ref = self.reference(m["side"], m["款"], "moku")
+        kou_n, kou_src, kou_ev = self.name("kou", kou_cands, where, kou_ref)
+        moku_n, moku_src, moku_ev = self.name("moku", moku_cands, where, moku_ref)
         if special:
-            kou_n, kou_src = clean_name(kou_name), "ocr"
-            moku_n, moku_src = clean_name(m["目名"]), "ocr"
+            kan_name, kan_name_src, kan_ev = self.name("kan", [(kan_bill, "bill")] + [(x.get("款_見出し"), "ocr") for x in heads],
+                                                       where)
         else:
-            kou_n, kou_src = self.pick_name(kou_name, m["side"], m["款"], "kou")
-            moku_n, moku_src = self.pick_name(m["目名"], m["side"], m["款"], "moku")
+            kan_ev = None
         key = self.vote.key(m)
         votes = [r.get(key, {}) for r in readings]
         vals = self.vote.values(m)
@@ -207,13 +273,19 @@ class Exporter:
                 return "textlayer", None
             return "ocr", None
 
+        def named(no, name, src, ev):
+            d = {"no": no, "name": name, "name_src": src}
+            if ev:
+                d["name_evidence"] = ev
+            return d
+
         s, n = scalar_src("本年度")
         out = {
             "id": f"{account_id}/{side}/{m['款']}-{kou_no}-{m['目番号']}",
             "account": account_id, "side": side,
-            "kan": {"no": m["款"], "name": kan_name, "name_src": kan_name_src},
-            "kou": {"no": kou_no, "name": kou_n, "name_src": kou_src},
-            "moku": {"no": m["目番号"], "name": moku_n, "name_src": moku_src},
+            "kan": named(m["款"], kan_name, kan_name_src, kan_ev),
+            "kou": named(kou_no, kou_n, kou_src, kou_ev),
+            "moku": named(m["目番号"], moku_n, moku_src, moku_ev),
             "amount": val(m["本年度"], s, agree("本年度"), n),
         }
         s, n = scalar_src("前年度")
@@ -233,21 +305,27 @@ class Exporter:
             items = []
             last_top = None
             seen = Counter()
+            other_items = [(group[kind], self.by_amount([e for e in x["説明"] if not e.get("金額の記載なし")]))
+                           for kind, x in others]
             for e in m["説明"]:
-                name = clean_name(e["name"])
+                name, headcount = split_headcount(clean_name(e["name"]))
                 it = {}
-                mh = re.search(r"([\d,]+)人$", name)
-                if mh and e.get("人数") is None:
-                    it["headcount"] = int(mh.group(1).replace(",", ""))
-                    name = name[:mh.start()].strip()
-                elif e.get("人数") is not None:
+                if e.get("人数") is not None:
                     it["headcount"] = e["人数"]
+                elif headcount is not None:
+                    it["headcount"] = headcount
                 src = "textlayer" if ("説明欄の金額" in rescued or e.get("名前は文字層_要補正")) else "ocr"
                 if e.get("金額の記載なし"):
                     src = scalar_src("本年度")[0]  # 目の額を当てた事項は、目の本年度と同じ出典
                 seen[e["amount"]] += 1
                 ag = agree(f"説明 {e['amount']}#{seen[e['amount']]}")
-                it = {"name": name, "amount": val(e["amount"], src, ag), **it}
+                cands = [(name, "ocr")]
+                if not e.get("金額の記載なし"):
+                    k = (e["amount"], seen[e["amount"]])
+                    cands += [(split_headcount(clean_name(o[k]["name"]))[0], g) for g, o in other_items if k in o]
+                name, nsrc, nev = self.name("item", cands, where, report=False)
+                it = {"name": name, "name_src": nsrc, **({"name_evidence": nev} if nev else {}),
+                      "amount": val(e["amount"], src, ag), **it}
                 if e.get("金額の記載なし"):
                     it["no_amount_printed"] = True
                 if e.get("内訳") and last_top is not None:
@@ -259,22 +337,64 @@ class Exporter:
                 out["items"] = items
         setsu = []
         seen = Counter()
+        seen_sub = Counter()
+        is_top = lambda st: st.get("top", st.get("no") is not None)  # noqa: E731
+        other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others]
+        other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others]
+        expense = m["side"] == "歳出"
         for st in m["節"]:
-            top = st.get("top", st.get("no") is not None)
+            top = is_top(st)
             if ("節", st.get("no")) in fixes and top:
                 src, note = "correction", fixes[("節", st.get("no"))]
             elif st.get("出典") == "文字層" or "節" in rescued:
                 src, note = "textlayer", None
             else:
                 src, note = "ocr", None
+            label = clean_name(st["label"])
             if top:
                 seen[st["amount"]] += 1
-                name = (SETSU_NAMES.get(st["no"]) if m["side"] == "歳出" and st.get("no") else None) or clean_name(st["label"])
-                # 番号が読めなかった節は null（並び順の番号をこしらえない）
-                setsu.append({"no": st.get("no") or None, "name": name,
-                              "amount": val(st["amount"], src, agree(f"節 {st['amount']}#{seen[st['amount']]}"), note)})
+                k = (st["amount"], seen[st["amount"]])
+                no, no_src = st.get("no") or None, "ocr"
+                # 同じ金額の節の、各読み取りの区分の文字と番号（OCR・文字層・旧 OCR の順）
+                labels = [(label, "ocr")] + [(clean_name(o[k]["label"]), group[kind]) for kind, o in other_top if k in o]
+                nos = [(no, "ocr")] + [(o[k].get("no"), kind if kind == "textlayer" else "ocr")
+                                       for kind, o in other_top if k in o]
+                # 歳出の節名は節番号で決まる（地方自治法施行規則）。番号と区分の文字が合う読み取りの番号を使う
+                # （区分の文字が合うことで番号の読みを確かめる）。OCR が「11」「19」「24」を「1」と読み、区分の文字
+                # 「役務費」「扶助費」「積立金」と食い違った実例がある（文字層・旧 OCR の番号は正しかった）
+                hit = next(((n, s) for n, s in nos if expense and n in SETSU_NAMES
+                            and any(setsu_label_matches(lab, n) for lab, _ in labels)), None)
+                if hit:
+                    no, no_src = hit
+                    name, nsrc, nev = SETSU_NAMES[no], "reference", None
+                elif expense and no in SETSU_NAMES:
+                    # 番号の節名と区分の文字が合わない。番号で決まる名前を使い、裏付けなし（番号の読み違いかもしれない）として一覧に出す
+                    name, nsrc, nev = SETSU_NAMES[no], "ocr", None
+                    self.unresolved.append(("setsu", {**where, "page": st.get("page"), "y": st.get("y"),
+                                                      "amount": st["amount"]}, name,
+                                            [lab for lab, _ in labels], {"no": no}))
+                else:
+                    if no is None:
+                        # OCR で番号が読めなかった歳入の節: 文字層の同じ金額の節に番号があれば使う。なければ null
+                        # （並び順の番号をこしらえない）。歳出は上で区分の文字と合う番号だけを使う
+                        tl_no = next((n for n, s in nos[1:] if s == "textlayer" and n), None)
+                        if tl_no and not expense:
+                            no, no_src = tl_no, "textlayer"
+                    name, nsrc, nev = self.name("setsu", labels, {**where, "page": st.get("page"), "y": st.get("y"),
+                                                                  "amount": st["amount"]})
+                d = {"no": no, "name": name, "name_src": nsrc, **({"name_evidence": nev} if nev else {})}
+                if no is not None:
+                    d["no_src"] = no_src
+                d["amount"] = val(st["amount"], src, agree(f"節 {st['amount']}#{seen[st['amount']]}"), note)
+                setsu.append(d)
             elif setsu:
-                setsu[-1].setdefault("sub", []).append({"name": clean_name(st["label"]), "amount": val(st["amount"], src)})
+                seen_sub[st["amount"]] += 1
+                k = (st["amount"], seen_sub[st["amount"]])
+                cands = [(label, "ocr")] + [(clean_name(o[k]["label"]), g) for g, o in other_sub if k in o]
+                name, nsrc, nev = self.name("sub", cands, where, report=False)
+                setsu[-1].setdefault("sub", []).append({"name": name, "name_src": nsrc,
+                                                        **({"name_evidence": nev} if nev else {}),
+                                                        "amount": val(st["amount"], src)})
         if setsu:
             out["setsu"] = setsu
         if m.get("注記"):
@@ -282,6 +402,56 @@ class Exporter:
         src_id = "r8-setsumeisho-toku" if special else "r8-setsumeisho-ippan"
         out["pages"] = [{"source": src_id, "page": p} for p in dict.fromkeys(m["pages"])]
         return out
+
+
+NAME_CORRECTIONS = os.path.join(HERE, "ocr", "corrections", "r8-names.json")
+
+
+def apply_name_corrections(rows, fixes, unresolved):
+    """名前の修正表（画像で確かめた名前）を書き出した行に当てる。出典は correction。
+    款は id「<会計>/<歳入出>/<款>」、項は「…/<款>-<項>」でその款・項のすべての目の行に、目・節は目の行の id に当てる。
+    節は目の中の金額（千円）で特定する。当たる先が無い・節が1つに絞れない修正は、修正表が古い（データが変わった）
+    ので止める。当てた名前は裏付けのない名前の一覧（unresolved）から除く。返り値: 当てた件数。"""
+    n = 0
+    for fx in fixes:
+        lv, fid, name = fx["level"], fx["id"], clean_name(fx["name"])
+        if lv in ("kan", "kou"):
+            hits = [r for r in rows if r["id"].startswith(fid + "-") and
+                    (lv == "kan" or r["id"].count("-") == fid.count("-") + 1)]
+            targets = [r[lv] for r in hits]
+        elif lv == "moku":
+            targets = [r["moku"] for r in rows if r["id"] == fid]
+        elif lv == "setsu":
+            # 同じ金額の節が目の中に2つあるときは、画像の節番号（"no"）も合わせて特定する（14款7項2目の 30,000 千円）
+            targets = [s for r in rows if r["id"] == fid for s in r.get("setsu", [])
+                       if s["amount"]["v"] == yen(fx["amount"]) and ("no" not in fx or s["no"] == fx["no"])]
+        else:
+            sys.exit(f"名前の修正表: level が不正（{lv}）")
+        if not targets or (lv in ("moku", "setsu") and len(targets) != 1):
+            sys.exit(f"名前の修正表: {fid} の {lv}「{fx['name']}」に当たる先が {len(targets)} 件（1件に絞れない・修正表が古い）")
+        for t in targets:
+            t["name"], t["name_src"] = name, "correction"
+            t.pop("name_evidence", None)
+        n += 1
+        unresolved[:] = [u for u in unresolved if not (
+            u[0] == lv and (u[1]["id"] == fid or (lv in ("kan", "kou") and u[1]["id"].startswith(fid + "-")))
+            and (lv != "setsu" or u[1].get("amount") == fx["amount"]))]
+    return n
+
+
+def name_source_counts(rows):
+    """名前の出典ごとの件数（款・項・目は目の行ごと、事項・節・細節は1件ずつ）。"""
+    c = Counter()
+    for r in rows:
+        for lv in ("kan", "kou", "moku"):
+            c[f"{lv} {r[lv]['name_src']}"] += 1
+        for it in r.get("items", []):
+            c[f"item {it['name_src']}"] += 1
+        for s in r.get("setsu", []):
+            c[f"setsu {s['name_src']}"] += 1
+            for sb in s.get("sub", []):
+                c[f"sub {sb['name_src']}"] += 1
+    return dict(sorted(c.items()))
 
 
 def sha256(path):
@@ -300,8 +470,19 @@ def main():
     a = ap.parse_args()
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
     vote = load_vote()
+    source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
+    for s in source_list:
+        p = os.path.join(a.pdf_dir, f"{s['file']}.pdf")
+        got = sha256(p)
+        if got != s["sha256"]:
+            # 手元の原本が一覧と違う（県が資料を差し替えた・取り違えた）。そのまま書き出すと出典の記録と中身が食い違う
+            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.pdf（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
+                     f"資料が差し替わっていないか確かめ、sources.json を更新してから書き出す")
+    # 名前の全文検索に使うテキスト資料（説明書・議案は読み取りの側なので入れない。入れると自分自身を見つける）
+    corpus = name_evidence.Corpus.from_pdfs({s["id"]: os.path.join(a.pdf_dir, f"{s['file']}.pdf")
+                                             for s in source_list if s.get("corpus")})
     ex = Exporter(a.work, json.load(open(w("kessan-kmk.json"))), json.load(open(w("keijougaku.json"))),
-                  json.load(open(w("yosansho.json"))), vote)
+                  json.load(open(w("yosansho.json"))), vote, corpus)
 
     kan_names = {("歳入", k["no"]): k["款名"] for k in ex.keijou["一般会計歳入"]["款"]}
     kan_names.update({("歳出", k["no"]): k["款名"] for k in ex.keijou["一般会計歳出"]["款"]})
@@ -324,12 +505,13 @@ def main():
         for m in ms:
             special = kind == "toku"
             if special:
+                # 特別会計の款名は、予算書の本体（議案）の款名と表の見出しの款名から選ぶ（row の中）
                 acc = f"special:{SPECIAL_SLUGS[m['会計']]}"
-                kan_name, kan_src = yo_kan.get((m["会計"], m["side"], m["款"]), ""), "ocr"
+                kan_bill, kan_name, kan_src = yo_kan.get((m["会計"], m["side"], m["款"]), ""), None, None
             else:
                 acc = "general"
-                kan_name, kan_src = kan_names[(m["side"], m["款"])], "text"
-            r = ex.row(m, acc, kan_name, kan_src, readings, special)
+                kan_bill, kan_name, kan_src = None, kan_names[(m["side"], m["款"])], "text"
+            r = ex.row(m, acc, kan_name, kan_src, readings, special, kan_bill)
             # 会計間の繰入れの印（純計のため）。特別会計の「一般会計繰入金」、一般会計の「○○特別会計繰入金」
             if r["side"] == "revenue":
                 if special and r["moku"]["name"].startswith("一般会計繰入金"):
@@ -340,6 +522,8 @@ def main():
                             r["transfer"] = {"from_account": f"special:{slug}"}
             stats["ok" if all(m["checks"].values()) else "ng"] += 1
             rows.append(r)
+
+    n_name_fix = apply_name_corrections(rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], ex.unresolved)
 
     ippan_cross = json.load(open(w("cross.json")))
     toku_cross = json.load(open(w("cross-toku.json")))
@@ -375,15 +559,7 @@ def main():
         json.dump(budget, f, ensure_ascii=False, indent=1)
         f.write("\n")
 
-    sources = []
-    for s in json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]:
-        p = os.path.join(a.pdf_dir, f"{s['file']}.pdf")
-        got = sha256(p)
-        if got != s["sha256"]:
-            # 手元の原本が一覧と違う（県が資料を差し替えた・取り違えた）。そのまま書き出すと出典の記録と中身が食い違う
-            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.pdf（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
-                     f"資料が差し替わっていないか確かめ、sources.json を更新してから書き出す")
-        sources.append({k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")})
+    sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
         "gov": {"id": GOV_ID, "name": "福岡県", "kind": "prefecture"},
@@ -402,9 +578,14 @@ def main():
           f"1通り以下で画像で確認 {vals['image']} 件・1通り以下で未確認 {vals['n'] - vals['2plus'] - vals['image']} 件",
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
-    print(f"名前の出典: {dict(ex.name_stats)}", file=sys.stderr)
+    print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
     for level, o, n in ex.replaced:
-        print(f"名前の置き換え（{'項' if level == 'kou' else '目'}）: {o} → {n}", file=sys.stderr)
+        print(f"名前の置き換え（{level}）: {o} → {n}", file=sys.stderr)
+    # 裏付けのない名前の一覧（款・項・目・節。画像で確かめて修正表に記録する）。作業ディレクトリに置く（リポジトリに入れない）
+    with open(os.path.join(a.work, "names-unresolved.json"), "w", encoding="utf-8") as f:
+        json.dump([{"level": lv, "where": wh, "name": n, "candidates": c, "evidence": ev}
+                   for lv, wh, n, c, ev in ex.unresolved], f, ensure_ascii=False, indent=1)
+    print(f"裏付けのない名前（款・項・目・節）: {Counter(u[0] for u in ex.unresolved)}", file=sys.stderr)
 
 
 if __name__ == "__main__":

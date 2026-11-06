@@ -44,12 +44,47 @@ def test_ocr_variant_rejected(ocr, ref):
     assert not ex.is_ocr_variant(ocr, ref)
 
 
+def _row(rid, setsu=()):
+    return {"id": rid, "kan": {"name": "x", "name_src": "ocr"}, "kou": {"name": "x", "name_src": "ocr"},
+            "moku": {"name": "x", "name_src": "ocr"},
+            "setsu": [{"no": no, "name": "x", "name_src": "ocr", "amount": {"v": a * 1000}} for no, a in setsu]}
+
+
+def test_name_corrections_apply_and_clear_unresolved():
+    rows = [_row("special:a-b/expense/1-1-1", [(1, 30), (2, 30)]), _row("special:a-b/expense/1-1-2"),
+            _row("special:a-b/expense/10-1-1")]
+    unresolved = [("kan", {"id": "special:a-b/expense/1-1-1"}, "x", [], None),
+                  ("setsu", {"id": "special:a-b/expense/1-1-1", "amount": 30}, "x", [], None)]
+    fixes = [{"id": "special:a-b/expense/1", "level": "kan", "name": "積立金"},
+             {"id": "special:a-b/expense/1-1-1", "level": "setsu", "amount": 30, "no": 2, "name": "雑入"}]
+    assert ex.apply_name_corrections(rows, fixes, unresolved) == 2
+    # 款は 1款のすべての目の行に当たり、10款には当たらない（id の前方一致で「1」と「10」を取り違えない）
+    assert [r["kan"]["name"] for r in rows] == ["積立金", "積立金", "x"]
+    assert [s["name"] for s in rows[0]["setsu"]] == ["x", "雑入"]
+    assert rows[0]["setsu"][1]["name_src"] == "correction"
+    assert unresolved == []   # 当てた名前は、画像で確かめる一覧から消える
+
+
+def test_name_corrections_stop_when_stale():
+    rows = [_row("general/revenue/8-1-3", [(2, 836), (3, 836)])]
+    with pytest.raises(SystemExit):   # 同じ金額の節が2つで番号の指定なし → 1件に絞れない
+        ex.apply_name_corrections(rows, [{"id": "general/revenue/8-1-3", "level": "setsu", "amount": 836, "name": "y"}], [])
+    with pytest.raises(SystemExit):   # 当たる目がない（データが変わった）
+        ex.apply_name_corrections(rows, [{"id": "general/revenue/9-9-9", "level": "moku", "name": "y"}], [])
+
+
 def test_pick_name():
     kmk = {"revenue": [], "expense": [{"no": 2, "name": "総務費", "children": [
         {"no": 1, "name": "総務管理費", "children": [{"no": 1, "name": "一般管理費"}, {"no": 3, "name": "広報費"},
                                                 {"no": 5, "name": "地域振興費"}]}]}]}
     e = ex.Exporter(None, kmk, {}, {}, None)
-    assert e.pick_name("一般管理費", "歳出", 2, "moku") == ("一般管理費", "reference")   # 同じ名前が R6 にある
-    assert e.pick_name("店報費", "歳出", 2, "moku") == ("広報費", "reference")         # 1文字の崩れ
-    assert e.pick_name("地域振興総務費", "歳出", 2, "moku") == ("地域振興総務費", "ocr")  # R8 の新しい目は OCR のまま
+    ref = e.reference("歳出", 2, "moku")
+
+    def pick(name):
+        n, src, _ = e.name("moku", [(name, "ocr")], "2-1-1", ref)
+        return n, src
+    assert pick("一般管理費") == ("一般管理費", "reference")   # 同じ名前が R6 にある
+    assert pick("店報費") == ("広報費", "reference")         # 1文字の崩れ
+    assert pick("地域振興総務費") == ("地域振興総務費", "ocr")  # R8 の新しい目は（ほかの裏付けがなければ）OCR のまま
     assert e.replaced == [("moku", "店報費", "広報費")]
+    assert [u[2] for u in e.unresolved] == ["地域振興総務費"]   # 裏付けのない名前は画像で確かめる一覧に出る

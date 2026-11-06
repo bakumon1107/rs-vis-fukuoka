@@ -70,6 +70,97 @@
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272595.pdf",
    "sha256": "0bfa60a10dabdb14ac75a01c8a0b24e6a7b57b9ad3fe5ab0b0478e6056efbec7",
    "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r6-kessan-jikou",
+   "title": "令和6年度歳入歳出決算事項別明細書（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272615.pdf",
+   "sha256": "50cbdd27dbccbfbcb6525c0f8dff224f154fd74e431108f0b6bf8bfe3245a417",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r6-kessansho",
+   "title": "令和6年度福岡県歳入歳出決算書その他（議案。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272758.pdf",
+   "sha256": "3238818ff07b7020686f9da1d715d235e98cfd4503d63ee4f2017c488677e66d",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r6-seika",
+   "title": "令和6年度決算に係る主要施策の成果に関する説明書（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272597.pdf",
+   "sha256": "29effe1f3931890239c2cf26d61ca8b03876fdca76bc4bc1641e3c168dde6a30",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-sankou",
+   "title": "令和8年度当初予算 参考資料（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/276937.pdf",
+   "sha256": "07e674c0cda47ee806d524e55102396d8629664c47f637c36e91a0c46cb8b3f5",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-gaiyou",
+   "title": "令和8年度当初予算の概要（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277131.pdf",
+   "sha256": "b97f7b346c6216cf2dd3e85bedc9a1c419de3e1c4629367ff6794aad619b98bd",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-hensei",
+   "title": "令和8年度当初予算の編成概要（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/278127.pdf",
+   "sha256": "3780f491dc4b300e8b57e555a0103cf17c04ec62e79a9845edf84d8750d75855",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-taikei",
+   "title": "令和8年度 編成概要の施策別資料（施策体系。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277213.pdf",
+   "sha256": "5a42147e2aaddae7e2a6603da2a447ea8cc8e6784caf8a016c08d9a03301ba6d",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-1",
+   "title": "令和8年度 編成概要の施策別資料（柱1。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277214.pdf",
+   "sha256": "b730a2d4e63c338a1e50cc5b9e49977bbd9612efb674ed0d2731dfab149b18f7",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-2",
+   "title": "令和8年度 編成概要の施策別資料（柱2。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/278133.pdf",
+   "sha256": "3069028eb6d5c7ee6f5df21f6449e12eea1352f4a71a497578037fad1a928799",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-3",
+   "title": "令和8年度 編成概要の施策別資料（柱3。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277217.pdf",
+   "sha256": "e8c906ef63597c01112f923c34c190d5dd3834d28ceb0030c07c7f67c1e928cb",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-4",
+   "title": "令和8年度 編成概要の施策別資料（柱4。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277218.pdf",
+   "sha256": "3f51eb6f6398009e0a40170f4bbd904dda1677fd735e7f2d460f974d947992ec",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-shisaku-kiban",
+   "title": "令和8年度 編成概要の施策別資料（計画推進の基盤づくり。名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277220.pdf",
+   "sha256": "0e5585d224e6bb2df09b068c912bf7cee7b2ea372bd5f315c0c47a963947fda5",
+   "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-minaoshi",
+   "title": "令和8年度 主な見直し事項一覧表（名前の検索に使用）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277047.pdf",
+   "sha256": "70362708e511b00e471dff9072f8793abb4c70be137ca4bb503f5c302e0c575f",
+   "retrieved": "2026-11-06"
   }
  ]
 }

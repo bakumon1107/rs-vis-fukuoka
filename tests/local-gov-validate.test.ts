@@ -100,6 +100,23 @@ test('読み取りの一致の数・名前の出典・名前の有無を確か�
   assert.deepEqual(validateBudgetFile(file([row({ moku: { no: 1, name: '一般管理費', name_src: 'reference' } })])).errors, []);
 });
 
+test('全文検索で確かめた名前には見つかった資料がいる。事項・節・細節の名前の出典と節番号の出典も確かめる', () => {
+  const searched = { no: 1, name: '一般管理費', name_src: 'search' as const };
+  assert.ok(validateBudgetFile(file([row({ moku: searched })])).errors.some(e => e.includes('name_evidence')));
+  assert.deepEqual(validateBudgetFile(file([row({ moku: { ...searched, name_evidence: ['r6-kessan-gaiyou'] } })])).errors, []);
+  const items = [{ name: '職員費', name_src: 'guess' as never, amount: v(17_854_435_000) }];
+  assert.ok(validateBudgetFile(file([row({ items })])).errors.some(e => e.includes('items[0]: 名前の出典が不正')));
+  const setsu = [
+    { no: 1, no_src: 'order' as never, name: '報酬', amount: v(2_444_000) },
+    { no: null, no_src: 'ocr' as const, name: '給料', amount: v(17_851_991_000),
+      sub: [{ name: '給料', name_src: 'readings' as const, amount: v(17_851_991_000) }] },
+  ];
+  const errs = validateBudgetFile(file([row({ setsu })])).errors;
+  assert.ok(errs.some(e => e.includes('setsu[0]: 節番号の出典が不正')));
+  assert.ok(errs.some(e => e.includes('setsu[1]: 番号がないのに番号の出典がある')));
+  assert.equal(errs.filter(e => e.includes('sub')).length, 0);
+});
+
 test('補正: 補正前 + 補正額 = 計', () => {
   const sup = { supplementary: { round: 'R8-06', kind: '定例' as const } };
   const ok = row({ amount: v(2_545_648_000), before: v(8_819_677_000), after: v(11_365_325_000), funding: undefined, items: undefined, setsu: undefined, previous: undefined });
