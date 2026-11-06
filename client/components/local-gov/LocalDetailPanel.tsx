@@ -47,7 +47,11 @@ function NameMark({ src }: { src?: NameSource }) {
 export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGovIndex }) {
   const diff = row.amount.v !== null && row.previous?.v != null ? row.amount.v - row.previous.v : null;
   const sources = new Map(index.sources.map(s => [s.id, s]));
-  const topItems = (row.items ?? []).map((it, i) => ({ it, i })).filter(({ it }) => it.parent === undefined);
+  // 説明欄の事項は、親の事項の下に内訳（入れ子の事項）を字下げして並べる。
+  // 内訳にも見ておきたいものがある（議会費の「各種負担金等」の内訳の「議員連盟補助金」「政務活動費交付金」など）
+  const items = row.items ?? [];
+  const topItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.parent === undefined);
+  const childrenOf = (i: number) => items.map((it, j) => ({ it, j })).filter(({ it }) => it.parent === i);
 
   return (
     <div className="space-y-4 p-4 text-sm text-mirai-text">
@@ -102,18 +106,34 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">説明欄の事項</h3>
           <ul className="space-y-0.5">
             {topItems.map(({ it, i }) => (
-              <li key={i} className="flex justify-between gap-2">
-                <span>
-                  {it.name}
-                  {it.headcount !== undefined && <span className="text-mirai-text-muted">（{it.headcount}人）</span>}
-                  <NameMark src={it.name_src} />
-                  {it.no_amount_printed && (
-                    <span className="ml-1 text-[10px] text-amber-700" title="説明欄に事項が1つだけで金額が印字されていないため、目の額を当てています（事項の額としては検算していません）">
-                      ※金額の記載なし（目の額）
-                    </span>
-                  )}
-                </span>
-                <span className="shrink-0">{yen(it.amount)}</span>
+              <li key={i}>
+                <div className="flex justify-between gap-2">
+                  <span>
+                    {it.name}
+                    {it.headcount !== undefined && <span className="text-mirai-text-muted">（{it.headcount}人）</span>}
+                    <NameMark src={it.name_src} />
+                    {it.no_amount_printed && (
+                      <span className="ml-1 text-[10px] text-amber-700" title="説明欄に事項が1つだけで金額が印字されていないため、目の額を当てています（事項の額としては検算していません）">
+                        ※金額の記載なし（目の額）
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0">{yen(it.amount)}</span>
+                </div>
+                {childrenOf(i).length > 0 && (
+                  <ul className="mt-0.5 space-y-0.5 border-l border-mirai-border pl-3 text-xs text-mirai-text-secondary">
+                    {childrenOf(i).map(({ it: c, j }) => (
+                      <li key={j} className="flex justify-between gap-2">
+                        <span>
+                          {c.name}
+                          {c.headcount !== undefined && <span className="text-mirai-text-muted">（{c.headcount}人）</span>}
+                          <NameMark src={c.name_src} />
+                        </span>
+                        <span className="shrink-0">{yen(c.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -125,13 +145,29 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">節（{row.side === 'expense' ? '性質' : '内訳'}）</h3>
           <ul className="space-y-0.5">
             {row.setsu.map((s, i) => (
-              <li key={i} className="flex justify-between gap-2">
-                <span>
-                  {s.no !== null ? `${s.no} ` : ''}
-                  {s.name}
-                  <NameMark src={s.name_src} />
-                </span>
-                <span className="shrink-0">{yen(s.amount)}<Mark v={s.amount} /></span>
+              <li key={i}>
+                <div className="flex justify-between gap-2">
+                  <span>
+                    {s.no !== null ? `${s.no} ` : ''}
+                    {s.name}
+                    <NameMark src={s.name_src} />
+                  </span>
+                  <span className="shrink-0">{yen(s.amount)}<Mark v={s.amount} /></span>
+                </div>
+                {/* 細節（節の内訳。旅費の「普通旅費」「費用弁償」など） */}
+                {s.sub && s.sub.length > 0 && (
+                  <ul className="mt-0.5 space-y-0.5 border-l border-mirai-border pl-3 text-xs text-mirai-text-secondary">
+                    {s.sub.map((sb, j) => (
+                      <li key={j} className="flex justify-between gap-2">
+                        <span>
+                          {sb.name}
+                          <NameMark src={sb.name_src} />
+                        </span>
+                        <span className="shrink-0">{yen(sb.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
