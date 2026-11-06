@@ -4,7 +4,8 @@ OCR は時間がかかるので、この段階では「どの列の、どの高�
 表の解釈と検算は別のスクリプト（parse_setsumeisho.py）で行う。結果を使い回せるようにするため。
 
 使い方:
-    python3 -P scripts/local-gov/fukuoka-pref/ocr/ocr_pages.py <説明書.pdf> <出力ディレクトリ> <PDFページ範囲 例 121-420> [--dpi 300]
+    python3 -P scripts/local-gov/fukuoka-pref/ocr/ocr_pages.py <説明書.pdf> <出力ディレクトリ> <PDFページ範囲 例 121-420> [--dpi 300] [--redo-unknown]
+    既にあるページは飛ばす。--redo-unknown は、見出しのない続きの表を前のページの結果なしで判定したページ（WARN が出る）だけ読み直す
 
 必要なパッケージ: rapidocr（3.x。OCR_ENGINE=v4ch なら rapidocr-onnxruntime）, onnxruntime, opencv-python-headless, numpy（PYLIB 環境変数のディレクトリを sys.path に足す）
 出力: <出力ディレクトリ>/p0123.json  … {page, dpi, size, vlines, hlines, title:[...], cols:[[{y,x,text,score}...], ...]}
@@ -221,6 +222,9 @@ def main():
     pdf, outdir, rng = sys.argv[1], sys.argv[2], sys.argv[3]
     dpi = int(sys.argv[sys.argv.index("--dpi") + 1]) if "--dpi" in sys.argv else 300
     a, b = (int(x) for x in rng.split("-"))
+    # --redo-unknown: 見出しのない続きの表を、前のページの結果がないまま判定したページ（prev_cols_unknown）だけ読み直す
+    # （ページを分けて並べて流すと、前のページがまだできていないことがある。前のページができてから流し直す）
+    redo_unknown = "--redo-unknown" in sys.argv
     os.makedirs(outdir, exist_ok=True)
     # 回転の判定（cls）は横書きの表には不要。スレッド数は並列実行で取り合わないよう絞る。
     eng = make_engine(int(os.environ.get("OCR_THREADS", "5")))
@@ -228,7 +232,9 @@ def main():
         for page in range(a, b + 1):
             dst = os.path.join(outdir, f"p{page:04d}.json")
             if os.path.exists(dst):
-                continue
+                done = json.load(open(dst, encoding="utf-8"))
+                if not (redo_unknown and any(t.get("prev_cols_unknown") for t in done.get("tables", []))):
+                    continue
             t0 = time.time()
             png = render(pdf, page, dpi, tmp)
             img = cv2.imread(png, cv2.IMREAD_GRAYSCALE)
@@ -272,6 +278,12 @@ def main():
                          "rowlines": [d for d in hlines if head < d["y"] < vbottom - 4],
                          "cols": [ocr_column(eng, img, x0, head + 4, x1, vbottom - 4)
                                   for x0, x1 in zip(tv, tv[1:])]}
+                    if not is_header and prev_cols is None:
+                        # 見出しのない続きの表なのに、直前の表の列数が分からないまま縦線を選んだ（前のページの結果がない）。
+                        # 歳入・歳出の判定が未確定であることを残し、前のページができてから --redo-unknown で読み直す
+                        t["prev_cols_unknown"] = True
+                        print(f"WARN p{page}: 続きの表の歳入・歳出が未確定（前のページの結果がない）。"
+                              f"前のページの後に --redo-unknown で読み直す", file=sys.stderr)
                     rec["tables"].append(t)
                     prev_bottom = vbottom
                 rec["footer"] = ocr_region(eng, img, 0, prev_bottom, w, h)

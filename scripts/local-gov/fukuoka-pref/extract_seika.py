@@ -32,7 +32,8 @@ def main():
     cur = None
     in_table = False
     pending_name = ""
-    for ln in lines[start - 40:]:
+    # 見出しの40行前から読む（部門名が見出しより前に出る）。先頭近くに見出しがあっても負の添字にしない
+    for ln in lines[max(0, start - 40):]:
         f = re.sub(r"\s", "", ln)
         mb = BUMON_RE.match(ln)
         if mb:

@@ -15,6 +15,18 @@ def item(text, x0, y0, x1=None, y1=None):
             "y1": y1 if y1 is not None else y0 + 30}
 
 
+class TestNormName:
+    @pytest.mark.parametrize("text, want", [
+        ("O管理事務費", "○管理事務費"),      # 先頭の事項の印が英字の O に
+        ("0管理事務費", "○管理事務費"),      # 数字の 0 に
+        ("〇管理事務費", "○管理事務費"),
+        ("職員費10人", "職員費10人"),          # 名前の途中の 0 は数字のまま（「1○人」にしない。R8 で実例）
+        ("ＦＯＦ事務所管理費負担金", "ＦＯＦ事務所管理費負担金"),  # 名前の途中の O は英字のまま
+    ])
+    def test_norm_name(self, text, want):
+        assert ps.norm_name(text) == want
+
+
 class TestAmount:
     @pytest.mark.parametrize("text, want", [
         ("17,854,435", 17854435),

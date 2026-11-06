@@ -45,9 +45,28 @@ def values(m):
     return out
 
 
+def reading_values(m):
+    """読み取りとしての値（values）から、修正表（画像で確認した値）で置き換えた値を除いたもの。
+    OCR の読み取りの結果には修正表が当たっている（parse_setsumeisho.py --corrections）。そのまま数えると、
+    画像で確かめた値を「OCR が読んだ値」として一致に数えてしまう。画像での確認と読み取りの一致は別に数える。"""
+    out = values(m)
+    for fx in m.get("修正", []):
+        col = fx["列"]
+        if col in ("本年度", "前年度", "比較"):
+            out.pop(col, None)
+        elif col == "財源":
+            out.pop(f"財源 {fx.get('区分')}", None)
+        elif col in ("節", "説明"):
+            # 金額の集まりで対応させているので、直した値と同じ金額の項目を1つ除く
+            hit = next((k for k, v in out.items() if k.startswith(f"{col} ") and v == fx["値"]), None)
+            if hit:
+                out.pop(hit)
+    return out
+
+
 def main():
     adopted = load(sys.argv[1])
-    readings = [{key(m): values(m) for m in load(p)} for p in sys.argv[2:]]
+    readings = [{key(m): reading_values(m) for m in load(p)} for p in sys.argv[2:]]
     n = len(readings)
     dist = Counter()
     by_kind = Counter()

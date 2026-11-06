@@ -111,7 +111,9 @@ def parse_pdf(path):
                     first_on_page = False
                     continue
                 first_on_page = False
-                if not name or not amts:
+                # 事項名・予算額の両方が取れない行と、表の列見出しの行（「事項名 新規表示 予算表示」。R8 で 49行、
+                # どれも予算額なし）を捨てる。片方だけ取れたそれ以外の行は事項として残し、main の WARN（欠け）で知らせる
+                if (not name and not amts) or (not amts and "表示" in name):
                     continue
                 prev = cur = None
                 for s in amts:

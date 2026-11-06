@@ -99,9 +99,11 @@ def run_all(data):
     with tempfile.TemporaryDirectory() as outdir, tempfile.TemporaryDirectory() as tmpdir:
         for name, script, args, out, pats in STEPS:
             argv = [resolve(a, data, outdir, tmpdir) for a in args]
-            missing = [a for a in argv if (a.startswith(data)) and not os.path.exists(a)]
+            # 入力がない（原本がない・前のステップの出力ができていない）ステップは飛ばす。
+            # 前のステップが飛ばされると出力ファイルができないので、それを入力にする後のステップも飛ぶ
+            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
             if missing:
-                results[name] = {"skipped": f"入力がない: {', '.join(os.path.relpath(m, data) for m in missing)}"}
+                results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}
                 continue
             env = dict(os.environ)
             p = subprocess.run([sys.executable, "-P", os.path.join(ROOT, script), *argv], capture_output=True, text=True,

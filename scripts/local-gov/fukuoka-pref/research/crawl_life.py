@@ -39,14 +39,22 @@ def main(out_path: str) -> None:
     seen = set(cats)
     queue = list(cats)
     rows = 0
+    failed: dict[str, str] = {}  # 取れなかったカテゴリ → 最後のエラー
+    tries: dict[str, int] = {}
     with open(out_path, "w", encoding="utf-8") as out:
         while queue:
             cat = queue.pop(0)
             time.sleep(1.0)
             try:
                 page = fetch(cat)
+                failed.pop(cat, None)
             except Exception as e:  # noqa: BLE001
-                print(f"ERR {cat} {e}", file=sys.stderr)
+                # 一時的な失敗があるので、列の最後に回して 2回まで取り直す。それでも取れなければ記録して最後に失敗で終える
+                tries[cat] = tries.get(cat, 0) + 1
+                failed[cat] = str(e)
+                print(f"ERR {cat} （{tries[cat]}回目） {e}", file=sys.stderr)
+                if tries[cat] < 3:
+                    queue.append(cat)
                 continue
             m = TITLE_RE.search(page)
             ctitle = clean(m.group(1)) if m else ""
@@ -62,6 +70,11 @@ def main(out_path: str) -> None:
                     out.write(f"{cat}\t{ctitle}\t{href}\t{clean(text)}\n")
                     rows += 1
             print(f"ok {cat} queue={len(queue)} rows={rows}", file=sys.stderr, flush=True)
+    if failed:
+        # 一部のカテゴリが取れていない。TSV は取れた分だけ（不完全）なので、失敗で終える
+        for cat, err in failed.items():
+            print(f"FAIL {cat} {err}", file=sys.stderr)
+        sys.exit(f"{len(failed)} カテゴリを取得できなかった（出力は不完全）")
 
 
 if __name__ == "__main__":

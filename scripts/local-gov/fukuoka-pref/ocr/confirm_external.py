@@ -49,7 +49,8 @@ def main():
     stat = Counter()
     out = {"裏付けあり": [], "要確認": []}
     for m in ms:
-        k = (m["款"], m["項"][0], m["目番号"])
+        # 項が決まらなかった目（m["項"] が None）も落とさず、項番号 None のまま款単位の照合・行政評価との照合に回す
+        k = (m["款"], (m["項"] or (None,))[0], m["目番号"])
         pool = by_kamoku.get(k, []) + by_kamoku.get(k[:2], []) + by_kamoku.get(k[:1], [])
         for e in m["説明"]:
             if e.get("内訳") or e.get("金額の記載なし"):
