@@ -134,17 +134,19 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
             const isSelected = selected?.id === node.id;
             const labelLeft = node.column === 0;
             const ocrName = n.flags?.includes('name-ocr');
+            // 「その他」（まとめた箱）は選べない。中身は詳細パネル（目を選んだとき）か、左の箱を選び直して見る
+            const aggregate = n.flags?.includes('aggregate');
             const cy = node.y + node.height / 2;
             return (
               <g
                 key={node.id}
-                onClick={() => onSelect(node.id)}
+                onClick={aggregate ? undefined : () => onSelect(node.id)}
                 onMouseEnter={() => setHovered(node.id)}
                 onMouseLeave={() => setHovered(null)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: aggregate ? 'default' : 'pointer' }}
               >
                 <title>
-                  {`${n.name}　${formatBudgetFromYen(n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}`}
+                  {`${n.name}　${formatBudgetFromYen(n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n金額の小さい項目をまとめています' : ''}`}
                 </title>
                 <rect
                   x={node.x}

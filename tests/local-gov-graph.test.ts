@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { composeDisplay, edgeKey, selectionToFilter } from '../app/lib/local-gov/graph-view';
+import { aggregateTail, composeDisplay, edgeKey, selectionToFilter } from '../app/lib/local-gov/graph-view';
+import { nameSourceCounts, noAmountPrintedCount, valueCorrections, valueSourceCounts } from '../app/lib/local-gov/summary';
 import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number): Value => ({ v: n, src: 'ocr' });
@@ -134,6 +135,45 @@ test('表示: 会計の ID に「:」が入っていても絞り込みを読め�
   assert.deepEqual(selectionToFilter('all', 'moku:special:a/expense/1-1-1')?.filter,
     { account: 'special:a', side: 'expense', kan: 1, kou: 1, moku: 1 });
   assert.equal(selectionToFilter('general', 'funding:bond'), null);
+});
+
+test('表示: 右端の深い列の箱が多ければ上位だけ残し、残りを「その他」にまとめる（帯と重ねも足し合わせる）', () => {
+  const g: LocalGraph = {
+    schema_version: 1, gov_id: 't', year: 2026, basis: 'initial', totals: { gross: 100 },
+    columns: [{ key: 'kou', label: '項' }, { key: 'moku', label: '目' }],
+    nodes: [
+      { id: 'k', col: 'kou', name: '項', value: 100 },
+      ...[40, 30, 20, 6, 4].map((v, i) => ({ id: `m${i}`, col: 'moku', name: `目${i}`, value: v })),
+    ],
+    edges: [40, 30, 20, 6, 4].map((v, i) => ({ source: 'k', target: `m${i}`, value: v })),
+  };
+  const hl = new Map([[edgeKey('k', 'm3'), 6], [edgeKey('k', 'm0'), 40]]);
+  const out = aggregateTail(g, hl, new Set(['m3', 'm0']), 2, new Set(['m4']));
+  // 上位2件（m0・m1）と残す指定の m4 は残り、m2・m3 が「その他 2件」になる
+  assert.deepEqual(out.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]),
+    [['m0', 40], ['m1', 30], ['m4', 4], ['other:moku', 26]]);
+  assert.equal(out.graph.edges.find(e => e.target === 'other:moku')?.value, 26);
+  assert.equal(out.highlight.get(edgeKey('k', 'other:moku')), 6);
+  assert.ok(out.highlightNodes.has('other:moku') && !out.highlightNodes.has('m3'));
+  // 項の列（最初の画面の右端）はまとめない
+  const kouOnly = { ...g, columns: [{ key: 'kou', label: '項' }], nodes: g.nodes.map(n => ({ ...n, col: 'kou' })), edges: [] };
+  assert.equal(aggregateTail(kouOnly, new Map(), new Set(), 2, new Set()).graph.nodes.length, 6);
+});
+
+test('要約: 画像で直した値・出典ごとの件数を集める', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [row('general/expense/2-1-1', {
+      amount: v(100), previous: { v: 90, src: 'correction', note: '画像で確認' },
+      kan: { no: 2, name: '総務費', name_src: 'text' }, moku: { no: 1, name: '一般管理費', name_src: 'ocr' },
+      items: [{ name: '事務費', amount: v(100), no_amount_printed: true, name_src: 'readings' }],
+    })],
+  };
+  assert.deepEqual(valueCorrections(f).map(c => [c.field, c.value, c.note]), [['前年度', 90, '画像で確認']]);
+  assert.deepEqual(valueSourceCounts(f), { ocr: 2, correction: 1 });
+  const n = nameSourceCounts(f);
+  assert.deepEqual([n.kan, n.moku, n.item], [{ text: 1 }, { ocr: 1 }, { readings: 1 }]);
+  assert.equal(noAmountPrintedCount(f), 1);
 });
 
 // 実データ（福岡県 R8 当初予算）で組み立てて、列の合計と帯の保存を確かめる

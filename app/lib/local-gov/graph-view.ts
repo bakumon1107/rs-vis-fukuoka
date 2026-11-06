@@ -29,6 +29,54 @@ export interface LocalGraphDisplay {
 
 export const edgeKey = (source: string, target: string) => `${source}\u0000${target}`;
 
+/** 右端の列の箱がこれより多ければ、上位だけを残して残りを「その他」にまとめる（設計書 4.3） */
+export const TOP_N = 25;
+const AGGREGATE_COLS = new Set(['moku', 'item']);
+
+/**
+ * 右端の列（先へ帯の出ない箱）の箱が多いとき、金額の大きい上位 n 件（と keep の箱）を残し、残りを1つの「その他」にまとめる。
+ * 帯は送り手ごとに足し合わせる。選んだ帯の重ね（highlight）も同じようにまとめる。途中の列はまとめない（先の帯が切れるため）
+ */
+export function aggregateTail(
+  graph: LocalGraph,
+  highlight: Map<string, number>,
+  highlightNodes: Set<string>,
+  n: number,
+  keep: Set<string>
+): { graph: LocalGraph; highlight: Map<string, number>; highlightNodes: Set<string> } {
+  const hasOut = new Set(graph.edges.map(e => e.source));
+  const lastCol = graph.columns.filter(c => graph.nodes.some(nd => nd.col === c.key)).at(-1)?.key;
+  // まとめるのは選んで開いた深い列（目・事項）だけ。最初の画面の右端（項）は、選んで先を開く入口なのでまとめない
+  if (!lastCol || !AGGREGATE_COLS.has(lastCol)) return { graph, highlight, highlightNodes };
+  const tail = graph.nodes.filter(nd => nd.col === lastCol && !hasOut.has(nd.id));
+  if (tail.length <= n + 1) return { graph, highlight, highlightNodes };
+  const ranked = [...tail].sort((a, b) => b.value - a.value);
+  const merged = new Set(ranked.slice(n).filter(nd => !keep.has(nd.id)).map(nd => nd.id));
+  if (merged.size <= 1) return { graph, highlight, highlightNodes };
+  const otherId = `other:${lastCol}`;
+  const nodes = graph.nodes.filter(nd => !merged.has(nd.id));
+  const otherValue = tail.filter(nd => merged.has(nd.id)).reduce((s, nd) => s + nd.value, 0);
+  nodes.push({ id: otherId, col: lastCol, name: `その他 ${merged.size}件`, value: otherValue, flags: ['aggregate'] });
+
+  const edges = new Map<string, LocalGraph['edges'][number]>();
+  const hl = new Map(highlight);
+  for (const e of graph.edges) {
+    const target = merged.has(e.target) ? otherId : e.target;
+    const k = edgeKey(e.source, target);
+    const cur = edges.get(k);
+    if (cur) cur.value += e.value;
+    else edges.set(k, { source: e.source, target, value: e.value });
+    if (target === otherId) {
+      const h = highlight.get(edgeKey(e.source, e.target)) ?? 0;
+      hl.delete(edgeKey(e.source, e.target));
+      if (h > 0) hl.set(k, (hl.get(k) ?? 0) + h);
+    }
+  }
+  const hn = new Set([...highlightNodes].filter(id => !merged.has(id)));
+  if ([...highlightNodes].some(id => merged.has(id))) hn.add(otherId);
+  return { graph: { ...graph, nodes, edges: [...edges.values()] }, highlight: hl, highlightNodes: hn };
+}
+
 /**
  * 箱の ID から絞り込みと開く深さを決める（graph.ts の ID の形に対応）。
  * 財源・歳入の款（左端の列）は絞り込みにできない（財源の内訳は款より先で按分しないと分けられない）ので、その箱から出る帯だけを重ねる
@@ -93,6 +141,8 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   };
   const n = nodeOf(graph);
   const selected = n ? { id: n.id, name: n.name, col: n.col } : null;
+  // 右端の深い列の箱が多ければ上位だけ残す（選んだ箱は残す）
+  const agg = aggregateTail(graph, highlight, highlightNodes, TOP_N, new Set(selectedId ? [selectedId] : []));
   // 目・事項を選んだら、その目を詳細パネルに出す
-  return { graph, selected, highlight, highlightNodes, row: n?.row ?? null };
+  return { ...agg, selected, row: n?.row ?? null };
 }

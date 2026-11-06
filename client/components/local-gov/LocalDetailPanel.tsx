@@ -107,6 +107,11 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
                   {it.name}
                   {it.headcount !== undefined && <span className="text-mirai-text-muted">（{it.headcount}人）</span>}
                   <NameMark src={it.name_src} />
+                  {it.no_amount_printed && (
+                    <span className="ml-1 text-[10px] text-amber-700" title="説明欄に事項が1つだけで金額が印字されていないため、目の額を当てています（事項の額としては検算していません）">
+                      ※金額の記載なし（目の額）
+                    </span>
+                  )}
                 </span>
                 <span className="shrink-0">{yen(it.amount)}</span>
               </li>

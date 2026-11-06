@@ -7,6 +7,7 @@
  * ページは状態（見方・選択。URL のクエリに持つ）とデータの読み込み・レイアウトだけを持つ。
  * グラフの組み立ては app/lib/local-gov（純粋関数）、描画は client/components/local-gov。
  */
+import Link from 'next/link';
 import { Suspense, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
@@ -134,7 +135,10 @@ function LocalGovContent() {
 
         <p className="mt-3 text-xs text-mirai-text-muted">
           出典: {index.sources.filter(s => s.id.startsWith('r8-setsumeisho')).map(s => s.title).join('・')}（{index.gov.name}）。
-          金額は説明書に印字された数字（千円単位）を円に直したもの。帯は推計せず、印字された数字の合計で描いています。
+          金額は説明書に印字された数字（千円単位）を円に直したもの。帯は推計せず、印字された数字の合計で描いています。{' '}
+          <Link href={`/local/${gov}/about`} className="text-primary-accent underline">
+            データについて（検算の方法と結果・資料の一覧）
+          </Link>
         </p>
       </main>
 
