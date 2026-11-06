@@ -35,6 +35,20 @@ docs/local-gov/
 
 地方版の作業文書は本家の `docs/tasks/` ではなくここに置く（本家取り込み時の衝突回避と、文書の埋没を防ぐため）。
 
+## テスト（抽出・検算ロジックの回帰を防ぐ）
+
+抽出・OCR の解釈のロジックは、崩れ方に合わせて継ぎ足していくので、直したはずの崩れ方の再発や、別の箇所の数字の変化に気づけるようにする。
+
+| 種類 | 場所 | 内容 | 実行 |
+|---|---|---|---|
+| 単体テスト | `scripts/local-gov/fukuoka-pref/tests/test_*.py` | 解釈の関数を、実際に起きた崩れ方（出典のページをコメントに書く）を再現した小さな入力で確かめる。原本不要 | `python3 -P -m pytest scripts/local-gov/fukuoka-pref/tests` |
+| 回帰テスト | `scripts/local-gov/fukuoka-pref/tests/regression.py`・`expected/regression.json` | 手元の原本と OCR 結果で全ステップを流し、要約（件数・一致数・FAIL・総額）を期待値と1行ずつ比べる。原本がなければ飛ばす | `FUKUOKA_DATA=<dir> python3 -P scripts/local-gov/fukuoka-pref/tests/regression.py` |
+
+決まり:
+- ロジックを変えたら両方を流す。単体テストは新しい崩れ方を直すたびに1件足す（出典のページを書く）
+- 回帰テストで数字が変わったら、良くなったのか悪くなったのかを確かめてから `--update` で期待値を書き換え、コミットの説明に理由を書く
+- `<dir>` の形: `pdf/<県サイトのファイル名>.pdf`、`ocr/<名前>/p0001.json …`（`r8-ippan`・`r8-toku`）。原本はコミットしない
+
 ## ロードマップ
 
 詳細は [tasks/20261106_0111_地方版予算ビュー全体計画.md](tasks/20261106_0111_地方版予算ビュー全体計画.md)。

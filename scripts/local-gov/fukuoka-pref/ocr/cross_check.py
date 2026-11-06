@@ -2,7 +2,9 @@
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/ocr/cross_check.py <OCR の setsumeisho.json> <文字層の setsumeisho.json> \
-        > cross-check.json
+        [--third <別の OCR の setsumeisho.json>] [--yosansho <yosansho.json>] > cross-check.json
+    --third: OCR と同じ値を読んでいる箇所を固定し、文字層で書き換えない（打ち消し合う誤りの防止）。財源内訳は
+    区分ごと・断片ごとに突き合わせる（parse_setsumeisho.py の「財源の断片」）
 
 やること:
 1. 目の対応: 同じ表の構造（ocr_pages.py の縦線・区画）から作っているので、(会計, 歳入/歳出, 款, 項, 目番号) で対応させる
@@ -41,9 +43,76 @@ def checks_of(m):
     return c
 
 
+def _top_amounts(m):
+    return [s["amount"] for s in m["節"] if s.get("top", s.get("no") is not None)]
+
+
+def _locked_amounts(m, th):
+    """OCR と3つ目の読み取りの両方にある金額（多重集合の共通部分）。"""
+    if th is None:
+        return Counter()
+    return Counter(m) & Counter(th)
+
+
+def _swap_scalars(x, t, th):
+    for f in ("本年度", "前年度", "比較"):
+        if t[f] != x[f] and th is not None and x[f] is not None and th.get(f) == x[f]:
+            return False  # 2つの OCR が同じ値を読んでいる
+    x.update({f: t[f] for f in ("本年度", "前年度", "比較")})
+    return None
+
+
+def _swap_setsu(x, t, th):
+    locked = _locked_amounts(_top_amounts(x), _top_amounts(th) if th else None)
+    if locked - Counter(_top_amounts(t)):
+        return False  # 2つの OCR が読んだ節の金額が、文字層の節にない
+    x["節"] = copy.deepcopy(t["節"])
+    return None
+
+
+def _apply_funding(x, t, th):
+    """財源内訳を区分ごとに突き合わせる。選択肢:
+    - 文字層にだけある断片を足す（OCR の取りこぼし。「その他」の「財産収入 1」。R8 p177 を画像で確認）
+    - 区分の値を文字層の値にする（その区分を OCR が1つの断片で読み、3つ目の読み取りと一致していないときだけ）
+    最小の変更で目の本年度にちょうど合う解が1通りのときだけ採用する。"""
+    h = x["本年度"]
+    op, tp = x.get("財源の断片"), t.get("財源の断片")
+    if h is None or not op or not tp:
+        return False
+    total = sum(x["財源"].values())
+    opts = []
+    for k in x["財源"]:
+        extra = Counter(tp.get(k, [])) - Counter(op.get(k, []))
+        for a, n in extra.items():
+            for _ in range(n):
+                opts.append((k, "add", a))
+        if (len(op.get(k, [])) == 1 and len(tp.get(k, [])) == 1 and op[k][0] != tp[k][0]
+                and not (th is not None and th["財源"].get(k) == x["財源"][k])):
+            opts.append((k, "replace", tp[k][0] - op[k][0]))
+    if not opts or len(opts) > 12:
+        return False
+    sols = [mask for mask in range(1, 1 << len(opts))
+            if total + sum(opts[i][2] for i in range(len(opts)) if mask >> i & 1) == h]
+    if not sols:
+        return False
+    best = min(bin(s).count("1") for s in sols)
+    mins = [s for s in sols if bin(s).count("1") == best]
+    if len(mins) != 1:
+        return False
+    notes = []
+    for i, (k, kind, a) in enumerate(opts):
+        if mins[0] >> i & 1:
+            x["財源"][k] += a
+            notes.append(f"{k}: 文字層の断片 {a} を足す" if kind == "add" else f"{k}: 文字層の値にする（差 {a}）")
+    x["財源の突き合わせ"] = notes
+    return None
+
+
 def main():
     ocr = [m for m in json.load(open(sys.argv[1], encoding="utf-8")) if m["kind"] == "目"]
     tl = {key(m): m for m in json.load(open(sys.argv[2], encoding="utf-8")) if m["kind"] == "目"}
+    third = ({key(m): m for m in json.load(open(sys.argv[sys.argv.index("--third") + 1], encoding="utf-8")) if m["kind"] == "目"}
+             if "--third" in sys.argv else None)
     stat = Counter()
     rescued, remaining = [], []
     for m in ocr:
@@ -59,13 +128,17 @@ def main():
                 stat[f"一致率 {f} 対象"] += 1
                 stat[f"一致率 {f} 一致"] += int(t[f] == m[f])
             continue
-        # 救済: 値の組ごとに差し替えて試す（組み合わせも試す）
+        # 救済: 値の組ごとに差し替えて試す（組み合わせも試す）。
+        # 3つ目の読み取り（--third。別の OCR）があれば、OCR と3つ目が同じ値を読んでいる箇所は「固定」して書き換えない。
+        # 書き換えると、文字層の誤りと OCR の取りこぼしが打ち消し合って検算を通ってしまう（R8 p239: 一般財源 34,763 を
+        # 文字層の 34,764 に、その他の「1」の取りこぼしと相殺。画像で確認）
+        th = third.get(key(m)) if third else None
         groups = {
-            "本年度・前年度・比較": lambda x, t=t: x.update({f: t[f] for f in ("本年度", "前年度", "比較")}),
-            "財源内訳": lambda x, t=t: x.update({"財源": dict(t["財源"])}),
-            "節": lambda x, t=t: x.update({"節": copy.deepcopy(t["節"])}),
-            "節を1件ずつ": lambda x, t=t: _apply_resolve(x, t),
-            "説明欄の金額": lambda x, t=t: _swap_expl(x, t),
+            "本年度・前年度・比較": lambda x, t=t, th=th: _swap_scalars(x, t, th),
+            "財源を1件ずつ": lambda x, t=t, th=th: _apply_funding(x, t, th),
+            "節": lambda x, t=t, th=th: _swap_setsu(x, t, th),
+            "節を1件ずつ": lambda x, t=t, th=th: _apply_resolve(x, t, th),
+            "説明欄の金額": lambda x, t=t, th=th: _swap_expl(x, t, th),
         }
         names = list(groups)
         found = None
@@ -127,10 +200,14 @@ def main():
               sys.stdout, ensure_ascii=False, indent=1, default=str)
 
 
-def _swap_expl(x, t):
+def _swap_expl(x, t, th=None):
     """説明欄: 件数が同じなら金額だけ差し替える（名前は OCR のまま）。
-    件数が違う（OCR が金額を名前とつないで落とした: p186「職員費45人386:」）ときは文字層の一覧を使い、名前に要補正の印。"""
+    件数が違う（OCR が金額を名前とつないで落とした: p186「職員費45人386:」）ときは文字層の一覧を使い、名前に要補正の印。
+    2つの OCR が同じ金額を読んでいる事項が、文字層の一覧になくなるなら採らない。"""
     if not t["説明"]:
+        return False
+    locked = _locked_amounts([e["amount"] for e in x["説明"]], [e["amount"] for e in th["説明"]] if th else None)
+    if locked - Counter(e["amount"] for e in t["説明"]):
         return False
     if len(x["説明"]) == len(t["説明"]):
         for e, f in zip(x["説明"], t["説明"]):
@@ -141,28 +218,32 @@ def _swap_expl(x, t):
     return None
 
 
-def _apply_resolve(x, t):
-    r = resolve_setsu(x, t)
+def _apply_resolve(x, t, th=None):
+    r = resolve_setsu(x, t, th)
     if r is None:
         return False
     x["節"], x["節の突き合わせ"] = r
     return None
 
 
-def resolve_setsu(m, t):
+def resolve_setsu(m, t, th=None):
     """節を1件ずつ突き合わせ、目の本年度にちょうど合う組み合わせが1通りに決まれば返す。
     選択肢: 同じ節番号で金額が違う → OCR か文字層か / 文字層にだけある節 → 足すか / OCR にだけある番号なしの行 → 残すか
-    （OCR が細節を節と誤認した行・重複して読んだ行を除くため）。最小の変更で合う解が1通りのときだけ採用する。"""
+    （OCR が細節を節と誤認した行・重複して読んだ行を除くため）。最小の変更で合う解が1通りのときだけ採用する。
+    3つ目の読み取り（th）が同じ節番号で同じ金額なら、その節は文字層の値に置き換えない（番号なしの行を除く操作は、
+    読み違いではなく節と細節の取り違えなので固定しない）。"""
     h = m["本年度"]
     if h is None:
         return None
     o_top = [s for s in m["節"] if s.get("top", s.get("no") is not None)]
     t_top = [s for s in t["節"] if s.get("top", s.get("no") is not None)]
     t_by = {s["no"]: s for s in t_top if s.get("no") is not None}
+    th_by = {s["no"]: s["amount"] for s in (th["節"] if th else []) if s.get("no") is not None and s.get("top", True)}
     o_nos = {s["no"] for s in o_top if s.get("no") is not None}
     base, opts = [], []  # opts: (説明, 採ったときの金額の差, 採ったときの操作)
     for s in o_top:
-        if s.get("no") is not None and s["no"] in t_by and t_by[s["no"]]["amount"] != s["amount"]:
+        if (s.get("no") is not None and s["no"] in t_by and t_by[s["no"]]["amount"] != s["amount"]
+                and th_by.get(s["no"]) != s["amount"]):
             opts.append((f"節{s['no']} 文字層 {t_by[s['no']]['amount']}（OCR {s['amount']}）", t_by[s["no"]]["amount"] - s["amount"],
                          ("replace", s, t_by[s["no"]]["amount"])))
         elif s.get("no") is None:
