@@ -54,7 +54,8 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
   const childrenOf = (i: number) => items.map((it, j) => ({ it, j })).filter(({ it }) => it.parent === i);
 
   return (
-    <div className="space-y-4 p-4 text-sm text-mirai-text">
+    // パネルの枠（SidePanelChrome）は中身を切り取るだけなので、中身の側でスクロールする
+    <div className="h-full space-y-4 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
       <div>
         <p className="text-xs text-mirai-text-muted">
           {row.kan.name} ／ {row.kou.name}
