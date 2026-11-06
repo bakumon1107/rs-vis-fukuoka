@@ -7,6 +7,9 @@
     FUKUOKA_DATA=<dir> python3 -P -m pytest scripts/local-gov/fukuoka-pref/tests                # pytest からも流れる
 
 <dir> の中身: pdf/<ファイル名>.pdf（県サイトのファイル名のまま）、ocr/<名前>/p0001.json …（ocr_pages.py の出力）。
+  ocr/r8-ippan     … R8 一般会計。PP-OCRv6（OCR_ENGINE=v6）＋ refill_missing.py の読み直し済み
+  ocr/r8-ippan-v4  … R8 一般会計。中国語モデル（OCR_ENGINE=v4ch）。突き合わせの3つ目の読み取り
+  ocr/r8-toku      … R8 特別会計
 OCR 自体は時間がかかる（1ページ約10秒）ので回帰テストでは流さず、保存した OCR 結果を入力にする。
 期待値（expected/regression.json）は「各ステップの要約行」。ロジックを直して数字が変わったら、
 差分を確かめてから --update で書き換え、コミットの説明に理由を書く（良くなったのか、悪くなったのか）。
@@ -45,9 +48,17 @@ STEPS = [
     ("説明書 一般会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
      ["{tmp:tl}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"], "setsumeisho-tl.json",
      [r"^\[", r"^計の行", r"^項 \d"]),
+    # 3つ目の読み取り（旧 OCR = 中国語モデル）。突き合わせで「2つの OCR が同じ値を読んだ箇所」を固定するのに使う
+    ("説明書 一般会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-ippan-v4}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-v4.json", [r"^\[", r"^計の行", r"^項 \d"]),
     ("説明書 一般会計（突き合わせ）", "ocr/cross_check.py",
-     ["{out:setsumeisho-ocr.json}", "{out:setsumeisho-tl.json}", "--yosansho", "{out:yosansho.json}"], "cross.json",
-     [r"^全検算", r"^検算の通らない", r"^差し替え後", r"^全体"]),
+     ["{out:setsumeisho-ocr.json}", "{out:setsumeisho-tl.json}", "--third", "{out:setsumeisho-v4.json}",
+      "--yosansho", "{out:yosansho.json}"], "cross.json",
+     [r"^全検算", r"^検算の通らない", r"^救済", r"^残り", r"^差し替え後", r"^全体"]),
+    ("説明書 一般会計（多数決）", "ocr/vote.py",
+     ["{out:cross.json}", "{out:setsumeisho-ocr.json}", "{out:setsumeisho-v4.json}", "{out:setsumeisho-tl.json}"], "vote.json",
+     [r"^全検算", r"^  \d 通り"]),
     ("説明書 特別会計（OCR）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
      "setsumeisho-toku.json", [r"^\[", r"^計の行", r"^項 \d", r"^(OK|NG)  "]),

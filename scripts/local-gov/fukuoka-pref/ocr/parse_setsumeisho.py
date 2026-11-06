@@ -190,8 +190,12 @@ def choose_kou(title: str, cands, prev_no):
     t = re.sub(r"^\d{2,3}(?=\D)", "", t)                 # 行頭のページ番号「490」「1613旧法…」の 16
     t = re.sub(r"\d+\s*款\S*?(?=\d+\s*[项項填頂顶]|$)", "", t)  # 「12款繰入金」の款の部分
     name = re.sub(r"[\d\s项項填頂顶]", "", t)
-    # 項の名前は2文字以上（「税」1文字の項はなく、1文字の残りは読み取りのかけら）
-    if len(re.findall(r"[぀-ヿ一-鿿]", name)) < 2 or not cands:
+    # 項の名前は2文字以上（1文字の残りは読み取りのかけら。「-138一」の「一」）。
+    # ただし「10項」のように番号と項の字がはっきり読めていれば、名前が1文字でも新しい項とみなす
+    # （PP-OCRv6 で「狩10項」。狩猟税の名前が「狩」しか残らず、項を見落として鉱区税に入れた実例）
+    explicit = re.search(r"\d{1,2}\s*[项項填頂顶]", t)
+    n_chars = len(re.findall(r"[぀-ヿ一-鿿]", name))
+    if not cands or (n_chars < 2 and not (explicit and n_chars >= 1)):
         return None
     nums = [int(x) for x in re.findall(r"\d{1,2}", t)]
     best, best_score = None, -1.0
@@ -369,6 +373,10 @@ def main():
                         s["top"] = True
                 zaigen = {"国庫支出金": sum_amounts(cell[4]), "地方債": sum_amounts(cell[5]),
                           "その他": sum_amounts(cell[6]), "一般財源": sum_amounts(cell[7])}
+                # 財源の欄の金額の断片（「その他」は「使用料及び手数料 24／財産収入 1／諸収入 142,841」のように複数並ぶ）。
+                # 突き合わせ（cross_check.py）で、取りこぼした断片だけを別の読み取りから足すのに使う
+                zaigen_parts = {k: [a for a in (amount(d["text"]) for d in sorted(cell[i], key=lambda d: d["y0"])) if a is not None]
+                                for k, i in (("国庫支出金", 4), ("地方債", 5), ("その他", 6), ("一般財源", 7))}
                 last_moku = next((x for x in reversed(moku_list) if x["kind"] == "目"), None)
                 after_total = bool(moku_list) and moku_list[-1]["kind"] == "計"
                 if honnen is None and not name_txt.strip() and last_moku is not None and after_total:
@@ -383,6 +391,7 @@ def main():
                     m["節の欄の文字数"] += len(cell[8]) + len(cell[9])
                     for k, v in zaigen.items():
                         m["財源"][k] += v
+                        m.setdefault("財源の断片", {}).setdefault(k, []).extend(zaigen_parts[k])
                     m["pages"].append(page)
                     continue
                 if is_total:
@@ -395,7 +404,7 @@ def main():
                     "款": cur_kan, "項": cur_kou, "目番号": mno_val,
                     "目名": norm_name(name_body),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
-                    "財源": zaigen, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
+                    "財源": zaigen, "財源の断片": zaigen_parts, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
                     "節の欄の文字数": len(cell[8]) + len(cell[9]),
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
                              "x1": (rec.get("vlines") or [0, 0, 0])[2]}})

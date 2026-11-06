@@ -49,6 +49,11 @@ class TestChooseKou:
         # 番号が名前の後ろに回る（p21「場利用税6」）
         assert ps.choose_kou("場利用税6（单位：千内）", self.CANDS_KEN, 5) == (6, "ゴルフ場利用税")
 
+    def test_one_char_name_with_explicit_kou_number(self):
+        # PP-OCRv6 で「狩10項」。名前が1文字しか残らなくても、「10項」が読めていれば新しい項（p23）
+        cands = self.CANDS_KEN + [(10, "狩猟税"), (11, "産業廃棄物税")]
+        assert ps.choose_kou("狩10項(単位：千円)", cands, 9) == (10, "狩猟税")
+
     def test_kou_char_misread(self):
         # 「項」が「頂」になる（p22）
         assert ps.choose_kou("8頂自動車税（单位：千网）", self.CANDS_KEN, 7) == (8, "自動車税")

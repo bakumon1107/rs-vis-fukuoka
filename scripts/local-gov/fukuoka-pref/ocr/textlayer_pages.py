@@ -39,6 +39,42 @@ def merged_words(page, scale):
     return out
 
 
+def calibrate(words, rec):
+    """文字層の座標と画像（OCR）の座標のずれを、ページごとに測って直す。
+    文字層は画像に対して右に 10〜15px（300dpi）ずれている（R8 281298 p239 で「452」の右端が OCR 1907・文字層 1921）。
+    列の境目の近くにある右寄せの小さな数字（「1」）が隣の列に入る原因になった（財源の「その他」の 1 が一般財源に入り、
+    別の誤りと打ち消し合って検算を通った実例）。OCR と同じ文字列の数字（4文字以上）を対応させ、ずれの中央値を引く。"""
+    ocr_words = [d for t in rec.get("tables", []) for col in t["cols"] for d in col
+                 if re.fullmatch(r"[\d,]{4,}", d["text"])]
+    by_text = {}
+    for d in ocr_words:
+        by_text.setdefault(d["text"], []).append(d)
+    dxs, dys = [], []
+    for w in words:
+        cands = by_text.get(w["text"])
+        if not cands:
+            continue
+        c = min(cands, key=lambda d: abs(d["x1"] - w["x1"]) + abs(d["y0"] - w["y0"]))
+        if abs(c["x1"] - w["x1"]) < 60 and abs(c["y0"] - w["y0"]) < 60:
+            dxs.append(w["x1"] - c["x1"])
+            dys.append(w["y0"] - c["y0"])
+    if len(dxs) < 3:
+        return 0.0, 0.0
+    dxs.sort()
+    dys.sort()
+    dx, dy = dxs[len(dxs) // 2], dys[len(dys) // 2]
+    # ずれを測ったのは数字だけ。名前（節の区分など）は動かさない（動かすと、字下げで見分ける細節が
+    # すべて節と判定された実例。名前の文字はずれ方が違う）
+    for w in words:
+        if not re.fullmatch(r"[\d,]+", w["text"]):
+            continue
+        w["x0"] -= dx
+        w["x1"] -= dx
+        w["y0"] -= dy
+        w["y1"] -= dy
+    return dx, dy
+
+
 def main():
     pdf_path, ocr_dir, outdir, rng = sys.argv[1:5]
     a, b = (int(x) for x in rng.split("-"))
@@ -52,6 +88,8 @@ def main():
             page = pdf.pages[pno - 1]
             scale = rec["size"][0] / float(page.width)
             words = merged_words(page, scale)
+            dx, dy = calibrate(words, rec)
+            rec["textlayer_offset"] = [round(dx, 1), round(dy, 1)]
             for t in rec.get("tables", []):
                 vl = t.get("vlines") or rec["vlines"]
                 y_top, y_bot = t["head"] + 4, t["box"][3] - 4

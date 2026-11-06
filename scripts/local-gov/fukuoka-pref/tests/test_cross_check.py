@@ -45,6 +45,40 @@ class TestResolveSetsu:
         assert cc.resolve_setsu(m, t) is None
 
 
+def funded(h, parts, **kw):
+    m = moku(h, [], side="歳出", 財源={k: sum(v) for k, v in parts.items()}, 財源の断片=parts, **kw)
+    return m
+
+
+class TestFunding:
+    KEYS = ("国庫支出金", "地方債", "その他", "一般財源")
+
+    def parts(self, **kw):
+        return {k: kw.get(k, []) for k in self.KEYS}
+
+    def test_add_fragment_missed_by_ocr(self):
+        # 「その他」の「財産収入 1」を OCR が取りこぼし、文字層だけが読めている（p177 保健総務費。画像で確認）
+        x = funded(7035306, self.parts(国庫支出金=[30980], 地方債=[22600], その他=[24, 142841], 一般財源=[6838860]))
+        t = funded(7035306, self.parts(国庫支出金=[30980], 地方債=[22600], その他=[24, 1, 142841], 一般財源=[6838860]))
+        assert cc._apply_funding(x, t, None) is None
+        assert x["財源"]["その他"] == 142866 and x["財源"]["一般財源"] == 6838860
+
+    def test_locked_value_is_not_replaced(self):
+        # 文字層が「1」を一般財源の値の誤読で補う形になり、打ち消し合って検算を通る（p239。正しくは その他 453・一般財源 34,763）。
+        # 2つの OCR が一般財源 34,763 で一致しているので、置き換えない → 救済しない（画像で確かめて修正表へ）
+        x = funded(103009, self.parts(国庫支出金=[67793], その他=[452], 一般財源=[34763]))
+        t = funded(103009, self.parts(国庫支出金=[67793], その他=[452], 一般財源=[34764]))
+        th = funded(103009, self.parts(国庫支出金=[67793], その他=[452], 一般財源=[34763]))
+        assert cc._apply_funding(x, t, th) is False
+
+    def test_scalar_lock(self):
+        x = moku(10, [], 前年度=9, 比較=1)
+        t = moku(10, [], 前年度=8, 比較=2)
+        th = moku(10, [], 前年度=9, 比較=1)
+        assert cc._swap_scalars(x, t, th) is False
+        assert cc._swap_scalars(moku(10, [], 前年度=9, 比較=1), t, None) is None
+
+
 class TestChecks:
     def test_revenue_checks(self):
         assert all(cc.checks_of(moku(10, setsu((1, 10)))).values())
