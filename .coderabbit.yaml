@@ -1,0 +1,35 @@
+# CodeRabbit の設定（地方版予算ビュー。bakumon1107/rs-vis-fukuoka）
+# 本流は local-main（既定ブランチ）。本家（team-mirai-volunteer/rs-vis）へは PR しない。
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: ja-JP
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "local-main"
+  path_filters:
+    # 書き出したデータ・回帰テストの期待値（スクリプトの出力。中身は生成元のスクリプトとテストで確かめる）
+    - "!public/data/**"
+    - "!**/*.gz"
+    - "!scripts/local-gov/**/tests/expected/**"
+    - "!package-lock.json"
+  path_instructions:
+    - path: "scripts/local-gov/**/*.py"
+      instructions: |
+        自治体の予算書（PDF）から数値・名前を取り出すパイプライン。正確さが最優先。
+        - 金額は検算（説明欄・財源・節・項・款・計上額調の合計）で確かめる設計。推定した値を検算済みの値として扱っていないかを見る
+        - 読み取れない値をこしらえない（null にする・出典を残す）。名前の置き換えは裏付けがあるときだけ
+        - UI・API のロジックを持ち込まない（レイヤーの決まり）
+    - path: "app/lib/local-gov/**"
+      instructions: "純粋な関数（HTTP・React を使わない）。金額は 1円単位の整数。"
+    - path: "docs/local-gov/**/*.md"
+      instructions: "設計書・ノウハウ。記述とコード・データの食い違い、決めたことの矛盾を指摘する。文体の好みは指摘しない。"
+
+chat:
+  auto_reply: true
