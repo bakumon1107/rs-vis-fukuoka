@@ -47,14 +47,20 @@ def choose_vlines(tv, page_vlines, header_text, prev_cols):
 
 
 def previous_table_cols(outdir: str, page: int):
-    """前のページの OCR 結果の最後の表の列数（見出しのない続きの表が歳入か歳出かの手がかり）。なければ None。"""
+    """前のページの OCR 結果の最後の表の列数（見出しのない続きの表が歳入か歳出かの手がかり）と、それが確かか。
+    返り値: (列数 or None, 未確定か)。未確定とするのは、間のページの結果がまだない（並べて流して、さらに前のページで
+    代わりに判定した）ときと、見つけた表そのものが未確定（prev_cols_unknown）のとき（未確定は後ろのページへ伝わる）。
+    表のないページ（扉など）はとばしてさらに前を見る（未確定にはしない）。"""
+    missing = False
     for p in range(page - 1, max(0, page - 4), -1):
         path = os.path.join(outdir, f"p{p:04d}.json")
-        if os.path.exists(path):
-            tables = json.load(open(path, encoding="utf-8")).get("tables", [])
-            if tables:
-                return len(tables[-1]["cols"])
-    return None
+        if not os.path.exists(path):
+            missing = True
+            continue
+        tables = json.load(open(path, encoding="utf-8")).get("tables", [])
+        if tables:
+            return len(tables[-1]["cols"]), missing or bool(tables[-1].get("prev_cols_unknown"))
+    return None, True
 
 
 def make_engine(threads: int):
@@ -264,7 +270,11 @@ def main():
                     #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
                     #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
                     is_header = bool(re.search(r"年度|区分|説明|節|款名|財源", htext)) and head - vtop <= 400
-                    prev_cols = len(rec["tables"][-1]["cols"]) if rec["tables"] else previous_table_cols(outdir, page)
+                    if rec["tables"]:
+                        prev_cols = len(rec["tables"][-1]["cols"])
+                        prev_unknown = bool(rec["tables"][-1].get("prev_cols_unknown"))
+                    else:
+                        prev_cols, prev_unknown = previous_table_cols(outdir, page)
                     tv = choose_vlines(tv, vlines, htext if is_header else None, prev_cols)
                     if tv is None:
                         continue  # 表ではない（枠だけの囲みなど）
@@ -278,11 +288,12 @@ def main():
                          "rowlines": [d for d in hlines if head < d["y"] < vbottom - 4],
                          "cols": [ocr_column(eng, img, x0, head + 4, x1, vbottom - 4)
                                   for x0, x1 in zip(tv, tv[1:])]}
-                    if not is_header and prev_cols is None:
-                        # 見出しのない続きの表なのに、直前の表の列数が分からないまま縦線を選んだ（前のページの結果がない）。
-                        # 歳入・歳出の判定が未確定であることを残し、前のページができてから --redo-unknown で読み直す
+                    if not is_header and prev_unknown:
+                        # 見出しのない続きの表なのに、直前の表の列数が確かでないまま縦線を選んだ（前のページの結果がない・
+                        # 前の表も未確定）。未確定であることを残し（後ろのページの続きの表にも伝わる）、
+                        # 前のページができてから --redo-unknown で読み直す（ページの順に読み直すので、伝わった先も直る）
                         t["prev_cols_unknown"] = True
-                        print(f"WARN p{page}: 続きの表の歳入・歳出が未確定（前のページの結果がない）。"
+                        print(f"WARN p{page}: 続きの表の歳入・歳出が未確定（前のページの結果がない・前の表も未確定）。"
                               f"前のページの後に --redo-unknown で読み直す", file=sys.stderr)
                     rec["tables"].append(t)
                     prev_bottom = vbottom

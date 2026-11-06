@@ -53,3 +53,33 @@ def test_not_a_table():
 @pytest.mark.parametrize("tv, page, want", [(L12, L12, L12), (L12, [0, 100], L12)])
 def test_expense_normal(tv, page, want):
     assert op.choose_vlines(tv, page, "財源", None) == want
+
+
+def _page(tmp_path, page, tables):
+    import json
+    (tmp_path / f"p{page:04d}.json").write_text(json.dumps({"page": page, "tables": tables}), encoding="utf-8")
+
+
+def test_previous_table_cols_from_previous_page(tmp_path):
+    _page(tmp_path, 100, [{"cols": [[]] * 7}])
+    assert op.previous_table_cols(str(tmp_path), 101) == (7, False)
+
+
+def test_previous_table_cols_skips_page_without_tables(tmp_path):
+    # 表のないページ（扉など）はとばしてさらに前を見る。未確定にはしない
+    _page(tmp_path, 99, [{"cols": [[]] * 11}])
+    _page(tmp_path, 100, [])
+    assert op.previous_table_cols(str(tmp_path), 101) == (11, False)
+
+
+def test_previous_table_cols_unknown_when_page_missing(tmp_path):
+    # 直前のページの結果がまだない（並べて流した）。さらに前のページで代わりに判定するが、未確定とする
+    _page(tmp_path, 99, [{"cols": [[]] * 7}])
+    assert op.previous_table_cols(str(tmp_path), 101) == (7, True)
+    assert op.previous_table_cols(str(tmp_path), 200) == (None, True)
+
+
+def test_previous_table_cols_propagates_unknown(tmp_path):
+    # 前のページの表そのものが未確定なら、それに頼った判定も未確定（後ろのページへ伝わる）
+    _page(tmp_path, 100, [{"cols": [[]] * 7, "prev_cols_unknown": True}])
+    assert op.previous_table_cols(str(tmp_path), 101) == (7, True)

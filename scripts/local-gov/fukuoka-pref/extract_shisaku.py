@@ -25,6 +25,12 @@ Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
 AMT = re.compile(r"^\(?\s*([\d,]+)\s*\)?$")
 
 
+def is_header_row(name: str) -> bool:
+    """表の列見出しの行か。事項名の欄に列見出し「事項名」「新規表示」「予算表示」の字が混ざって読まれる
+    （R8 で「事項事新項規表示予算表示」）。事項名に「表示」が入るだけの事項（「食品表示…」）は見出しにしない。"""
+    return bool(re.search(r"(新規|予算)表示", name))
+
+
 def words_in(words, col, y0, y1):
     a, b = COL[col]
     return [w for w in words if a <= (w["x0"] + w["x1"]) / 2 < b and y0 <= (w["top"] + w["bottom"]) / 2 < y1]
@@ -111,9 +117,9 @@ def parse_pdf(path):
                     first_on_page = False
                     continue
                 first_on_page = False
-                # 事項名・予算額の両方が取れない行と、表の列見出しの行（「事項名 新規表示 予算表示」。R8 で 49行、
-                # どれも予算額なし）を捨てる。片方だけ取れたそれ以外の行は事項として残し、main の WARN（欠け）で知らせる
-                if (not name and not amts) or (not amts and "表示" in name):
+                # 事項名・予算額の両方が取れない行と、表の列見出しの行（R8 で 49行、どれも予算額なし）を捨てる。
+                # 片方だけ取れたそれ以外の行は事項として残し、main の WARN（欠け）で知らせる
+                if (not name and not amts) or (not amts and is_header_row(name)):
                     continue
                 prev = cur = None
                 for s in amts:
@@ -168,4 +174,5 @@ def main():
     sys.exit(1 if fails else 0)
 
 
-main()
+if __name__ == "__main__":
+    main()
