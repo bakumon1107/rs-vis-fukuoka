@@ -178,7 +178,8 @@ class Exporter:
         """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。"""
         loaded = [self.vote.load(p) for p in paths]
         self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
-        return [{self.vote.key(m): self.vote.values(m) for m in ms} for ms in loaded]
+        # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
+        return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]
 
     def reference(self, side, kan, level):
         """一般会計の項・目名: R6 決算（テキスト）の同じ款の中に、名前が「崩れ」として説明のつく名前

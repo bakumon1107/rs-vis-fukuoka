@@ -2009,7 +2009,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -5246,7 +5246,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -6716,7 +6716,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -8105,7 +8105,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 2
    },
    "previous": {
@@ -20550,7 +20550,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -20608,7 +20608,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 2
    },
    "previous": {
@@ -20666,7 +20666,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -20724,7 +20724,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -20782,7 +20782,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -20840,7 +20840,7 @@
    },
    "amount": {
     "v": 0,
-    "src": "ocr",
+    "src": "blank-as-zero",
     "agree": 3
    },
    "previous": {
@@ -24360,7 +24360,7 @@
     "other": {
      "v": 142866000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（3款1項1目。その他 = 使用料及び手数料 24 + 財産収入 1 + 諸収入 142,841。OCR は新旧とも「1」を取りこぼし 142,865）"
     },
     "general": {
@@ -28457,13 +28457,14 @@
    },
    "items": [
     {
-     "name": "職員費6○人",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 513629000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "headcount": 60
     },
     {
      "name": "医療管理費",
@@ -39029,7 +39030,7 @@
     "other": {
      "v": 453000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（5款6項3目。その他 = 使用料及び手数料 1 + 諸収入 452。一般財源は 34,763 のまま。文字層は「1」を取りこぼし、一般財源を 34,764 と誤読して検算上は打ち消し合っていた）"
     },
     "general": {
@@ -40577,13 +40578,14 @@
    },
    "items": [
     {
-     "name": "職員費15○人",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 1279374000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "headcount": 150
     },
     {
      "name": "職業訓練指導運営費",
@@ -42153,14 +42155,14 @@
    },
    "items": [
     {
-     "name": "職員費3○",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 2490002000,
       "src": "ocr",
       "agree": 3
      },
-     "headcount": 1
+     "headcount": 301
     },
     {
      "name": "農林事務所費",
@@ -45399,14 +45401,14 @@
    },
    "items": [
     {
-     "name": "職員費1○",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 882039000,
       "src": "ocr",
       "agree": 3
      },
-     "headcount": 2
+     "headcount": 102
     },
     {
      "name": "酪農調整審議会費",
@@ -50890,13 +50892,14 @@
      }
     },
     {
-     "name": "委員4○人",
+     "name": "委員",
      "name_src": "readings",
      "amount": {
       "v": 25365000,
       "src": "ocr",
       "agree": 3
      },
+     "headcount": 40,
      "parent": 0
     },
     {
@@ -56569,7 +56572,7 @@
     "other": {
      "v": 71000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（8款1項2目、p314〜315。その他 = 使用料及び手数料 7 + 財産収入 1 + 諸収入 63。一般財源は 31,616 のまま。文字層は一般財源を 31,617 と誤読）"
     },
     "general": {
@@ -61643,13 +61646,14 @@
    },
    "items": [
     {
-     "name": "職員費4○人",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 341896000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "headcount": 40
     },
     {
      "name": "事業費支弁職員84人都市計画事業事務費",
@@ -63398,16 +63402,17 @@
    },
    "items": [
     {
-     "name": "職員費1○人",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 97051000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "headcount": 10
     },
     {
-     "name": "事業費支弁職員1○人住宅管理事務費",
+     "name": "事業費支弁職員10人住宅管理事務費",
      "name_src": "ocr",
      "amount": {
       "v": 2073000,
@@ -64824,14 +64829,14 @@
    },
    "items": [
     {
-     "name": "職員費12,○",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 119533067000,
       "src": "ocr",
       "agree": 3
      },
-     "headcount": 99
+     "headcount": 12099
     },
     {
      "name": "退職手当",
@@ -70034,14 +70039,14 @@
    },
    "items": [
     {
-     "name": "職員費6,○",
+     "name": "職員費",
      "name_src": "readings",
      "amount": {
       "v": 51383943000,
       "src": "ocr",
       "agree": 3
      },
-     "headcount": 27
+     "headcount": 6027
     },
     {
      "name": "高等学校入学者選考費",
@@ -80177,7 +80182,7 @@
    "previous": {
     "v": 1000,
     "src": "correction",
-    "agree": 2,
+    "agree": 1,
     "note": "画像で確認（13款1項2目 利子割精算金。前年度「1」。OCR は空、文字層は 1）"
    },
    "funding": {
@@ -80199,7 +80204,7 @@
     "general": {
      "v": 1000,
      "src": "correction",
-     "agree": 1,
+     "agree": 0,
      "note": "画像で確認（一般財源「1」。OCR・文字層とも読めず）"
     }
    },
@@ -80226,7 +80231,7 @@
      "amount": {
       "v": 1000,
       "src": "correction",
-      "agree": 1,
+      "agree": 0,
       "note": "画像で確認（節「22 償還金利子及び割引料」1。OCR は読めず、文字層は節番号を 12 と誤読）"
      }
     }
@@ -84154,7 +84159,7 @@
     "other": {
      "v": 12181485000,
      "src": "correction",
-     "agree": 1,
+     "agree": 0,
      "note": "画像で確認（国民健康保険 5款。その他 = 分担金及び負担金等 10,241,552 + 繰入金 1,939,933）"
     },
     "general": {
@@ -84791,7 +84796,7 @@
     "other": {
      "v": 500000000,
      "src": "correction",
-     "agree": 1,
+     "agree": 0,
      "note": "画像で確認（国民健康保険 予備費。その他 = 分担金及び負担金等 500,000。文字層は 500 と分断）"
     },
     "general": {
@@ -87195,7 +87200,7 @@
      "amount": {
       "v": 1000,
       "src": "correction",
-      "agree": 2,
+      "agree": 1,
       "note": "画像で確認（林業改善資金助成事業 3款1項2目。節 1 貸付金償還金 6,177 / 2 雑入 1）"
      }
     }
@@ -87637,7 +87642,7 @@
      "amount": {
       "v": 1000,
       "src": "correction",
-      "agree": 2,
+      "agree": 1,
       "note": "画像で確認（沿岸漁業改善資金助成事業 3款1項2目。節 1 貸付金償還金 17,467 / 2 雑入 1）"
      }
     }
@@ -87701,7 +87706,7 @@
     "other": {
      "v": 1129000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（沿岸漁業改善資金業務費。その他 = 繰入金 1,126 + 繰越金 1 + 諸収入 2）"
     },
     "general": {
@@ -88050,7 +88055,7 @@
      "amount": {
       "v": 1000,
       "src": "correction",
-      "agree": 2,
+      "agree": 1,
       "note": "画像で確認（小規模企業者等設備導入資金貸付事業。節 1〜4 の 319,435 / 8,820 / 113 / 21 と 5 の 1）"
      }
     }
@@ -89414,7 +89419,7 @@
     "other": {
      "v": 125089000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（埠頭施設運営事業費。その他 = 使用料及び手数料 60,474 + 繰入金 64,613 + 繰越金 1 + 諸収入 1）"
     },
     "general": {
@@ -90148,7 +90153,7 @@
     "other": {
      "v": 216886000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（県営埠頭施設整備運営事業 公債費 利子。その他 = 使用料及び手数料 216,885 + 諸収入 1）"
     },
     "general": {
@@ -90661,7 +90666,7 @@
     "other": {
      "v": 6727430000,
      "src": "correction",
-     "agree": 2,
+     "agree": 1,
      "note": "画像で確認（県営住宅管理費。その他 = 使用料及び手数料 6,621,346 + 繰越金 67,796 + 諸収入 38,287 + 財産売払収入 1）"
     },
     "general": {
@@ -91199,8 +91204,8 @@
    "計の行": "一般会計 74/74・特別会計 23/23"
   },
   "readings": {
-   "agree_2plus": 0.9993,
-   "confirmed_by_image": 4
+   "agree_2plus": 0.9975,
+   "confirmed_by_image": 15
   },
   "corrections": 17
  }
