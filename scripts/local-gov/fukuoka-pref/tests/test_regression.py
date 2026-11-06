@@ -9,6 +9,18 @@ from conftest import load
 reg = load("tests/regression.py", "regression")
 
 
+def test_keep_dir_stale_outputs_are_not_reused(tmp_path):
+    # --keep のディレクトリに前の結果が残っていても、今回飛ばしたステップの古い出力を後のステップが読まない
+    data, keep = tmp_path / "data", tmp_path / "keep"
+    data.mkdir()
+    keep.mkdir()
+    (keep / "kessan-kmk.json").write_text("{}", encoding="utf-8")   # 前に流したときの出力
+    got = reg.run_all(str(data), str(keep))
+    assert not (keep / "kessan-kmk.json").exists()
+    # 原本がないので最初のステップが飛び、その出力を読む後のステップも飛ぶ
+    assert "skipped" in got["決算 款項目別明細表"] and "skipped" in got["決算 部局別"]
+
+
 @pytest.mark.skipif(not os.environ.get("FUKUOKA_DATA"), reason="FUKUOKA_DATA（原本と OCR 結果の置き場所）が未指定")
 def test_regression():
     got = reg.run_all(os.environ["FUKUOKA_DATA"])

@@ -105,6 +105,11 @@ def run_all(data, keep=None):
     with tempfile.TemporaryDirectory() as tmp_out, tempfile.TemporaryDirectory() as tmpdir:
         outdir = keep or tmp_out
         os.makedirs(outdir, exist_ok=True)
+        # --keep のディレクトリには前に流した結果が残っている。消しておかないと、今回飛ばしたステップの古い出力を
+        # 後のステップが読んでしまう（「前のステップの出力がなければ後のステップも飛ばす」が効かなくなる）
+        for _, _, _, out, _ in STEPS:
+            if out and os.path.exists(os.path.join(outdir, out)):
+                os.remove(os.path.join(outdir, out))
         for name, script, args, out, pats in STEPS:
             argv = [resolve(a, data, outdir, tmpdir) for a in args]
             # 入力がない（原本がない・前のステップの出力ができていない）ステップは飛ばす。
