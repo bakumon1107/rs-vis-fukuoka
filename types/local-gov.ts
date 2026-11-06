@@ -67,7 +67,8 @@ export interface Item {
 }
 
 export interface Setsu {
-  no: number;
+  /** 節の番号。読めなかったときは null（並び順の番号をこしらえない。R8 歳入の節 59件が該当） */
+  no: number | null;
   name: string;
   amount: Value;
   sub?: { name: string; amount: Value }[];
@@ -115,7 +116,11 @@ export interface CheckSummary {
   all_ok: number;
   rules: Record<string, number>;
   external?: Record<string, string>;
-  readings?: { agree_2plus: number };
+  /**
+   * agree_2plus: 多数決（OCR の資料の3つの読み取り）で、2通り以上が同じ値だった値の割合。
+   * confirmed_by_image: 裏付けが1通り以下だったが、画像で確かめて修正表に記録した値の数
+   */
+  readings?: { agree_2plus: number; confirmed_by_image?: number };
   corrections?: number;
 }
 

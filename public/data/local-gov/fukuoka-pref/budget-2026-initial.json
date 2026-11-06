@@ -566,8 +566,8 @@
    },
    "kou": {
     "no": 6,
-    "name": "ゴルフ場利用税",
-    "name_src": "reference"
+    "name": "ゴ;レフ場利用税",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -613,8 +613,8 @@
    },
    "kou": {
     "no": 7,
-    "name": "軽油弓I取税",
-    "name_src": "ocr"
+    "name": "軽油引取税",
+    "name_src": "reference"
    },
    "moku": {
     "no": 1,
@@ -1139,7 +1139,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "讓与税",
      "amount": {
       "v": 122665330000,
@@ -1307,8 +1307,8 @@
    },
    "kou": {
     "no": 5,
-    "name": "森林環境譲与税",
-    "name_src": "reference"
+    "name": "林禾林環境譲与税",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -1515,7 +1515,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "特別交付金",
      "amount": {
       "v": 870606000,
@@ -1547,8 +1547,8 @@
    },
    "moku": {
     "no": 1,
-    "name": "農林水産業費分担金",
-    "name_src": "reference"
+    "name": "農林水産業費I分担金",
+    "name_src": "ocr"
    },
    "amount": {
     "v": 77683000,
@@ -1656,7 +1656,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "事業費負担金",
      "amount": {
       "v": 112362000,
@@ -1835,7 +1835,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "使用料",
      "amount": {
       "v": 96071000,
@@ -2200,7 +2200,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "使用料",
      "amount": {
       "v": 7933213000,
@@ -2283,7 +2283,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "L証紙収入",
      "amount": {
       "v": 1000,
@@ -2366,7 +2366,7 @@
      }
     },
     {
-     "no": 5,
+     "no": null,
      "name": "L旅券発給手数料",
      "amount": {
       "v": 373615000,
@@ -2558,7 +2558,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "研究所関係",
      "amount": {
       "v": 420000,
@@ -2688,7 +2688,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "手数料",
      "amount": {
       "v": 421000,
@@ -2802,7 +2802,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "手数料",
      "amount": {
       "v": 16503000,
@@ -3344,7 +3344,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "国庫負担金",
      "amount": {
       "v": 22359587000,
@@ -3469,7 +3469,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "災害復旧費",
      "amount": {
       "v": 2431656000,
@@ -3579,7 +3579,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "推進費補助金",
      "amount": {
       "v": 13820000,
@@ -3662,7 +3662,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "補助金",
      "amount": {
       "v": 161878000,
@@ -3812,7 +3812,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "補助金",
      "amount": {
       "v": 301000,
@@ -4000,7 +4000,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "総務費補助金",
      "amount": {
       "v": 599966000,
@@ -4204,7 +4204,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "費補助金",
      "amount": {
       "v": 56963000,
@@ -4318,7 +4318,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "警察費補助金",
      "amount": {
       "v": 2378844000,
@@ -4616,7 +4616,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "促進支援事業",
      "amount": {
       "v": 1333000,
@@ -4838,7 +4838,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "委託金",
      "amount": {
       "v": 13068000,
@@ -4892,7 +4892,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "委託金",
      "amount": {
       "v": 2436355000,
@@ -5170,7 +5170,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "委託金",
      "amount": {
       "v": 53417000,
@@ -5273,7 +5273,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "配当金",
      "amount": {
       "v": 925485000,
@@ -5423,7 +5423,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "専門校",
      "amount": {
       "v": 301000,
@@ -5477,7 +5477,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "生産物壳払代",
      "amount": {
       "v": 71687000,
@@ -5580,7 +5580,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "金貸付事業特",
      "amount": {
       "v": 99688000,
@@ -5630,7 +5630,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "会計繰入金",
      "amount": {
       "v": 2146254000,
@@ -5680,7 +5680,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "基金特別会計",
      "amount": {
       "v": 52018000,
@@ -5730,7 +5730,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "貸付事業特別",
      "amount": {
       "v": 3787000,
@@ -5827,7 +5827,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "事業特別会計",
      "amount": {
       "v": 8741000,
@@ -7362,7 +7362,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "整備機構",
      "amount": {
       "v": 576000,
@@ -7409,7 +7409,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "修学資金",
      "amount": {
       "v": 14839000,
@@ -7465,7 +7465,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "等整備資金",
      "amount": {
       "v": 156922000,
@@ -7521,7 +7521,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "貸付金償還金",
      "amount": {
       "v": 7850000,
@@ -7586,7 +7586,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "資資金貸付金",
      "amount": {
       "v": 154000000,
@@ -7736,7 +7736,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "償還金",
      "amount": {
       "v": 1330546000,
@@ -7783,7 +7783,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "収入",
      "amount": {
       "v": 358662000,
@@ -7810,8 +7810,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -7830,7 +7830,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "関係事業調査",
      "amount": {
       "v": 1719000,
@@ -7857,8 +7857,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 2,
@@ -7877,7 +7877,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "研究所事業",
      "amount": {
       "v": 9940000,
@@ -7904,8 +7904,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 3,
@@ -7987,8 +7987,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 4,
@@ -8007,7 +8007,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "公庫貸付調査",
      "amount": {
       "v": 1085000,
@@ -8061,7 +8061,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "取扱費受託金",
      "amount": {
       "v": 450000,
@@ -8101,8 +8101,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 5,
@@ -8121,7 +8121,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "技術者研修",
      "amount": {
       "v": 63899000,
@@ -8148,8 +8148,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 6,
@@ -8168,7 +8168,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "受託金",
      "amount": {
       "v": 832000,
@@ -8285,8 +8285,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "受託事業収入",
-    "name_src": "reference"
+    "name": "又平託事業収入",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 7,
@@ -8305,7 +8305,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "加工等受託金",
      "amount": {
       "v": 510000,
@@ -9191,7 +9191,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "資金組入れ",
      "amount": {
       "v": 52186000,
@@ -10288,7 +10288,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "調整債",
      "amount": {
       "v": 13335700000,
@@ -15157,13 +15157,13 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
-    "name": "地域振興費",
-    "name_src": "reference"
+    "name": "地域振興総務費",
+    "name_src": "ocr"
    },
    "amount": {
     "v": 2025591000,
@@ -15525,8 +15525,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 2,
@@ -15858,8 +15858,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 3,
@@ -15945,8 +15945,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 4,
@@ -16369,8 +16369,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 5,
@@ -16519,8 +16519,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 6,
@@ -16703,8 +16703,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "市町村振興費",
-    "name_src": "reference"
+    "name": "市町村地域振興費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 7,
@@ -17038,8 +17038,8 @@
    },
    "moku": {
     "no": 1,
-    "name": "選委員会費挙管理",
-    "name_src": "ocr"
+    "name": "選挙管理委員会費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 117366000,
@@ -17697,8 +17697,8 @@
    },
    "moku": {
     "no": 6,
-    "name": "衆議院議員総選挙臨時啓発費",
-    "name_src": "reference"
+    "name": "参議院議員通常選挙臨時啓発費",
+    "name_src": "ocr"
    },
    "amount": {
     "v": 0,
@@ -30950,8 +30950,8 @@
    },
    "kou": {
     "no": 4,
-    "name": "障がい者福祉費",
-    "name_src": "reference"
+    "name": "障がvヽ者福祉費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -31389,13 +31389,13 @@
    },
    "kou": {
     "no": 4,
-    "name": "障がい者福祉費",
-    "name_src": "reference"
+    "name": "障がvヽ者福祉費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 2,
-    "name": "在宅費",
-    "name_src": "ocr"
+    "name": "障がい在宅費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 13629625000,
@@ -31552,13 +31552,13 @@
    },
    "kou": {
     "no": 4,
-    "name": "障がい者福祉費",
-    "name_src": "reference"
+    "name": "障がvヽ者福祉費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 3,
-    "name": "障措置費がい",
-    "name_src": "ocr"
+    "name": "障がい措置費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 55490769000,
@@ -31692,13 +31692,13 @@
    },
    "kou": {
     "no": 4,
-    "name": "障がい者福祉費",
-    "name_src": "reference"
+    "name": "障がvヽ者福祉費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 4,
-    "name": "障施設費がい",
-    "name_src": "ocr"
+    "name": "障がい施設費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 683026000,
@@ -35081,8 +35081,8 @@
    },
    "kou": {
     "no": 10,
-    "name": "労働委員会費",
-    "name_src": "reference"
+    "name": "ヵ巫働委員会費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -35266,8 +35266,8 @@
    },
    "kou": {
     "no": 10,
-    "name": "労働委員会費",
-    "name_src": "reference"
+    "name": "ヵ巫働委員会費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 2,
@@ -42217,8 +42217,8 @@
    },
    "moku": {
     "no": 2,
-    "name": "水産業振興費",
-    "name_src": "reference"
+    "name": "水振興費",
+    "name_src": "ocr"
    },
    "amount": {
     "v": 3777598000,
@@ -46241,8 +46241,8 @@
    },
    "moku": {
     "no": 5,
-    "name": "工振興費鉱業",
-    "name_src": "ocr"
+    "name": "工鉱業振興費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 3557567000,
@@ -57521,8 +57521,8 @@
    },
    "moku": {
     "no": 5,
-    "name": "恩給及び退職年金費",
-    "name_src": "reference"
+    "name": "a恩給及び退職年金費",
+    "name_src": "ocr"
    },
    "amount": {
     "v": 30700000,
@@ -58813,8 +58813,8 @@
    },
    "moku": {
     "no": 1,
-    "name": "高等学校",
-    "name_src": "ocr"
+    "name": "高等学校総務費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 51401630000,
@@ -60763,8 +60763,8 @@
    },
    "kou": {
     "no": 5,
-    "name": "特別支援学校費",
-    "name_src": "reference"
+    "name": "特別支援}子校費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 1,
@@ -61194,8 +61194,8 @@
    },
    "kou": {
     "no": 5,
-    "name": "特別支援学校費",
-    "name_src": "reference"
+    "name": "特別支援}子校費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 2,
@@ -61353,8 +61353,8 @@
    },
    "kou": {
     "no": 5,
-    "name": "特別支援学校費",
-    "name_src": "reference"
+    "name": "特別支援}子校費",
+    "name_src": "ocr"
    },
    "moku": {
     "no": 3,
@@ -66977,8 +66977,8 @@
    },
    "moku": {
     "no": 1,
-    "name": "元",
-    "name_src": "ocr"
+    "name": "元金",
+    "name_src": "reference"
    },
    "amount": {
     "v": 228089882000,
@@ -67388,8 +67388,8 @@
    },
    "moku": {
     "no": 2,
-    "name": "利精子算割金",
-    "name_src": "ocr"
+    "name": "利子割精算金",
+    "name_src": "reference"
    },
    "amount": {
     "v": 1000,
@@ -67470,8 +67470,8 @@
    },
    "moku": {
     "no": 3,
-    "name": "利交子付割金",
-    "name_src": "ocr"
+    "name": "利子割交付金",
+    "name_src": "reference"
    },
    "amount": {
     "v": 1547051000,
@@ -69136,7 +69136,7 @@
      }
     },
     {
-     "no": 4,
+     "no": null,
      "name": "子育て支援",
      "amount": {
       "v": 2864704000,
@@ -69183,7 +69183,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "現年度分",
      "amount": {
       "v": 91267318000,
@@ -69277,7 +69277,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "共同事業費",
      "amount": {
       "v": 244430000,
@@ -69427,7 +69427,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "支援制度",
      "amount": {
       "v": 4397530000,
@@ -69615,7 +69615,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "基金預金利子",
      "amount": {
       "v": 171312000,
@@ -69662,7 +69662,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "県繰入金",
      "amount": {
       "v": 25646500000,
@@ -69748,7 +69748,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "繰入金",
      "amount": {
       "v": 4695000000,
@@ -71440,7 +71440,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "元金",
      "amount": {
       "v": 126118000,
@@ -72555,7 +72555,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "使用料",
      "amount": {
       "v": 37000,
@@ -75000,7 +75000,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "地区埠頭用地",
      "amount": {
       "v": 6600000,
@@ -75054,7 +75054,7 @@
      }
     },
     {
-     "no": 7,
+     "no": null,
      "name": "地区埠頭用地",
      "amount": {
       "v": 21700000,
@@ -76045,7 +76045,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "使用料",
      "amount": {
       "v": 6646792000,
@@ -76186,7 +76186,7 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "雑入",
      "amount": {
       "v": 28179000,
@@ -76887,7 +76887,8 @@
    "計の行": "一般会計 74/74・特別会計 23/23"
   },
   "readings": {
-   "agree_2plus": 1.0
+   "agree_2plus": 0.9993,
+   "confirmed_by_image": 4
   },
   "corrections": 17
  }

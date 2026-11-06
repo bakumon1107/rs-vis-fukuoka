@@ -91,6 +91,36 @@ def sim(a, b):
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
+# OCR で起きる字形の取り違え（説明書の OCR で実例のあるもの）。参照の名前との照合の前に直す
+GLYPH_FIXES = str.maketrans({"壳": "売", "讓": "譲", "產": "産", "齡": "齢", "徵": "徴", "人": "入", "·": "・", "よ": "ょ",
+                             "费": "費", "务": "務", "厅": "庁", "县": "県", "龄": "齢", "收": "収", "贷": "貸"})
+
+
+def is_ocr_variant(ocr: str, ref: str) -> bool:
+    """OCR の名前が、参照の名前（別年度のテキスト資料）の「崩れ」として説明がつくか。
+    近さだけで置き換えると、正しい OCR の名前を別の目の名前に変えてしまう
+    （「参議院議員通常選挙臨時啓発費」→ R6 の「衆議院議員総選挙臨時啓発費」、「地域振興総務費」→「地域振興費」の実例）。
+    説明がつくのは次のどれか:
+      - 字形の取り違え（GLYPH_FIXES）を直すと一致する
+      - 2行の名前の前後が入れ替わった（使っている文字が同じ。「海洋技術水産センター費」→「水産海洋技術センター費」）
+      - OCR が文字を落とした（OCR の文字が参照に順に全部含まれ、落ちたのは3文字以内。「廃対策費」→「廃棄物対策費」）
+      - 上のどれかに加えて、違う文字が1文字だけ（「ゴ児フ場利用税」→「ゴルフ場利用税」）
+    参照の方が短い・2文字以上違う場合は崩れではなく別の名前とみなす。"""
+    o = re.sub(r"[I|l]", "", ocr.translate(GLYPH_FIXES))
+    if o == ref:
+        return True
+    if len(o) == len(ref) and sorted(o) == sorted(ref):
+        return True
+    if len(ref) < len(o):
+        return False
+    # 参照から OCR への最小の操作: 参照にしかない文字（落ちた文字）と、置き換わった文字を数える
+    ops = difflib.SequenceMatcher(None, o, ref, autojunk=False).get_opcodes()
+    dropped = sum(j2 - j1 for tag, i1, i2, j1, j2 in ops if tag == "insert")
+    replaced = sum(max(i2 - i1, j2 - j1) for tag, i1, i2, j1, j2 in ops if tag == "replace")
+    deleted = sum(i2 - i1 for tag, i1, i2, j1, j2 in ops if tag == "delete")
+    return deleted == 0 and dropped <= 3 and replaced <= 1
+
+
 def yen(v):
     return None if v is None else int(v) * 1000
 
@@ -118,18 +148,25 @@ class Exporter:
                     d["kou"].append(kou["name"])
                     d["moku"].extend(mo["name"] for mo in kou["children"])
         self.name_stats = Counter()
+        self.replaced = []  # (項/目, OCR の名前, 置き換えた名前)。書き出しの後に一覧を出して目で確かめる
 
     def readings(self, paths):
         return [{self.vote.key(m): self.vote.values(m) for m in self.vote.load(p)} for p in paths]
 
     def pick_name(self, ocr_name, side, kan, level):
-        """一般会計の項・目名: R6 決算（テキスト）の同じ款の中で十分に近い名前があればそれ、なければ OCR。"""
+        """一般会計の項・目名: R6 決算（テキスト）の同じ款の中に、OCR の名前が「崩れ」として説明のつく名前
+        （is_ocr_variant）がちょうど1つあればそれ、なければ OCR のまま。
+        同じ名前が R6 にあれば崩れていないので OCR のまま（ただし出典は reference: 別資料で同じ名前を確認できた）。"""
         name = clean_name(ocr_name)
         cands = self.r6_names.get((side, kan), {}).get(level, [])
-        best = max(cands, key=lambda c: sim(c, name), default=None)
-        if best is not None and (best == name or sim(best, name) >= 0.75):
+        if name in cands:
             self.name_stats[f"{level} reference"] += 1
-            return best, "reference"
+            return name, "reference"
+        hits = sorted({c for c in cands if is_ocr_variant(name, c)})
+        if len(hits) == 1:
+            self.name_stats[f"{level} reference"] += 1
+            self.replaced.append((level, name, hits[0]))
+            return hits[0], "reference"
         self.name_stats[f"{level} ocr"] += 1
         return name, "ocr"
 
@@ -230,7 +267,8 @@ class Exporter:
             if top:
                 seen[st["amount"]] += 1
                 name = (SETSU_NAMES.get(st["no"]) if m["side"] == "歳出" and st.get("no") else None) or clean_name(st["label"])
-                setsu.append({"no": st.get("no") or len(setsu) + 1, "name": name,
+                # 番号が読めなかった節は null（並び順の番号をこしらえない）
+                setsu.append({"no": st.get("no") or None, "name": name,
                               "amount": val(st["amount"], src, agree(f"節 {st['amount']}#{seen[st['amount']]}"), note)})
             elif setsu:
                 setsu[-1].setdefault("sub", []).append({"name": clean_name(st["label"]), "amount": val(st["amount"], src)})
@@ -309,7 +347,8 @@ def main():
                  [i["amount"] for i in r.get("items", [])] + [s["amount"] for s in r.get("setsu", [])]:
             if v and v.get("agree") is not None:
                 vals["n"] += 1
-                vals["2plus"] += int(v["agree"] >= 2) or int(v["src"] == "correction")
+                vals["2plus"] += int(v["agree"] >= 2)
+                vals["image"] += int(v["agree"] < 2 and v["src"] == "correction")
     rule_counts = Counter()
     for c in (ippan_cross, toku_cross):
         for m in c["目"]:
@@ -323,7 +362,8 @@ def main():
             "rules": {"A_説明欄": rule_counts["A"], "B_財源": rule_counts["B"], "C_比較": rule_counts["C"], "D_節": rule_counts["D"]},
             "external": {"項_予算書": "一般会計 106/106・特別会計 83/83", "款_計上額調": "一般会計 29/29",
                          "会計_計上額調": "特別会計 28/28（14会計の歳入・歳出）", "計の行": "一般会計 74/74・特別会計 23/23"},
-            "readings": {"agree_2plus": round(vals["2plus"] / vals["n"], 4) if vals["n"] else 0},
+            "readings": {"agree_2plus": round(vals["2plus"] / vals["n"], 4) if vals["n"] else 0,
+                         "confirmed_by_image": vals["image"]},
             "corrections": n_fix,
         },
     }
@@ -351,9 +391,13 @@ def main():
     for r in rows:
         total[(r["account"] == "general", r["side"])] += r["amount"]["v"] or 0
     print(f"目 {len(rows)} 件（全検算一致 {stats['ok']}・不一致 {stats['ng']}）。修正表 {n_fix} 件。"
-          f"2通り以上の読み取りで一致（または画像で確認）{budget['checks']['readings']['agree_2plus']:.2%}", file=sys.stderr)
+          f"2通り以上の読み取りで一致 {budget['checks']['readings']['agree_2plus']:.2%}・"
+          f"1通り以下で画像で確認 {vals['image']} 件・1通り以下で未確認 {vals['n'] - vals['2plus'] - vals['image']} 件",
+          file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {dict(ex.name_stats)}", file=sys.stderr)
+    for level, o, n in ex.replaced:
+        print(f"名前の置き換え（{'項' if level == 'kou' else '目'}）: {o} → {n}", file=sys.stderr)
 
 
 if __name__ == "__main__":
