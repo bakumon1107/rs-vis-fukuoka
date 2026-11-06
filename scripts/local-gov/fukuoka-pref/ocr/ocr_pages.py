@@ -23,6 +23,39 @@ import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
 
+# 予算に関する説明書の表の縦線の本数（福岡県。歳入 7列＝8本、歳出 11列＝12本）
+VALID_LINE_COUNTS = (8, 12)
+
+
+def choose_vlines(tv, page_vlines, header_text, prev_cols):
+    """表の縦線を、表ごとの線（tv）とページ共通の線（page_vlines）から選ぶ。表でなければ None。
+    header_text: 列見出しの文字（見出しのない続きの表は None）。prev_cols: 直前の表の列数（なければ None）。
+    規則と実例は main のコメント（R8 281299 p9・p45・p51、281298 p131）。"""
+    rev, exp = VALID_LINE_COUNTS
+    if header_text is not None and re.search(r"財源|国庫|一般財", header_text):
+        if len(tv) == exp:
+            return tv
+        return page_vlines if len(page_vlines) == exp else max(tv, page_vlines, key=len)
+    if header_text is not None and len(tv) == rev:
+        return tv
+    if header_text is None and prev_cols == rev - 1 and len(tv) == rev:
+        return tv
+    if len(tv) < max(6, len(page_vlines)):
+        return page_vlines if len(page_vlines) >= 6 else None
+    return tv if len(tv) >= 6 else None
+
+
+def previous_table_cols(outdir: str, page: int):
+    """前のページの OCR 結果の最後の表の列数（見出しのない続きの表が歳入か歳出かの手がかり）。なければ None。"""
+    for p in range(page - 1, max(0, page - 4), -1):
+        path = os.path.join(outdir, f"p{p:04d}.json")
+        if os.path.exists(path):
+            tables = json.load(open(path, encoding="utf-8")).get("tables", [])
+            if tables:
+                return len(tables[-1]["cols"])
+    return None
+
+
 def make_engine(threads: int):
     """OCR エンジンを作り、「画像 → [(枠, 文字列, 確からしさ), ...]」の関数を返す。
 
@@ -78,9 +111,19 @@ def detect_lines(img):
     """縦線の x と、横線（x 方向の範囲つき）を返す。"""
     h, w = img.shape
     bw = cv2.adaptiveThreshold(255 - img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 15, -2)
+    # 白黒2値（CCITT）で取り込んだ年度の説明書（R7 259281.pdf）は、罫線が 1px と細く途切れ途切れで、
+    # 長く連続した線を探す開き（opening）では見つからない（412ページ中 163ページで表なし）。
+    # OCR_LINE_CLOSE=<px> を指定したときだけ、縦・横それぞれの向きに途切れを埋めて（closing）から線を探す。
+    # 指定しなければ従来どおり（R8 の結果は変えない）
+    close_px = int(os.environ.get("OCR_LINE_CLOSE", "0"))
+    if close_px > 0:
+        bw_v = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (1, close_px)))
+        bw_h = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (close_px, 1)))
+    else:
+        bw_v = bw_h = bw
     # 縦線: 高さの 1/20（300dpi で約 120px ≒ 1cm）以上連続するもの。文字の縦画（40px 程度）は残らない
     vk = cv2.getStructuringElement(cv2.MORPH_RECT, (1, h // 20))
-    v = cv2.morphologyEx(bw, cv2.MORPH_OPEN, vk)
+    v = cv2.morphologyEx(bw_v, cv2.MORPH_OPEN, vk)
     # 縦線が引かれている高さの範囲＝表。1ページに複数の表がある（項がページ途中で変わる）ので、
     # 縦線が 40px 以上途切れるところで表を分ける
     rows = list(np.where(v.sum(axis=1) > 0)[0])
@@ -91,9 +134,12 @@ def detect_lines(img):
     cov = v.sum(axis=0) / 255
     cand = [g for g in merge(list(np.where(cov > 0)[0]), 8)]
     vlines = []
+    # 罫線と認める長さ（表の高さに対する割合）。R7（白黒2値）は罫線が最大 680px 途切れ、長さが表の高さの 41〜76% しかない
+    # （R7 p140）。OCR_LINE_COVERAGE で下げられる（既定 0.5 = 従来どおり）
+    min_cov = float(os.environ.get("OCR_LINE_COVERAGE", "0.5"))
     for g in cand:
         best = max(g, key=lambda x: cov[x])
-        if cov[best] >= total_h * 0.5:
+        if cov[best] >= total_h * min_cov:
             vlines.append(int(best))
     # 二重線（30px 程度の間隔）は、列として扱わないよう外側の1本にまとめる
     vl2 = []
@@ -104,7 +150,7 @@ def detect_lines(img):
         vl2.append(x)
     vlines = vl2
     hk = cv2.getStructuringElement(cv2.MORPH_RECT, (w // 30, 1))
-    hz = cv2.morphologyEx(bw, cv2.MORPH_OPEN, hk)
+    hz = cv2.morphologyEx(bw_h, cv2.MORPH_OPEN, hk)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(hz, connectivity=8)
     hlines = []
     for i in range(1, n):
@@ -124,7 +170,7 @@ def detect_lines(img):
     # 行の少ない短い表はページ全体の基準（表の高さの合計の半分）に届かない。表ごとに、表の下端まで届く縦線を罫線とする
     # （列見出しの中だけの短い線は下端に届かない）
     vk2 = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 60))
-    v2 = cv2.morphologyEx(bw, cv2.MORPH_OPEN, vk2)
+    v2 = cv2.morphologyEx(bw_v, cv2.MORPH_OPEN, vk2)
     per_table = []
     for a, b in vspan:
         seg = v2[a:b + 1]
@@ -192,21 +238,33 @@ def main():
             if spans and (len(vlines) >= 6 or any(len(t) >= 6 for t in per_table)):
                 prev_bottom = 0
                 for (vtop, vbottom), tv in zip(spans, per_table):
-                    # 長い表では行の区切りで縦線が途切れ、表ごとの基準（下端まで届く）では本数が減る（一般会計 p131 で 12→10）。
-                    # 表ごとの本数がページ共通の本数以上のときだけ表ごとの線を使う
-                    if len(tv) < max(6, len(vlines)):
-                        if len(vlines) < 6:
-                            continue  # 表ではない（枠だけの囲みなど）
-                        tv = vlines
-                    width = tv[-1] - tv[0]
+                    outer = tv if len(tv) >= 2 else vlines
+                    if len(outer) < 2:
+                        continue
+                    width = outer[-1] - outer[0]
                     # 列見出しの下の線: 表の上端より下で、表の幅いっぱいに引かれた最初の横線
                     full = [d["y"] for d in hlines if d["x1"] - d["x0"] > width * 0.9 and vtop + 20 < d["y"] < vbottom]
                     head = min(full) if full else vtop
-                    header = ocr_region(eng, img, tv[0], vtop, tv[-1], head)
+                    # 列見出しは表の外枠の幅で読むので、縦線の選び方に関係なく先に読める
+                    header = ocr_region(eng, img, outer[0], vtop, outer[-1], head)
+                    htext = "".join(d["text"] for d in header)
+                    # 縦線の選び方。歳入（7列＝8本）と歳出（11列＝12本）の表が同じページにあると、ページ共通の線（12本）で
+                    # 歳入の表を切って歳出の表として読む（R8 281299 p9）。一方、歳出の表でも下端まで届かない線があると表ごとの線が
+                    # 8本になる（p45）ので、本数だけでは見分けられない。列見出しの語で見分ける:
+                    #   財源の見出し（国庫支出金・一般財源）がある → 歳出: 12本の線（表ごと、なければページ共通）
+                    #   見出しがあり財源の語がない → 歳入: 8本の線（表ごと）
+                    #   見出しがない（前のページから続く表）→ 直前の表（同じページの前の表、なければ前のページの最後の表）が
+                    #     歳入で、表ごとの線が8本ならそれを使う（R8 281299 p51: 歳入の続きの表と歳出の表が同じページ）
+                    #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
+                    #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
+                    is_header = bool(re.search(r"年度|区分|説明|節|款名|財源", htext)) and head - vtop <= 400
+                    prev_cols = len(rec["tables"][-1]["cols"]) if rec["tables"] else previous_table_cols(outdir, page)
+                    tv = choose_vlines(tv, vlines, htext if is_header else None, prev_cols)
+                    if tv is None:
+                        continue  # 表ではない（枠だけの囲みなど）
                     # 前のページから続く表には列見出しがない（R8 一般会計 p151 で確認）。最初の全幅の線は目の区切り。
                     # 見出し語がなければ表の上端から本文として読む（見出しと誤認すると前の目の節を取りこぼす）
-                    htext = "".join(d["text"] for d in header)
-                    if not re.search(r"年度|区分|説明|節|款名|財源", htext) or head - vtop > 400:
+                    if not is_header:
                         head, header = vtop, []
                     t = {"box": [tv[0], vtop, tv[-1], vbottom], "head": head, "vlines": tv,
                          "title": ocr_region(eng, img, 0, prev_bottom, w, vtop + 4),

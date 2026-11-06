@@ -7,7 +7,7 @@
 
 対象（目ごと）:
 - 本年度・前年度・比較が読めなかった（None。ただし空欄を 0 とみなして C が成り立ったものは除く）
-- 節の区分はあるのに節の金額が1つも読めなかった
+- 節の区分の文字が欄にあるのに節の金額が1つも読めなかった（欄がもともと空の目は対象外）
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/ocr/refill_missing.py <説明書.pdf> <OCR出力ディレクトリ> <setsumeisho.json>
@@ -37,7 +37,10 @@ def targets_of(m):
     for k in ("本年度", "前年度", "比較"):
         if m.get(k) is None:
             out.append(k)
-    if m.get("節") is not None and not any(s.get("amount") for s in m["節"]) and m.get("本年度") not in (None, 0):
+    # 節の金額は、節の区分の文字が欄にあるのに金額が1つも読めないときだけ読み直す。
+    # 節の欄がもともと空の目（予備費）を読み直すと、ないはずの「1」を拾った実例（R8 281299 p119 住宅管理の予備費）
+    if (m.get("節") is not None and not any(s.get("amount") for s in m["節"]) and m.get("本年度") not in (None, 0)
+            and m.get("節の欄の文字数", 0) > 0):
         out.append("節")
     return out
 
