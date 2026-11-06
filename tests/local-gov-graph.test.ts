@@ -1,0 +1,118 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildLocalGraph } from '../app/lib/local-gov/graph';
+import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
+
+const v = (n: number): Value => ({ v: n, src: 'ocr' });
+
+function row(id: string, over: Partial<MokuRow>): MokuRow {
+  const [account, side, nums] = id.split('/');
+  const [kan, kou, moku] = nums.split('-').map(Number);
+  return {
+    id, account, side: side as MokuRow['side'],
+    kan: { no: kan, name: `款${kan}` }, kou: { no: kou, name: `項${kan}-${kou}` }, moku: { no: moku, name: `目${nums}` },
+    amount: v(0), pages: [{ source: 's', page: 1 }], ...over,
+  };
+}
+
+const fund = (national: number, bond: number, other: number, general: number) =>
+  ({ national: v(national), bond: v(bond), other: v(other), general: v(general) });
+
+// 2款の歳出: 款2 は目が2つ（財源の内訳が違う）、款3 は事項のない目
+const FILE: LocalBudgetFile = {
+  schema_version: 1, gov_id: 'test', year: 2026, year_label: '令和8年度', basis: 'initial', unit_source: '千円',
+  accounts: [{ id: 'general', kind: 'general', name: '一般会計' }, { id: 'special:a', kind: 'special', name: 'A特別会計' }],
+  rows: [
+    row('general/expense/2-1-1', { amount: v(100), funding: fund(10, 0, 20, 70),
+      items: [{ name: '職員費', amount: v(60) }, { name: '事務費', amount: v(40) }, { name: '内訳', amount: v(5), parent: 1 }] }),
+    row('general/expense/2-1-2', { amount: v(50), funding: fund(0, 30, 0, 20),
+      items: [{ name: '施設整備費', amount: v(50), name_src: 'ocr' }] }),
+    row('general/expense/3-1-1', { amount: v(30), funding: fund(0, 0, 0, 30) }),
+    row('general/revenue/1-1-1', { amount: v(150) }),
+    row('general/revenue/2-1-1', { amount: v(30) }),
+    row('special:a/revenue/1-1-1', { amount: v(40), kan: { no: 1, name: '繰入金' } }),
+    row('special:a/expense/1-1-1', { amount: v(40) }),
+  ],
+  checks: { rows: 7, all_ok: 7, rules: {} },
+};
+
+function colTotal(g: LocalGraph, col: string) {
+  return g.nodes.filter(n => n.col === col).reduce((s, n) => s + n.value, 0);
+}
+
+function edgesInto(g: LocalGraph, target: string) {
+  return Object.fromEntries(g.edges.filter(e => e.target === target).map(e => [e.source, e.value]));
+}
+
+test('一般会計: 財源 → 款 → 項 → 目 の各列の合計は歳出の合計と同じ', () => {
+  const g = buildLocalGraph(FILE, { view: 'general' });
+  for (const col of ['funding', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), 180, col);
+  assert.equal(g.totals.gross, 180);
+  assert.deepEqual(g.columns.map(c => c.key), ['funding', 'kan', 'kou', 'moku', 'item']);
+});
+
+test('一般会計: 財源 → 款 の帯は、その款の目の財源内訳の合計（按分しない）', () => {
+  const g = buildLocalGraph(FILE, { view: 'general' });
+  assert.deepEqual(edgesInto(g, 'kan:general:expense:2'),
+    { 'funding:national': 10, 'funding:bond': 30, 'funding:other': 20, 'funding:general': 90 });
+  assert.deepEqual(edgesInto(g, 'kan:general:expense:3'), { 'funding:general': 30 });
+});
+
+test('一般会計: 目を選ぶと、その目の財源内訳だけから組み立て直す', () => {
+  const g = buildLocalGraph(FILE, { view: 'general', filter: { kan: 2, kou: 1, moku: 2 } });
+  assert.deepEqual(edgesInto(g, 'kan:general:expense:2'), { 'funding:bond': 30, 'funding:general': 20 });
+  assert.equal(g.nodes.find(n => n.id === 'kan:general:expense:2')?.value, 50);
+  assert.equal(g.totals.gross, 50);
+});
+
+test('一般会計: 事項は親の事項だけ。事項のない目は目で止まる。名前が OCR のままの事項に印', () => {
+  const g = buildLocalGraph(FILE, { view: 'general' });
+  const items = g.nodes.filter(n => n.col === 'item');
+  assert.deepEqual(items.map(n => [n.name, n.value]), [['職員費', 60], ['事務費', 40], ['施設整備費', 50]]);
+  assert.deepEqual(items.find(n => n.name === '施設整備費')?.flags, ['name-ocr']);
+  assert.equal(g.edges.some(e => e.source === 'moku:general/expense/3-1-1'), false);
+});
+
+test('深さ: 指定した列までしか作らない', () => {
+  const g = buildLocalGraph(FILE, { view: 'general', depth: 3 });
+  assert.deepEqual([...new Set(g.nodes.map(n => n.col))], ['funding', 'kan', 'kou']);
+  assert.ok(g.edges.every(e => !e.target.startsWith('moku:')));
+});
+
+test('全会計: 歳入の款 → 会計 → 款 → 項 → 目。歳入の款は名前でまとめ、会計で歳入と歳出が合流する', () => {
+  const g = buildLocalGraph(FILE, { view: 'all' });
+  assert.deepEqual(edgesInto(g, 'account:general'), { 'revenue:款1': 150, 'revenue:款2': 30 });
+  assert.deepEqual(edgesInto(g, 'account:special:a'), { 'revenue:繰入金': 40 });
+  assert.equal(colTotal(g, 'kan'), 220);
+  assert.equal(g.totals.gross, 220);
+  // 同じ番号の款でも会計が違えば別の箱
+  assert.ok(g.nodes.some(n => n.id === 'kan:special:a:expense:1'));
+});
+
+test('全会計: 歳出の款を選ぶときは side で歳入の同じ番号の款を混ぜない', () => {
+  const g = buildLocalGraph(FILE, { view: 'all', filter: { account: 'general', side: 'expense', kan: 2 } });
+  assert.equal(g.nodes.some(n => n.col === 'revenue'), false);
+  assert.equal(colTotal(g, 'kan'), 150);
+});
+
+// 実データ（福岡県 R8 当初予算）で組み立てて、列の合計と帯の保存を確かめる
+const DATA = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref', 'budget-2026-initial.json');
+
+test('実データ（福岡県 R8）: 一般会計の列の合計がすべて歳出の総額、どのノードも入り = 出', { skip: !fs.existsSync(DATA) }, () => {
+  const file = JSON.parse(fs.readFileSync(DATA, 'utf8')) as LocalBudgetFile;
+  const g = buildLocalGraph(file, { view: 'general' });
+  const total = 2_300_027_028_000;
+  for (const col of ['funding', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), total, col);
+  const into = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const e of g.edges) {
+    into.set(e.target, (into.get(e.target) ?? 0) + e.value);
+    out.set(e.source, (out.get(e.source) ?? 0) + e.value);
+  }
+  // 事項のある目は、事項の合計 = 目の額（説明欄の検算 A）。事項のない目は目で止まる
+  for (const n of g.nodes) {
+    if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
+  }
+});
