@@ -23,12 +23,14 @@ PDF の癖（R8 で確認）:
 import json
 import re
 import sys
+import unicodedata
 
 import pdfplumber
 
 AMT = re.compile(r"^\d{1,3}(,\d{3})*$")
-KAN_RIGHT = (555, 605)   # 款の金額の右端
-KOU_RIGHT = (755, 805)   # 項の金額の右端
+# 款・項の金額の右端（R8: 款 x≈580・項 x≈782、R7: 款 x≈564・項 x≈766。どちらもこの範囲に入る）
+KAN_RIGHT = (555, 605)
+KOU_RIGHT = (755, 805)
 
 
 def rows_of(page):
@@ -57,7 +59,8 @@ def main():
 
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
-            text = (page.extract_text() or "").replace(" ", "")
+            # 全角の数字・記号は半角にそろえる（R7 は「第１表」と全角で、表の始まりを見落とした実例）
+            text = unicodedata.normalize("NFKC", page.extract_text() or "").replace(" ", "")
             m = re.search(r"令和\d+年度福岡県(\S+?会計)予算\n", text)
             if "号議案" in text and m:
                 cur = {"会計": m.group(1), "pdf_page": pno, "総額": None, "歳入": [], "歳出": []}

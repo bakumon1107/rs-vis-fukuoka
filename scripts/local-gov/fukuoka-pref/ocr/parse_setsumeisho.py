@@ -355,6 +355,10 @@ def main():
                 mq = re.search(r"(\d+)[项項填頂顶]([^（(]*)", title)
                 if mq:
                     cur_kou = (int(mq.group(1)), norm_name(mq.group(2)))
+            if tokubetsu and cur_kan is None:
+                # 会計の頭の「1 総括」の表（款ごとの本年度・前年度・比較）は目の表ではない。款の見出しが出る前の表は読まない
+                # （表ごとに縦線を取るようになって総括の表も7列になり、歳入の目として二重に数えた実例: 災害救助基金 p47）
+                continue
             cell_bounds.clear()
             cells = cells_of_table(t)
             for ci, cell in enumerate(cells):

@@ -28,8 +28,9 @@ def merged_words(page, scale):
         d = {"x0": w["x0"] * scale, "x1": w["x1"] * scale, "y0": w["top"] * scale, "y1": w["bottom"] * scale,
              "text": w["text"], "score": 1.0, "textlayer": True}
         prev = out[-1] if out else None
-        # 数字の断片（「14,907,」+「192」）: 同じ高さ・隙間 4pt 未満・両方が数字とカンマだけ
-        if (prev and abs(prev["y0"] - d["y0"]) < 3 * scale and 0 <= d["x0"] - prev["x1"] < 4 * scale
+        # 数字の断片（「14,907,」+「192」）: 同じ高さ・隙間 4pt 未満（重なり 3pt まで。281299 では「411,」と「141」が
+        # 約1pt 重なっていて、つながずに「141」と読んだ実例）・両方が数字とカンマだけ
+        if (prev and abs(prev["y0"] - d["y0"]) < 3 * scale and -3 * scale <= d["x0"] - prev["x1"] < 4 * scale
                 and re.fullmatch(r"[\d,]+", prev["text"]) and re.fullmatch(r"[\d,]+", d["text"])
                 and (prev["text"].endswith(",") or d["text"].startswith(","))):
             prev["text"] += d["text"]

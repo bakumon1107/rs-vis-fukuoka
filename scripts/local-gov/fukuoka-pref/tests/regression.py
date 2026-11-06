@@ -9,7 +9,8 @@
 <dir> の中身: pdf/<ファイル名>.pdf（県サイトのファイル名のまま）、ocr/<名前>/p0001.json …（ocr_pages.py の出力）。
   ocr/r8-ippan     … R8 一般会計。PP-OCRv6（OCR_ENGINE=v6）＋ refill_missing.py の読み直し済み
   ocr/r8-ippan-v4  … R8 一般会計。中国語モデル（OCR_ENGINE=v4ch）。突き合わせの3つ目の読み取り
-  ocr/r8-toku      … R8 特別会計
+  ocr/r8-toku      … R8 特別会計。PP-OCRv6 ＋ 読み直し済み
+  ocr/r8-toku-v4   … R8 特別会計。中国語モデル（突き合わせの3つ目の読み取り）
 OCR 自体は時間がかかる（1ページ約10秒）ので回帰テストでは流さず、保存した OCR 結果を入力にする。
 期待値（expected/regression.json）は「各ステップの要約行」。ロジックを直して数字が変わったら、
 差分を確かめてから --update で書き換え、コミットの説明に理由を書く（良くなったのか、悪くなったのか）。
@@ -60,8 +61,23 @@ STEPS = [
      ["{out:cross.json}", "{out:setsumeisho-ocr.json}", "{out:setsumeisho-v4.json}", "{out:setsumeisho-tl.json}"], "vote.json",
      [r"^全検算", r"^  \d 通り"]),
     ("説明書 特別会計（OCR）", "ocr/parse_setsumeisho.py",
-     ["{ocr:r8-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
-     "setsumeisho-toku.json", [r"^\[", r"^計の行", r"^項 \d", r"^(OK|NG)  "]),
+     ["{ocr:r8-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}",
+      "--corrections", os.path.join(ROOT, "ocr", "corrections", "r8-toku.json")],
+     "setsumeisho-toku.json", [r"^\[", r"^計の行", r"^項 \d", r"^(OK|NG)  ", r"^修正表"]),
+    ("説明書 特別会計（文字層）", "ocr/textlayer_pages.py", ["{pdf:281299}", "{ocr:r8-toku}", "{tmp:tl-toku}", "1-128"], None, []),
+    ("説明書 特別会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
+     ["{tmp:tl-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-toku-tl.json", [r"^\[", r"^計の行", r"^項 \d"]),
+    ("説明書 特別会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-toku-v4}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-toku-v4.json", [r"^\[", r"^計の行", r"^項 \d"]),
+    ("説明書 特別会計（突き合わせ）", "ocr/cross_check.py",
+     ["{out:setsumeisho-toku.json}", "{out:setsumeisho-toku-tl.json}", "--third", "{out:setsumeisho-toku-v4.json}",
+      "--yosansho", "{out:yosansho.json}"], "cross-toku.json",
+     [r"^全検算", r"^検算の通らない", r"^救済", r"^残り", r"^差し替え後", r"^全体"]),
+    ("説明書 特別会計（多数決）", "ocr/vote.py",
+     ["{out:cross-toku.json}", "{out:setsumeisho-toku.json}", "{out:setsumeisho-toku-v4.json}", "{out:setsumeisho-toku-tl.json}"],
+     "vote-toku.json", [r"^全検算", r"^  \d 通り"]),
 ]
 
 
