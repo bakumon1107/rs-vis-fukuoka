@@ -176,7 +176,7 @@ export interface LocalGovIndex {
   sources: SourceDocument[];
 }
 
-/** 画面用のグラフ（graph-<年度>-<基準>.json） */
+/** 画面用のグラフの形（ノードと帯）。正規化データから組み立てる。どこで組み立てるかは画面とグラフの設計書で決める */
 export interface LocalGraph {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
