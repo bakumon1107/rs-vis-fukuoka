@@ -49050,7 +49050,28 @@
       "v": 1472000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "期末手当",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 799000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "勤勉手当",
+       "name_src": "readings",
+       "amount": {
+        "v": 673000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 4,
@@ -49061,7 +49082,28 @@
       "v": 939000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "共済組合負担金等",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 319000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "社会保険料",
+       "name_src": "readings",
+       "amount": {
+        "v": 620000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 7,
@@ -49083,7 +49125,31 @@
       "v": 2209000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 1818000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "費用弁償",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 391000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 10,
@@ -49094,7 +49160,28 @@
       "v": 3953000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "食糧費",
+       "name_src": "readings",
+       "amount": {
+        "v": 36000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "その他需用費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 3917000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 11,
@@ -49105,7 +49192,31 @@
       "v": 293000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 266000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "その他役務費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 27000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 12,
@@ -49149,99 +49260,7 @@
       "v": 1570805000,
       "src": "ocr",
       "agree": 3
-     },
-     "sub": [
-      {
-       "name": "勤勉手当",
-       "name_src": "readings",
-       "amount": {
-        "v": 673000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "共済組合負担金等",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 319000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "社会保険料",
-       "name_src": "readings",
-       "amount": {
-        "v": 620000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "普通旅費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 1818000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "費用弁償",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 391000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "食糧費",
-       "name_src": "readings",
-       "amount": {
-        "v": 36000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "その他需用費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 3917000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "通信運搬費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 266000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "その他役務費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 27000,
-        "src": "ocr"
-       }
-      }
-     ]
+     }
     }
    ],
    "pages": [
@@ -59181,7 +59200,20 @@
       "v": 4067000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "期末手当",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 4067000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 4,
@@ -59192,7 +59224,17 @@
       "v": 260000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "社会保険料",
+       "name_src": "readings",
+       "amount": {
+        "v": 260000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 7,
@@ -59214,7 +59256,31 @@
       "v": 4527000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 460000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "費用弁償",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 4067000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 10,
@@ -59225,7 +59291,28 @@
       "v": 2160000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "光热水費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 30000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "その他需用費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 2130000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 11,
@@ -59236,7 +59323,31 @@
       "v": 40000,
       "src": "ocr",
       "agree": 3
-     }
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 10000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "その他役務費",
+       "name_src": "search",
+       "name_evidence": [
+        "r6-kessan-jikou"
+       ],
+       "amount": {
+        "v": 30000,
+        "src": "ocr"
+       }
+      }
+     ]
     },
     {
      "no": 12,
@@ -59302,80 +59413,7 @@
       "v": 310130000,
       "src": "ocr",
       "agree": 3
-     },
-     "sub": [
-      {
-       "name": "期末手当",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 4067000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "社会保険料",
-       "name_src": "readings",
-       "amount": {
-        "v": 260000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "普通旅費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 460000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "光热水費",
-       "name_src": "ocr",
-       "amount": {
-        "v": 30000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "その他需用費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 2130000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "通信運搬費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 10000,
-        "src": "ocr"
-       }
-      },
-      {
-       "name": "その他役務費",
-       "name_src": "search",
-       "name_evidence": [
-        "r6-kessan-jikou"
-       ],
-       "amount": {
-        "v": 30000,
-        "src": "ocr"
-       }
-      }
-     ]
+     }
     }
    ],
    "pages": [

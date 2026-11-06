@@ -50,6 +50,22 @@ def _row(rid, setsu=()):
             "setsu": [{"no": no, "name": "x", "name_src": "ocr", "amount": {"v": a * 1000}} for no, a in setsu]}
 
 
+def test_setsu_in_print_order():
+    # 突き合わせで組み直した目は「節を全部 → 細節を全部」の順になる。印字の順（ページ → 高さ）に戻さないと、
+    # 細節がすべて最後の節に付く（R8 6款5項5目 森林環境費）
+    m = {"pages": [280, 281], "節": [
+        {"label": "職員手当等", "top": True, "page": 280, "y": 1831},
+        {"label": "積立金", "top": True, "page": 281, "y": 2165},
+        {"label": "勤勉手当", "top": False, "page": 280, "y": 2040},
+        {"label": "旅費", "top": True, "page": 281, "y": 793},
+        {"label": "普通旅費", "top": False, "page": 281, "y": 910},
+    ]}
+    assert [s["label"] for s in ex.setsu_in_print_order(m)] == ["職員手当等", "勤勉手当", "旅費", "普通旅費", "積立金"]
+    # 位置のない節（修正表で足した節）があれば並べ替えない
+    m2 = {"pages": [1], "節": [{"label": "b", "page": 1, "y": 9}, {"label": "a", "page": None, "y": None}]}
+    assert [s["label"] for s in ex.setsu_in_print_order(m2)] == ["b", "a"]
+
+
 def test_name_corrections_apply_and_clear_unresolved():
     rows = [_row("special:a-b/expense/1-1-1", [(1, 30), (2, 30)]), _row("special:a-b/expense/1-1-2"),
             _row("special:a-b/expense/10-1-1")]

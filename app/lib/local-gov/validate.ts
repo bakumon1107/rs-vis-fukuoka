@@ -118,8 +118,9 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       row.items.forEach((it, i) => {
         checkValue(`${where} items[${i}]`, it.amount, true);
         checkName(`${where} items[${i}]`, it, false);
-        if (it.parent !== undefined && (it.parent < 0 || it.parent >= row.items!.length || it.parent === i)) {
-          err(`${where} items[${i}]: parent が不正（${it.parent}）`);
+        // 入れ子は1段まで、親は子より前（画面の詳細パネルは「親の事項 → 内訳」の1段で表示する）
+        if (it.parent !== undefined && (it.parent < 0 || it.parent >= i || row.items![it.parent].parent !== undefined)) {
+          err(`${where} items[${i}]: parent が不正（${it.parent}。前にある親の事項（入れ子は1段まで）を指すこと）`);
         }
       });
       const s = sumKnown(row.items.filter(it => it.parent === undefined).map(it => it.amount));
@@ -134,6 +135,12 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
         }
         if (st.no === null && st.no_src !== undefined) err(`${where} setsu[${i}]: 番号がないのに番号の出典がある`);
         st.sub?.forEach((sb, j) => checkName(`${where} setsu[${i}].sub[${j}]`, sb, false));
+        // 細節があるなら、その合計は節の額と一致する（細節の欠け・別の節への付け違いを見つける。R8 で実例）
+        if (st.sub && st.sub.length > 0) {
+          const ss = sumKnown(st.sub.map(sb => sb.amount));
+          const sv = vOf(st.amount);
+          if (ss !== null && sv !== null && ss !== sv) err(`${where} setsu[${i}]: 細節の合計 ${ss} ≠ 節の額 ${sv}`);
+        }
       });
       const s = sumKnown(row.setsu.map(st => st.amount));
       if (s !== null && amount !== null && s !== amount) err(`${where}: 節の合計 ${s} ≠ 金額 ${amount}`);

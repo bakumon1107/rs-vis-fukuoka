@@ -31,7 +31,10 @@ class TestResolveSetsu:
         m = moku(1000, setsu((1, 600), (None, 799), (2, 400)))
         t = moku(1000, setsu((1, 600), (2, 400)))
         new, notes = cc.resolve_setsu(m, t)
-        assert sorted((s["no"], s["amount"]) for s in new) == [(1, 600), (2, 400)]
+        top = [s for s in new if s.get("top", True)]
+        assert sorted((s["no"], s["amount"]) for s in top) == [(1, 600), (2, 400)]
+        # 行は消さずに細節に直す（期末手当 799 は職員手当等の細節。消すと細節が欠ける）
+        assert [(s["amount"], s.get("節から細節に")) for s in new if not s.get("top", True)] == [(799, True)]
 
     def test_ambiguous_is_rejected(self):
         # 合う組み合わせが同じ変更数で2通りあるときは採用しない

@@ -279,9 +279,11 @@ def resolve_setsu(m, t, th=None):
                     n["amount"], n["出典"] = val, "文字層"
                     break
         elif op == "drop":
-            for j, n in enumerate(new):
-                if n.get("no") is None and n["amount"] == s["amount"]:
-                    new.pop(j)
+            # 節の合計から外すだけで、行は消さずに細節に直す。番号なしの行の多くは、字下げの判定で節と見なされた細節
+            # （R8 6款5項5目 職員手当等の「期末手当 799」、8款2項5目 旅費の「費用弁償 4,067」。消すと細節が欠けていた）
+            for n in new:
+                if n.get("no") is None and n["amount"] == s["amount"] and n.get("top", True):
+                    n["top"], n["節から細節に"] = False, True
                     break
         elif op == "add":
             new.append(dict(s, 出典="文字層"))

@@ -118,6 +118,18 @@ def is_ocr_variant(ocr: str, ref: str) -> bool:
     return deleted == 0 and dropped <= 3 and replaced <= 1
 
 
+def setsu_in_print_order(m):
+    """目の節・細節を、説明書に印字された順（ページ → 高さ）に並べる。細節は「直前の節」に付けるので、順が崩れていると
+    別の節に付く。突き合わせ（cross_check.py）で節を組み直した目は「節を全部 → 細節を全部」の順になっていた
+    （R8 6款5項5目 森林環境費: 勤勉手当・普通旅費などの細節がすべて最後の節「積立金」に付いた）。
+    位置（page・y）のない節（修正表で足した節）がある目は、並べ替えずにそのままの順を使う。"""
+    ss = m["節"]
+    if not ss or any(s.get("page") is None or s.get("y") is None for s in ss):
+        return ss
+    order = {p: i for i, p in enumerate(dict.fromkeys(m["pages"]))}
+    return sorted(ss, key=lambda s: (order.get(s["page"], len(order)), s["y"]))
+
+
 def split_headcount(name: str):
     """事項名の末尾の人数（「職員費 10人」）を分ける。(名前, 人数 or None)"""
     mh = re.search(r"([\d,]+)人$", name)
@@ -343,7 +355,7 @@ class Exporter:
         other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others]
         other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others]
         expense = m["side"] == "歳出"
-        for st in m["節"]:
+        for st in setsu_in_print_order(m):
             top = is_top(st)
             if ("節", st.get("no")) in fixes and top:
                 src, note = "correction", fixes[("節", st.get("no"))]
@@ -405,7 +417,8 @@ class Exporter:
         return out
 
 
-NAME_CORRECTIONS = os.path.join(HERE, "ocr", "corrections", "r8-names.json")
+# 名前の修正表は年度ごと（令和の年 = 西暦 − 2018。2026 → r8-names.json）。年度を変えたら別の修正表を読む
+NAME_CORRECTIONS = os.path.join(HERE, "ocr", "corrections", f"r{YEAR - 2018}-names.json")
 
 
 def apply_name_corrections(rows, fixes, unresolved):

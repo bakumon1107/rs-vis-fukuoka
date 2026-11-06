@@ -85,6 +85,23 @@ test('入れ子の内訳（parent つき）は事項の合計に含めない', (
   assert.deepEqual(validateBudgetFile(file([r])).errors, []);
 });
 
+test('入れ子は1段まで・親は子より前。細節の合計は節の額と一致する', () => {
+  const items = (parents: (number | undefined)[]) =>
+    parents.map((parent, i) => ({ name: `事項${i}`, amount: v(i === 0 ? 17_854_435_000 : 1), ...(parent !== undefined ? { parent } : {}) }));
+  // 孫（内訳の内訳）と、後ろの親を指す内訳は不正
+  assert.ok(validateBudgetFile(file([row({ items: items([undefined, 0, 1]) })])).errors.some(e => e.includes('parent が不正')));
+  const fwd = [{ name: '内訳', amount: v(1), parent: 1 }, { name: '親', amount: v(17_854_435_000) }];
+  assert.ok(validateBudgetFile(file([row({ items: fwd })])).errors.some(e => e.includes('parent が不正')));
+  // 細節の合計が節の額と合わない（細節の欠け・付け違い）
+  const setsu = [
+    { no: 1, name: '報酬', amount: v(2_444_000), sub: [{ name: '委員報酬', amount: v(2_000_000) }] },
+    { no: 2, name: '給料', amount: v(17_851_991_000) },
+  ];
+  assert.ok(validateBudgetFile(file([row({ setsu })])).errors.some(e => e.includes('細節の合計')));
+  setsu[0].sub = [{ name: '委員報酬', amount: v(2_444_000) }];
+  assert.deepEqual(validateBudgetFile(file([row({ setsu })])).errors, []);
+});
+
 test('金額が不明・整数でない・出典が不正を検出し、推定の数を数える', () => {
   assert.ok(validateBudgetFile(file([row({ amount: v(null) })])).errors.some(e => e.includes('金額が不明')));
   assert.ok(validateBudgetFile(file([row({ previous: v(1.5) })])).errors.some(e => e.includes('整数でない')));
