@@ -1,0 +1,21 @@
+{
+ "説明": "福岡県の書き出し（export_fukuoka_pref.py）が使う原本の一覧。取得日は県のサイトからダウンロードした日（JST）。書き出しは手元の PDF の SHA256 がここと一致することを確かめる（資料が差し替わったら気づくため）。原本はコミットしない",
+ "sources": [
+  {"id": "r8-setsumeisho-ippan", "title": "令和8年度当初予算に関する説明書（一般会計）", "file": "281298",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/281298.pdf", "sha256": "c48e3e10bb5c19dc96c470fdf5e14e3316efedaba344e99ec66d66a1d5e5bcfc", "retrieved": "2026-11-06"},
+  {"id": "r8-setsumeisho-toku", "title": "令和8年度当初予算に関する説明書（特別会計・公営企業会計）", "file": "281299",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/281299.pdf", "sha256": "ddfdb27c3fd58c3f542d77d6e37d1644a1c2eadc5bab8dfed8ece0a3667d6c12", "retrieved": "2026-11-06"},
+  {"id": "r8-gian", "title": "令和8年度一般会計予算及び特別会計予算（議案）", "file": "281297",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/281297.pdf", "sha256": "f0fa72762abf6c301d405bef253ad2bc3b231fb2435cf30ef80e1eba86ef8c2f", "retrieved": "2026-11-06"},
+  {"id": "r8-keijougaku-sokatsu", "title": "令和8年度当初予算計上額調（総括）", "file": "277209",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277209.pdf", "sha256": "6a5501c0fc49a92e25c5f55b4da00a748ad6c5cf95551d3b74362c19eb3dccfa", "retrieved": "2026-11-06"},
+  {"id": "r8-keijougaku-sainyu", "title": "令和8年度当初予算計上額調（一般会計歳入）", "file": "277210",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277210.pdf", "sha256": "265ff0f8ac3f7b0b96bfd701dd9dcd85eaf193c8a058ef5f3a23ca633ddf61c8", "retrieved": "2026-11-06"},
+  {"id": "r8-keijougaku-saishutsu", "title": "令和8年度当初予算計上額調（一般会計歳出）", "file": "277211",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277211.pdf", "sha256": "2841524f16d76b1f35170780970dd03d117ff4d36b2fe1f2cc573118328b3496", "retrieved": "2026-11-06"},
+  {"id": "r8-keijougaku-tokubetsu", "title": "令和8年度当初予算計上額調（特別会計）", "file": "277212",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277212.pdf", "sha256": "ecf23d0e7d91e9263a5ef35f1e8feaeae2c76d17a9b441652eaadec82c475523", "retrieved": "2026-11-06"},
+  {"id": "r6-kessan-gaiyou", "title": "令和6年度歳入歳出決算概要説明書（名前の照合に使用）", "file": "272595",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272595.pdf", "sha256": "0bfa60a10dabdb14ac75a01c8a0b24e6a7b57b9ad3fe5ab0b0478e6056efbec7", "retrieved": "2026-11-06"}
+ ]
+}

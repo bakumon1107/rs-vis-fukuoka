@@ -25,7 +25,6 @@
     text: テキスト PDF の資料（計上額調の款名） / reference: R6 決算（テキスト）の同じ款の中で十分に近い名前 / ocr: OCR
 """
 import argparse
-import datetime
 import difflib
 import hashlib
 import importlib.util
@@ -58,17 +57,9 @@ SETSU_NAMES = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5
                21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
                26: "公課費", 27: "繰出金"}
 
-SOURCES = [
-    ("r8-setsumeisho-ippan", "令和8年度当初予算に関する説明書（一般会計）", "281298"),
-    ("r8-setsumeisho-toku", "令和8年度当初予算に関する説明書（特別会計・公営企業会計）", "281299"),
-    ("r8-gian", "令和8年度一般会計予算及び特別会計予算（議案）", "281297"),
-    ("r8-keijougaku-sokatsu", "令和8年度当初予算計上額調（総括）", "277209"),
-    ("r8-keijougaku-sainyu", "令和8年度当初予算計上額調（一般会計歳入）", "277210"),
-    ("r8-keijougaku-saishutsu", "令和8年度当初予算計上額調（一般会計歳出）", "277211"),
-    ("r8-keijougaku-tokubetsu", "令和8年度当初予算計上額調（特別会計）", "277212"),
-    ("r6-kessan-gaiyou", "令和6年度歳入歳出決算概要説明書（名前の照合に使用）", "272595"),
-]
-URL = "https://www.pref.fukuoka.lg.jp/uploaded/attachment/{}.pdf"
+# 原本の一覧（URL・SHA256・取得日）。取得日はファイルの更新日時ではなく、この一覧に書いた日を使う
+# （ファイルをコピー・取り直すと更新日時が変わり、本当の取得日でなくなるため）
+SOURCES_FILE = os.path.join(HERE, "sources.json")
 
 
 def load_vote():
@@ -149,9 +140,17 @@ class Exporter:
                     d["moku"].extend(mo["name"] for mo in kou["children"])
         self.name_stats = Counter()
         self.replaced = []  # (項/目, OCR の名前, 置き換えた名前)。書き出しの後に一覧を出して目で確かめる
+        self.alt_names = {}
 
     def readings(self, paths):
-        return [{self.vote.key(m): self.vote.values(m) for m in self.vote.load(p)} for p in paths]
+        loaded = [self.vote.load(p) for p in paths]
+        # 名前が空のとき（OCR が目名を読めなかった）に使う、ほかの読み取りの名前。
+        # paths は（OCR・旧 OCR・文字層）の順。後に入れたものが優先なので、文字層 > 旧 OCR
+        for ms in loaded[1:]:
+            for m in ms:
+                if m["目名"]:
+                    self.alt_names[self.vote.key(m)] = m["目名"]
+        return [{self.vote.key(m): self.vote.values(m) for m in ms} for ms in loaded]
 
     def pick_name(self, ocr_name, side, kan, level):
         """一般会計の項・目名: R6 決算（テキスト）の同じ款の中に、OCR の名前が「崩れ」として説明のつく名前
@@ -173,6 +172,10 @@ class Exporter:
     def row(self, m, account_id, kan_name, kan_name_src, readings, special):
         side = "revenue" if m["side"] == "歳入" else "expense"
         kou_no, kou_name = m["項"]
+        if not m["目名"].strip():
+            # OCR が目名を読めなかった（R8 3款2項3目 難病等対策費）。ほかの読み取りの名前を使い、下の照合を通す
+            m = dict(m, 目名=self.alt_names.get(self.vote.key(m), ""))
+            print(f"名前の補い（目）: {self.vote.key(m)} 空 → {m['目名']}", file=sys.stderr)
         if special:
             kou_n, kou_src = clean_name(kou_name), "ocr"
             moku_n, moku_src = clean_name(m["目名"]), "ocr"
@@ -373,10 +376,14 @@ def main():
         f.write("\n")
 
     sources = []
-    for sid, title, fid in SOURCES:
-        p = os.path.join(a.pdf_dir, f"{fid}.pdf")
-        retrieved = datetime.date.fromtimestamp(os.path.getmtime(p)).isoformat()
-        sources.append({"id": sid, "title": title, "url": URL.format(fid), "sha256": sha256(p), "retrieved": retrieved})
+    for s in json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]:
+        p = os.path.join(a.pdf_dir, f"{s['file']}.pdf")
+        got = sha256(p)
+        if got != s["sha256"]:
+            # 手元の原本が一覧と違う（県が資料を差し替えた・取り違えた）。そのまま書き出すと出典の記録と中身が食い違う
+            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.pdf（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
+                     f"資料が差し替わっていないか確かめ、sources.json を更新してから書き出す")
+        sources.append({k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")})
     index = {
         "schema_version": 1,
         "gov": {"id": GOV_ID, "name": "福岡県", "kind": "prefecture"},

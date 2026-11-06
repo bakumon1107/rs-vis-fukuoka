@@ -92,6 +92,14 @@ test('金額が不明・整数でない・出典が不正を検出し、推定�
   assert.equal(validateBudgetFile(file([row({ previous: v(1, 'inferred') })])).inferredCount, 1);
 });
 
+test('読み取りの一致の数・名前の出典・名前の有無を確かめる', () => {
+  assert.ok(validateBudgetFile(file([row({ previous: { v: 1, src: 'ocr', agree: -1 } })])).errors.some(e => e.includes('一致の数が不正')));
+  assert.ok(validateBudgetFile(file([row({ previous: { v: 1, src: 'ocr', agree: 1.5 } })])).errors.some(e => e.includes('一致の数が不正')));
+  assert.ok(validateBudgetFile(file([row({ moku: { no: 1, name: '一般管理費', name_src: 'guess' as never } })])).errors.some(e => e.includes('名前の出典が不正')));
+  assert.ok(validateBudgetFile(file([row({ moku: { no: 1, name: '' } })])).errors.some(e => e.includes('名前がない')));
+  assert.deepEqual(validateBudgetFile(file([row({ moku: { no: 1, name: '一般管理費', name_src: 'reference' } })])).errors, []);
+});
+
 test('補正: 補正前 + 補正額 = 計', () => {
   const sup = { supplementary: { round: 'R8-06', kind: '定例' as const } };
   const ok = row({ amount: v(2_545_648_000), before: v(8_819_677_000), after: v(11_365_325_000), funding: undefined, items: undefined, setsu: undefined, previous: undefined });

@@ -8,6 +8,7 @@
  */
 import {
   LOCAL_GOV_SCHEMA_VERSION,
+  NAME_SOURCES,
   VALUE_SOURCES,
   type LocalBudgetFile,
   type MokuRow,
@@ -67,6 +68,9 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     }
     if (!VALUE_SOURCES.includes(x.src)) err(`${where}: 出典が不正（${String(x.src)}）`);
     if (x.src === 'inferred') inferredCount += 1;
+    if (x.agree !== undefined && (!Number.isInteger(x.agree) || x.agree < 0)) {
+      err(`${where}: 読み取りの一致の数が不正（${x.agree}）`);
+    }
     if (x.v === null) {
       if (required) err(`${where}: 金額が不明（null）`);
       return;
@@ -82,6 +86,11 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (row.id !== expectedRowId(row)) err(`${where}: ID が款・項・目の番号と合わない（期待 ${expectedRowId(row)}）`);
     if (!accountIds.has(row.account)) err(`${where}: 会計 ${row.account} が accounts にない`);
     if (!SIDES.includes(row.side)) err(`${where}: side が不正（${row.side}）`);
+    for (const level of ['kan', 'kou', 'moku'] as const) {
+      const ns = row[level].name_src;
+      if (ns !== undefined && !NAME_SOURCES.includes(ns)) err(`${where} ${level}: 名前の出典が不正（${String(ns)}）`);
+      if (!row[level].name) err(`${where} ${level}: 名前がない`);
+    }
     if (row.pages.length === 0) err(`${where}: 出典のページがない`);
 
     checkValue(`${where} amount`, row.amount, true);

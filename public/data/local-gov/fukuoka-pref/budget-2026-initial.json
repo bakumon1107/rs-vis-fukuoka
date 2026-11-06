@@ -22170,8 +22170,8 @@
    },
    "moku": {
     "no": 3,
-    "name": "",
-    "name_src": "ocr"
+    "name": "難病等対策費",
+    "name_src": "reference"
    },
    "amount": {
     "v": 6059713000,
@@ -53893,8 +53893,8 @@
    },
    "kou": {
     "no": 7,
-    "name": "",
-    "name_src": "ocr"
+    "name": "県営埠頭施設整備運営事業費",
+    "name_src": "reference"
    },
    "moku": {
     "no": 1,
@@ -71783,12 +71783,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "母子父子寡婦福祉資金貸付事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "母子父子寡婦福祉資金貸付事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -73869,12 +73869,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "沿岸漁業改善資金助成事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "沿岸漁業改善資金助成事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -74010,12 +74010,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "沿岸漁業改善資金助成事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "沿岸漁業改善資金助成事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -74260,12 +74260,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -74485,12 +74485,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -74572,12 +74572,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "小規模企業者等設備導入資金貸付事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -75329,12 +75329,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "県営埠頭施設整備運営事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "県営埠頭施設整備運営事業費",
     "name_src": "ocr"
    },
    "moku": {
@@ -75528,12 +75528,12 @@
    "side": "expense",
    "kan": {
     "no": 1,
-    "name": "",
+    "name": "県営埠頭施設整備運営事業費",
     "name_src": "ocr"
    },
    "kou": {
     "no": 1,
-    "name": "",
+    "name": "県営埠頭施設整備運営事業費",
     "name_src": "ocr"
    },
    "moku": {

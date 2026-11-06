@@ -21,13 +21,20 @@ PDF の癖（R8 で確認）:
 結果（R8）: 一般会計・特別会計14会計・公営企業会計5会計のすべてで一致（FAIL=0）
 """
 import json
+import os
 import re
 import sys
 import unicodedata
 
 import pdfplumber
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python3 -P でも同じディレクトリの部品を読む
+from name_lines import NameJoiner  # noqa: E402
+
 AMT = re.compile(r"^\d{1,3}(,\d{3})*$")
+# 正規表現の文字の範囲: ひらがな・カタカナ（U+3040〜U+30FF）と CJK 統合漢字（U+4E00〜U+9FFF）。
+# 文字そのものを書くと U+3040 が目に見えず範囲が読めないので、コードの数値から組み立てる
+JA_CHARS = f"{chr(0x3040)}-{chr(0x30FF)}{chr(0x4E00)}-{chr(0x9FFF)}"
 # 款・項の金額の右端（R8: 款 x≈580・項 x≈782、R7: 款 x≈564・項 x≈766。どちらもこの範囲に入る）
 KAN_RIGHT = (555, 605)
 KOU_RIGHT = (755, 805)
@@ -51,6 +58,7 @@ def main():
     side = None
     in_table = False
     fails = 0
+    names = NameJoiner(prepend_to_named=False)  # 3行に分かれた款・項の名前をつなぐ（name_lines.py）
 
     def fail(msg):
         nonlocal fails
@@ -59,6 +67,7 @@ def main():
 
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
+            names.reset()  # 前のページの末尾のかけらを、このページの名前に付けない
             # 全角の数字・記号は半角にそろえる（R7 は「第１表」と全角で、表の始まりを見落とした実例）
             text = unicodedata.normalize("NFKC", page.extract_text() or "").replace(" ", "")
             m = re.search(r"令和\d+年度福岡県(\S+?会計)予算\n", text)
@@ -120,6 +129,14 @@ def main():
                 # 金額が2語に割れることがある（「133,719,」「243」）ので、列の中の数字の断片を x 順につなぐ
                 frags = [w for w in row if re.fullmatch(r"[\d,]+", w["text"]) and w["x1"] > KAN_RIGHT[0] - 100]
                 if not frags:
+                    # 長い名前は「上の行の名前／番号と金額の行／下の行の名前」と3行に分かれる
+                    # （「県営埠頭施設整備／1 8,044,889／運営事業費」）。番号と金額の行の名前が空だと款・項の名前が空になった実例
+                    namepart = "".join(w["text"] for w in row if not re.fullmatch(r"[\d,]+", w["text"]))
+                    # ページ番号（「-3-」）や記号のかけら（「，」「ー」）は名前の断片にしない
+                    namepart = re.sub(rf"[-－―‑ー]*\d+[-－―‑ー]+|^[^{JA_CHARS}]+", "", namepart)
+                    if (len(re.findall(rf"[{JA_CHARS}]", namepart)) >= 2
+                            and not re.search(r"款|項|金額|単位|歳入|歳出|第\d|表", namepart)):
+                        names.name_only(namepart)
                     continue
                 txt = "".join(w["text"] for w in frags)
                 if not AMT.match(txt):
@@ -134,12 +151,16 @@ def main():
                 no = re.match(r"^(\d{1,2})", name_words[0]["text"]) if name_words else None
                 name = "".join(w["text"] for w in name_words)
                 name = re.sub(r"^\d{1,2}", "", name)
+                # 上の行の名前を使うのは、番号と金額の行の名前が空のときだけ（prepend_to_named=False）
+                name = names.entry_name(name)
+                entry = None
                 if KAN_RIGHT[0] <= a["x1"] <= KAN_RIGHT[1]:
-                    cur[side].append({"no": int(no.group(1)) if no else None, "name": name, "金額": val, "pdf_page": pno,
-                                      "項": []})
+                    entry = {"no": int(no.group(1)) if no else None, "name": name, "金額": val, "pdf_page": pno, "項": []}
+                    cur[side].append(entry)
                 elif KOU_RIGHT[0] <= a["x1"] <= KOU_RIGHT[1] and cur[side]:
-                    cur[side][-1]["項"].append({"no": int(no.group(1)) if no else None, "name": name, "金額": val,
-                                               "pdf_page": pno})
+                    entry = {"no": int(no.group(1)) if no else None, "name": name, "金額": val, "pdf_page": pno}
+                    cur[side][-1]["項"].append(entry)
+                names.opened(entry)
     for k in kaikei:
         # 款・項の番号は印字の読み取りが崩れる（警察費の「9」が読めない）ので、並び順で振り直す（款・項は 1 から連番）。
         # 読めた番号は no_印字 に残し、並び順と違えば知らせる

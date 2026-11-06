@@ -23,6 +23,10 @@ import re
 import sys
 from collections import defaultdict
 
+# 正規表現の文字の範囲: ひらがな・カタカナ（U+3040〜U+30FF）と CJK 統合漢字（U+4E00〜U+9FFF）。
+# 文字そのものを書くと U+3040 が目に見えず範囲が読めないので、コードの数値から組み立てる
+JA_CHARS = f"{chr(0x3040)}-{chr(0x30FF)}{chr(0x4E00)}-{chr(0x9FFF)}"
+
 AMOUNT_RE = re.compile(r"^[△▲A^\-]?\s*(\d{1,3}(?:[,，.]\d{3})+|\d{1,3})$")
 
 # 中国語モデルが出す簡体字・異体字を日本の字形に直す（名称の表示用。金額の検算には使わない）
@@ -197,13 +201,13 @@ def choose_kou(title: str, cands, prev_no):
     # ただし「10項」のように番号と項の字がはっきり読めていれば、名前が1文字でも新しい項とみなす
     # （PP-OCRv6 で「狩10項」。狩猟税の名前が「狩」しか残らず、項を見落として鉱区税に入れた実例）
     explicit = re.search(r"\d{1,2}\s*[项項填頂顶]", t)
-    n_chars = len(re.findall(r"[぀-ヿ一-鿿]", name))
+    n_chars = len(re.findall(rf"[{JA_CHARS}]", name))
     if not cands or (n_chars < 2 and not (explicit and n_chars >= 1)):
         return None
     nums = [int(x) for x in re.findall(r"\d{1,2}", t)]
     best, best_score = None, -1.0
     for no, cname in cands:
-        cn = re.sub(r"[^぀-ヿ一-鿿]", "", cname)
+        cn = re.sub(rf"[^{JA_CHARS}]", "", cname)
         s = difflib.SequenceMatcher(None, name, cn).ratio()
         if no in nums:
             s += 0.5
