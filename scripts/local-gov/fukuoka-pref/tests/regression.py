@@ -4,6 +4,7 @@
 
     FUKUOKA_DATA=<dir> python3 -P scripts/local-gov/fukuoka-pref/tests/regression.py          # 比べる
     FUKUOKA_DATA=<dir> python3 -P scripts/local-gov/fukuoka-pref/tests/regression.py --update # 期待値を書き換える
+    … --keep <作業ディレクトリ>  各ステップの出力を残す（共通 JSON 形式の書き出し export_fukuoka_pref.py --work の入力）
     FUKUOKA_DATA=<dir> python3 -P -m pytest scripts/local-gov/fukuoka-pref/tests                # pytest からも流れる
 
 <dir> の中身: pdf/<ファイル名>.pdf（県サイトのファイル名のまま）、ocr/<名前>/p0001.json …（ocr_pages.py の出力）。
@@ -78,6 +79,9 @@ STEPS = [
     ("説明書 特別会計（多数決）", "ocr/vote.py",
      ["{out:cross-toku.json}", "{out:setsumeisho-toku.json}", "{out:setsumeisho-toku-v4.json}", "{out:setsumeisho-toku-tl.json}"],
      "vote-toku.json", [r"^全検算", r"^  \d 通り"]),
+    # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
+    ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
+     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None, [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典"]),
 ]
 
 
@@ -91,12 +95,16 @@ def resolve(arg, data, outdir, tmpdir):
         if kind == "out":
             return os.path.join(outdir, name)
         return os.path.join(tmpdir, name)
+    arg = arg.replace("{outdir}", outdir).replace("{pdfdir}", os.path.join(data, "pdf"))
     return re.sub(r"\{(pdf|ocr|out|tmp):([^}]+)\}", rep, arg)
 
 
-def run_all(data):
+def run_all(data, keep=None):
+    """全ステップを流す。keep を渡すと、各ステップの出力（JSON）をそのディレクトリに残す（export_fukuoka_pref.py の入力になる）。"""
     results = {}
-    with tempfile.TemporaryDirectory() as outdir, tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory() as tmp_out, tempfile.TemporaryDirectory() as tmpdir:
+        outdir = keep or tmp_out
+        os.makedirs(outdir, exist_ok=True)
         for name, script, args, out, pats in STEPS:
             argv = [resolve(a, data, outdir, tmpdir) for a in args]
             # 入力がない（原本がない・前のステップの出力ができていない）ステップは飛ばす。
@@ -139,7 +147,8 @@ def main():
     data = os.environ.get("FUKUOKA_DATA")
     if not data:
         sys.exit("FUKUOKA_DATA に原本と OCR 結果の置き場所を指定する")
-    got = run_all(data)
+    keep = sys.argv[sys.argv.index("--keep") + 1] if "--keep" in sys.argv else None
+    got = run_all(data, keep)
     if "--update" in sys.argv:
         os.makedirs(os.path.dirname(EXPECTED), exist_ok=True)
         with open(EXPECTED, "w", encoding="utf-8") as f:

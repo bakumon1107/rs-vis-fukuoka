@@ -46,6 +46,11 @@ export type Basis = 'initial' | 'supplementary' | 'settlement';
 export interface NumberedName {
   no: number;
   name: string;
+  /**
+   * 名前の出典。金額と違って名前は検算で確かめられないので、どこから取ったかを残す。
+   * text: テキスト PDF の資料（計上額調など）/ reference: 別年度のテキスト資料（R6 決算）で十分に近い名前 / ocr: OCR
+   */
+  name_src?: 'text' | 'reference' | 'ocr';
 }
 
 /** 説明欄の ○事項 */
