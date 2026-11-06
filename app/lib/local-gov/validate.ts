@@ -12,6 +12,7 @@ import {
   SETSU_NO_SOURCES,
   VALUE_SOURCES,
   type LocalBudgetFile,
+  type LocalGovIndex,
   type MokuRow,
   type NameWithSource,
   type Value,
@@ -157,6 +158,33 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);
 
   return { errors, inferredCount };
+}
+
+/**
+ * 予算のファイルと、自治体の index（資料の一覧・データの一覧）の突き合わせ。
+ * 出典のページ（pages[].source）と、全文検索で確かめた名前の資料（name_evidence）が、資料の一覧にあること。
+ * 画面は資料の一覧から PDF の URL を引くので、ない id があるとリンクが切れる
+ */
+export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex): string[] {
+  const errors: string[] = [];
+  const ids = new Set(index.sources.map(s => s.id));
+  if (file.gov_id !== index.gov.id) errors.push(`gov_id ${file.gov_id} が index の ${index.gov.id} と違う`);
+  if (!index.datasets.some(d => d.year === file.year && d.basis === file.basis)) {
+    errors.push(`index の datasets に ${file.year}・${file.basis} がない`);
+  }
+  const checkEvidence = (where: string, ev: string[] | undefined) => {
+    for (const id of ev ?? []) if (!ids.has(id)) errors.push(`${where}: 名前の資料 ${id} が index の sources にない`);
+  };
+  for (const row of file.rows) {
+    for (const p of row.pages) if (!ids.has(p.source)) errors.push(`${row.id}: 出典 ${p.source} が index の sources にない`);
+    for (const level of ['kan', 'kou', 'moku'] as const) checkEvidence(`${row.id} ${level}`, row[level].name_evidence);
+    row.items?.forEach((it, i) => checkEvidence(`${row.id} items[${i}]`, it.name_evidence));
+    row.setsu?.forEach((s, i) => {
+      checkEvidence(`${row.id} setsu[${i}]`, s.name_evidence);
+      s.sub?.forEach((sb, j) => checkEvidence(`${row.id} setsu[${i}].sub[${j}]`, sb.name_evidence));
+    });
+  }
+  return errors;
 }
 
 /** 会計・歳入歳出ごとの金額の合計（自治体のパイプライン側の照合や、グラフの生成で使う） */

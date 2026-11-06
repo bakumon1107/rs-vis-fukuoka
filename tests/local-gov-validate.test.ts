@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { expectedRowId, totalsByAccount, validateBudgetFile } from '../app/lib/local-gov/validate';
-import type { LocalBudgetFile, MokuRow, Value } from '../types/local-gov';
+import { expectedRowId, totalsByAccount, validateAgainstIndex, validateBudgetFile } from '../app/lib/local-gov/validate';
+import type { LocalBudgetFile, LocalGovIndex, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number | null, src: Value['src'] = 'ocr'): Value => ({ v: n, src });
 
@@ -159,5 +159,23 @@ test('書き出した正規化データがすべて検証を通る', { skip: dat
     const f = JSON.parse(fs.readFileSync(p, 'utf-8')) as LocalBudgetFile;
     const r = validateBudgetFile(f);
     assert.deepEqual(r.errors, [], `${path.relative(process.cwd(), p)}`);
+    // 同じ自治体の index.json（資料の一覧）と突き合わせる: 出典のページ・名前の資料の id が資料の一覧にあること
+    const index = JSON.parse(fs.readFileSync(path.join(path.dirname(p), 'index.json'), 'utf-8')) as LocalGovIndex;
+    assert.deepEqual(validateAgainstIndex(f, index), [], `${path.relative(process.cwd(), p)} と index.json`);
   }
+});
+
+test('index との突き合わせ: 資料の一覧にない出典・名前の資料を見つける', () => {
+  const index: LocalGovIndex = {
+    schema_version: 1, gov: { id: 'fukuoka-pref', name: '福岡県', kind: 'prefecture' },
+    datasets: [{ year: 2026, label: '令和8年度', basis: 'initial', file: 'budget-2026-initial.json', status: 'verified' }],
+    sources: [{ id: 'r8-setsumeisho-ippan', title: '説明書', url: 'https://example.invalid/a.pdf', sha256: 'x', retrieved: '2026-11-06' }],
+  };
+  assert.deepEqual(validateAgainstIndex(file([row()]), index), []);
+  const bad = row({ moku: { no: 1, name: '一般管理費', name_src: 'search', name_evidence: ['r6-unknown'] },
+    pages: [{ source: 'r8-other', page: 1 }] });
+  const errs = validateAgainstIndex(file([bad]), index);
+  assert.ok(errs.some(e => e.includes('出典 r8-other')));
+  assert.ok(errs.some(e => e.includes('名前の資料 r6-unknown')));
+  assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index).some(e => e.includes('gov_id')));
 });
