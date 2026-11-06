@@ -176,7 +176,7 @@ export interface LocalGovIndex {
   sources: SourceDocument[];
 }
 
-/** 画面用のグラフの形（ノードと帯）。正規化データから組み立てる。どこで組み立てるかは画面とグラフの設計書で決める */
+/** 画面用のグラフ。正規化データから画面で組み立てる（app/lib/local-gov/graph.ts。ファイルにはしない） */
 export interface LocalGraph {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
+import { composeDisplay, edgeKey, selectionToFilter } from '../app/lib/local-gov/graph-view';
 import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number): Value => ({ v: n, src: 'ocr' });
@@ -95,6 +96,44 @@ test('全会計: 歳出の款を選ぶときは side で歳入の同じ番号の
   const g = buildLocalGraph(FILE, { view: 'all', filter: { account: 'general', side: 'expense', kan: 2 } });
   assert.equal(g.nodes.some(n => n.col === 'revenue'), false);
   assert.equal(colTotal(g, 'kan'), 150);
+});
+
+test('表示: 選んでいなければ左の3列だけ、重ねる帯なし', () => {
+  const d = composeDisplay(FILE, 'general', null);
+  assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))], ['funding', 'kan', 'kou']);
+  assert.equal(d.highlight.size, 0);
+  assert.equal(d.selected, null);
+});
+
+test('表示: 目を選ぶと事項まで開き、財源 → 款 の帯はその目の財源の分だけ重ねる', () => {
+  const d = composeDisplay(FILE, 'general', 'moku:general/expense/2-1-2');
+  assert.equal(d.selected?.name, '目2-1-2');
+  assert.equal(d.row, 'general/expense/2-1-2');
+  // 左の列は全体のまま（灰色の下地）
+  assert.equal(d.graph.edges.find(e => e.source === 'funding:general' && e.target === 'kan:general:expense:2')?.value, 90);
+  // 重ねる帯は選んだ目の財源内訳そのもの
+  assert.equal(d.highlight.get(edgeKey('funding:general', 'kan:general:expense:2')), 20);
+  assert.equal(d.highlight.get(edgeKey('funding:bond', 'kan:general:expense:2')), 30);
+  assert.equal(d.highlight.has(edgeKey('funding:national', 'kan:general:expense:2')), false);
+  // 深い列は選んだ目の分だけ
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.id), ['moku:general/expense/2-1-2']);
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'item').map(n => n.name), ['施設整備費']);
+});
+
+test('表示: 款を選ぶと目まで開く（一般会計）。財源の箱は、その箱から出る帯だけを重ねる', () => {
+  const d = composeDisplay(FILE, 'general', 'kan:general:expense:2');
+  assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))], ['funding', 'kan', 'kou', 'moku']);
+  const f = composeDisplay(FILE, 'general', 'funding:bond');
+  assert.deepEqual([...f.highlight.values()], [30]);
+  assert.ok(f.highlightNodes.has('kan:general:expense:2'));
+});
+
+test('表示: 会計の ID に「:」が入っていても絞り込みを読める', () => {
+  assert.deepEqual(selectionToFilter('all', 'kan:special:a:expense:1')?.filter,
+    { account: 'special:a', side: 'expense', kan: 1 });
+  assert.deepEqual(selectionToFilter('all', 'moku:special:a/expense/1-1-1')?.filter,
+    { account: 'special:a', side: 'expense', kan: 1, kou: 1, moku: 1 });
+  assert.equal(selectionToFilter('general', 'funding:bond'), null);
 });
 
 // 実データ（福岡県 R8 当初予算）で組み立てて、列の合計と帯の保存を確かめる
