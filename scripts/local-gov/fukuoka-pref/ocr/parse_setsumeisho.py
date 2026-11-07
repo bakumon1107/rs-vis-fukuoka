@@ -136,7 +136,15 @@ def parse_setsu(labels, amounts, col_left=None, seps=None):
     # 名前が2行以上の節（「13 使用料及び／賃借料」）は、金額が行の真ん中に印字され、番号も行の間に単独で印字される。
     # 金額にいちばん近い1行だけを名前にすると片方の行と番号を取りこぼす（番号の読めない歳入の節 59件のほとんど。2026-11-06）。
     # 名前の各行と単独の番号を「いちばん近い金額」に割り当て、同じ金額に割り当たった行を上から順につなぐ
-    nums = [d for d in labels if re.fullmatch(r"\s*\d{1,2}\s*", d["text"])]
+    # 単独の数字は節番号。ただし、名前の単語と同じ行にあってその直後（右）に続く数字は名前の一部
+    # （「苅田港本港 6／地区埠頭用地…」の「6」。節番号「7」より近くにあり、節番号として拾っていた。281299 p96）
+    digit_words = [d for d in labels if re.fullmatch(r"\s*\d{1,2}\s*", d["text"])]
+    name_words = [d for d in labels if d not in digit_words]
+
+    def follows_name(d):
+        cy = (d["y0"] + d["y1"]) / 2
+        return any(w["y0"] <= cy <= w["y1"] and w["x1"] - 5 <= d["x0"] for w in name_words)
+    nums = [d for d in digit_words if not follows_name(d)]
     lab_lines = lines_of([d for d in labels if d not in nums])
     amts = [(d, amount(d["text"])) for d in sorted(amounts, key=lambda d: d["y0"])]
     amts = [(d, a) for d, a in amts if a is not None]
@@ -168,14 +176,22 @@ def parse_setsu(labels, amounts, col_left=None, seps=None):
     res = []
     for i, (d, a) in enumerate(amts):
         rows = sorted(lines_for[i], key=lambda r: min(x["y0"] for x in r))
-        label = "".join(x["text"] for r in rows for x in r)
-        # 番号は単独の文字か、名前の中（「酬 1報」のように番号の付いた断片が後ろに来ることもある）
-        mnum = re.search(r"(\d{1,2})", nums_for[i][0]["text"]) if nums_for[i] else re.search(r"(\d{1,2})", label)
+        words = [x["text"] for r in rows for x in r]
+        # 番号は単独の文字か、名前の断片の頭（「酬 1報」のように番号の付いた断片が後ろに来ることもある）。
+        # 断片の頭の1〜2桁だけを番号とし、名前の中の数字（「人生100年」の「10」）は拾わない（番号の後に数字が続けば番号でない）
+        mnum = re.search(r"(\d{1,2})", nums_for[i][0]["text"]) if nums_for[i] else None
+        if mnum is None:
+            for k, wtext in enumerate(words):
+                mnum = re.match(r"\s*(\d{1,2})(?!\d)", wtext)
+                if mnum:
+                    words[k] = wtext[mnum.end():]  # 番号の部分だけを名前から外す
+                    break
+        label = "".join(words)
         xs = [x["x0"] for r in rows for x in r] + [n["x0"] for n in nums_for[i]]
         left = min(xs) if xs else None
         is_top = (left - col_left < 30) if (col_left is not None and left is not None) else bool(mnum)
         # 細節を囲む括弧の線が「L」「I」「|」「｜」と読まれて名前の先頭に付く（「L証紙収入」「I高等学校使用料」）
-        label = re.sub(r"^[LI|｜]+", "", re.sub(r"\d", "", label).strip())
+        label = re.sub(r"^[LI|｜]+", "", label.strip())
         res.append({"label": norm_name(label), "no": int(mnum.group(1)) if mnum else None,
                     "top": is_top, "amount": a, "y": d["y0"]})
     return res

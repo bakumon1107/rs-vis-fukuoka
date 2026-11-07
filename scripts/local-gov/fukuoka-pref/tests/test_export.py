@@ -50,6 +50,26 @@ def _row(rid, setsu=()):
             "setsu": [{"no": no, "name": "x", "name_src": "ocr", "amount": {"v": a * 1000}} for no, a in setsu]}
 
 
+def test_external_checks_count_from_written_rows():
+    def r(acc, side, kan, kou, v):
+        return {"account": acc, "side": side, "kan": {"no": kan}, "kou": {"no": kou}, "amount": {"v": v * 1000}}
+    rows = [r("general", "expense", 1, 1, 30), r("general", "expense", 1, 1, 70), r("general", "expense", 2, 1, 50),
+            r("special:zaisei-chosei-kikin", "revenue", 1, 1, 5), r("special:zaisei-chosei-kikin", "expense", 1, 1, 5)]
+    yo = {"会計": [
+        {"会計": "一般会計", "歳出": [{"no": 1, "項": [{"no": 1, "金額": 100}]}, {"no": 2, "項": [{"no": 1, "金額": 49}]}]},
+        {"会計": "財政調整基金特別会計", "歳入": [{"no": 1, "項": [{"no": 1, "金額": 5}]}],
+         "歳出": [{"no": 1, "項": [{"no": 1, "金額": 5}]}]}]}
+    keijou = {"一般会計歳入": {"款": []}, "一般会計歳出": {"款": [{"no": 1, "当年度": 100}, {"no": 2, "当年度": 50}]},
+              "特別会計": {"会計": [{"会計名": "財政調整基金", "当年度": 5}]}}
+    totals = [{"kind": "計", "会計": "一般会計", "side": "歳出", "款": 1, "項": [1, "x"], "本年度": 100}]
+    summary, ng = ex.external_checks(rows, yo, keijou, totals)
+    # 2款1項は予算書 49 に対して目の合計 50（1件 NG）。固定の値ではなく、書き出す行から数える
+    assert summary["項_予算書"] == "一般会計 1/2・特別会計 2/2"
+    assert summary["款_計上額調"] == "一般会計 2/2" and summary["会計_計上額調"] == "特別会計 2/2"
+    assert summary["計の行"] == "一般会計 1/1"
+    assert len(ng) == 1 and "('general', 'expense', 2, 1)" in ng[0]
+
+
 def test_setsu_in_print_order():
     # 突き合わせで組み直した目は「節を全部 → 細節を全部」の順になる。印字の順（ページ → 高さ）に戻さないと、
     # 細節がすべて最後の節に付く（R8 6款5項5目 森林環境費）
@@ -77,6 +97,10 @@ def test_name_corrections_apply_and_clear_unresolved():
     # 款は 1款のすべての目の行に当たり、10款には当たらない（id の前方一致で「1」と「10」を取り違えない）
     assert [r["kan"]["name"] for r in rows] == ["積立金", "積立金", "x"]
     assert [s["name"] for s in rows[0]["setsu"]] == ["x", "雑入"]
+    # 節番号も画像で確かめた値に直せる（set_no。番号の出典は correction）
+    ex.apply_name_corrections(rows, [{"id": "special:a-b/expense/1-1-1", "level": "setsu", "amount": 30, "no": 1,
+                                      "set_no": 7, "name": "報酬"}], [])
+    assert (rows[0]["setsu"][0]["no"], rows[0]["setsu"][0]["no_src"]) == (7, "correction")
     assert rows[0]["setsu"][1]["name_src"] == "correction"
     assert unresolved == []   # 当てた名前は、画像で確かめる一覧から消える
 

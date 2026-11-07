@@ -119,7 +119,9 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
         checkValue(`${where} items[${i}]`, it.amount, true);
         checkName(`${where} items[${i}]`, it, false);
         // 入れ子は1段まで、親は子より前（画面の詳細パネルは「親の事項 → 内訳」の1段で表示する）
-        if (it.parent !== undefined && (it.parent < 0 || it.parent >= i || row.items![it.parent].parent !== undefined)) {
+        // 整数かを先に確かめる（小数の parent で配列を引くと undefined になり、検証そのものが例外で止まる）
+        if (it.parent !== undefined && (!Number.isInteger(it.parent) || it.parent < 0 || it.parent >= i
+            || row.items![it.parent].parent !== undefined)) {
           err(`${where} items[${i}]: parent が不正（${it.parent}。前にある親の事項（入れ子は1段まで）を指すこと）`);
         }
       });
@@ -176,8 +178,16 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
   const errors: string[] = [];
   const ids = new Set(index.sources.map(s => s.id));
   if (file.gov_id !== index.gov.id) errors.push(`gov_id ${file.gov_id} が index の ${index.gov.id} と違う`);
-  if (!index.datasets.some(d => d.year === file.year && d.basis === file.basis)) {
+  const ds = index.datasets.find(d => d.year === file.year && d.basis === file.basis);
+  if (!ds) {
     errors.push(`index の datasets に ${file.year}・${file.basis} がない`);
+  } else if (ds.status === 'verified') {
+    // verified と書けるのは、推定の値がなく、全検算が一致したときだけ（共通 JSON 形式の設計 3.1）
+    const { inferredCount } = validateBudgetFile(file);
+    if (inferredCount > 0) errors.push(`推定の値が ${inferredCount} 件あるのに、datasets の status が verified`);
+    if (file.checks.all_ok < file.checks.rows) {
+      errors.push(`全検算が一致しない目が ${file.checks.rows - file.checks.all_ok} 件あるのに、datasets の status が verified`);
+    }
   }
   const checkEvidence = (where: string, ev: string[] | undefined) => {
     for (const id of ev ?? []) if (!ids.has(id)) errors.push(`${where}: 名前の資料 ${id} が index の sources にない`);

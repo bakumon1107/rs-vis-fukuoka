@@ -119,6 +119,23 @@ class TestParseSetsu:
         got = ps.parse_setsu(labels, [item("21", 400, 2071, 440, 2110)], col_left=0, seps=seps)
         assert [(s["no"], s["label"]) for s in got] == [(4, "雇用保険料納付金")]
 
+    def test_number_only_from_head_of_fragment(self):
+        # 番号の枠がないとき、名前の中の数字（「人生100年」）を節番号に拾わず、名前からも消さない
+        got = ps.parse_setsu([item("人生100年時代づくり交付金", 30, 100, 400, 130)], [item("14,000", 450, 100, 520, 130)],
+                             col_left=0)
+        assert [(s["no"], s["label"]) for s in got] == [(None, "人生100年時代づくり交付金")]
+        # 断片の頭の番号は拾う（「13使用料及び」→ 13）
+        got = ps.parse_setsu([item("13使用料及び", 30, 100, 200, 130), item("賃借料", 30, 135, 120, 165)],
+                             [item("1,789", 400, 118, 480, 148)], col_left=0)
+        assert [(s["no"], s["label"]) for s in got] == [(13, "使用料及び賃借料")]
+
+    def test_digit_right_of_name_is_part_of_name(self):
+        # 名前の1行目の右端の数字（地区の番号）は名前の一部。節番号は名前より左の数字（281299 p96「7 苅田港本港6地区…」）
+        labels = [item("苅田港本港", 60, 100, 250, 130), item("6", 260, 100, 280, 130), item("7", 5, 140, 20, 170),
+                  item("地区埠頭用地", 60, 140, 280, 170), item("整備事業債", 60, 180, 250, 210)]
+        got = ps.parse_setsu(labels, [item("21,700", 400, 140, 480, 170)], col_left=0)
+        assert [(s["no"], s["label"]) for s in got] == [(7, "苅田港本港6地区埠頭用地整備事業債")]
+
     def test_bracket_line_is_not_part_of_name(self):
         # 細節を囲む括弧の線が「L」「I」と読まれる（「L証紙収入」「I高等学校使用料」）
         got = ps.parse_setsu([item("L証紙収入", 50, 100)], [item("1", 400, 100, 420, 130)], col_left=0)

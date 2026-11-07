@@ -25,6 +25,11 @@ class TestNormalize:
     def test_keeps_real_latin_prefixes(self):
         assert ne.normalize("DX・生産性向上支援資金") == "DX・生産性向上支援資金"
         assert ne.normalize("IoT推進費") == "IoT推進費"
+        assert ne.normalize("Ｊアラート訓練費") == "Jアラート訓練費"   # 次がカタカナなら本当の英字
+
+    def test_real_latin_name_found_in_corpus(self):
+        corpus = ne.Corpus({"r8": "1 Jアラート訓練費 1,000"})
+        assert ne.resolve([("Ｊアラート訓練費", "ocr")], corpus) == ("Jアラート訓練費", "search", ["r8"])
 
 
 class TestCorpus:

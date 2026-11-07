@@ -26,7 +26,8 @@
     （歳出の節は、節番号で決まる施行規則の節名と区分の文字が一致） / search: 手元のテキスト資料（sources.json の corpus）に
     同じ名前がある（name_evidence に資料の id） / readings: 独立した読み取りの2つ以上が一致 /
     correction: 名前の修正表（ocr/corrections/r8-names.json。画像で確認） / ocr: 裏付けなし
-節番号の出典（no_src）: ocr: 説明書の OCR / textlayer: OCR で読めず、同じ金額の節の番号を文字層から
+節番号の出典（no_src）: ocr: 説明書の OCR / textlayer: OCR で読めず、同じ金額の節の番号を文字層から /
+    correction: 名前の修正表の set_no（画像で確認）
 """
 import argparse
 import difflib
@@ -116,6 +117,66 @@ def is_ocr_variant(ocr: str, ref: str) -> bool:
     replaced = sum(max(i2 - i1, j2 - j1) for tag, i1, i2, j1, j2 in ops if tag == "replace")
     deleted = sum(i2 - i1 for tag, i1, i2, j1, j2 in ops if tag == "delete")
     return deleted == 0 and dropped <= 3 and replaced <= 1
+
+
+def external_checks(rows, yosansho, keijou, total_rows):
+    """書き出す行（円）を外部の資料と突き合わせる。返り値: (要約 {名前: "一般会計 n/n・特別会計 n/n"}, NG の一覧)。
+    - 項_予算書: 項ごとの目の合計 = 予算書の本体（議案）の項の額（予算書にない項に目が入っていれば NG）
+    - 款_計上額調: 一般会計の款ごとの目の合計 = 当初予算計上額調の款の当年度
+    - 会計_計上額調: 特別会計ごとの歳入・歳出の目の合計 = 計上額調の会計の当年度
+    - 計の行: 項ごとの目の合計 = 説明書の「計」の行（OCR）
+    固定の値を書かず、突き合わせ（cross_check.py）の後の値で毎回数える。"""
+    acc_of = {"一般会計": "general", **{f"{n}特別会計": f"special:{s}" for n, s in SPECIAL_SLUGS.items()}}
+    side_of = {"歳入": "revenue", "歳出": "expense"}
+    got_kou, got_kan, got_acc = Counter(), Counter(), Counter()
+    for r in rows:
+        v = r["amount"]["v"] or 0
+        got_kou[(r["account"], r["side"], r["kan"]["no"], r["kou"]["no"])] += v
+        got_kan[(r["account"], r["side"], r["kan"]["no"])] += v
+        got_acc[(r["account"], r["side"])] += v
+    ng = []
+    tally = {k: Counter() for k in ("項_予算書", "款_計上額調", "会計_計上額調", "計の行")}
+
+    def count(name, acc, ok, msg):
+        part = "一般会計" if acc == "general" else "特別会計"
+        tally[name][(part, "n")] += 1
+        tally[name][(part, "ok")] += int(ok)
+        if not ok:
+            ng.append(f"{name}: {msg}")
+
+    bill_kou = set()
+    for a in yosansho["会計"]:
+        acc = acc_of.get(a["会計"])
+        if acc is None:
+            continue  # 公営企業会計（まだ書き出さない）
+        for jp, side in side_of.items():
+            for kan in a.get(jp, []):
+                for kou in kan.get("項", []):
+                    key = (acc, side, kan["no"], kou["no"])
+                    bill_kou.add(key)
+                    count("項_予算書", acc, got_kou[key] == yen(kou["金額"]),
+                          f"{key} 目の合計 {got_kou[key]:,} / 予算書 {yen(kou['金額']):,}")
+    for key in sorted(set(got_kou) - bill_kou):
+        count("項_予算書", key[0], False, f"{key} 予算書にない項に目が入っている")
+    for jp, side in (("一般会計歳入", "revenue"), ("一般会計歳出", "expense")):
+        for kan in keijou[jp]["款"]:
+            key = ("general", side, kan["no"])
+            count("款_計上額調", "general", got_kan[key] == yen(kan["当年度"]),
+                  f"{key} 目の合計 {got_kan[key]:,} / 計上額調 {yen(kan['当年度']):,}")
+    for a in keijou["特別会計"]["会計"]:
+        acc = f"special:{SPECIAL_SLUGS[a['会計名']]}"
+        for side in ("revenue", "expense"):
+            count("会計_計上額調", acc, got_acc[(acc, side)] == yen(a["当年度"]),
+                  f"{acc} {side} 目の合計 {got_acc[(acc, side)]:,} / 計上額調 {yen(a['当年度']):,}")
+    for t in total_rows:
+        acc = "general" if t.get("会計") in (None, "一般会計") else f"special:{SPECIAL_SLUGS[t['会計']]}"
+        key = (acc, side_of[t["side"]], t["款"], (t["項"] or (None,))[0])
+        count("計の行", acc, got_kou[key] == yen(t["本年度"]), f"{key} 目の合計 {got_kou[key]:,} / 計の行 {yen(t['本年度'])}")
+
+    def text(name):
+        parts = [f"{p} {tally[name][(p, 'ok')]}/{tally[name][(p, 'n')]}" for p in ("一般会計", "特別会計") if tally[name][(p, "n")]]
+        return "・".join(parts)
+    return {name: text(name) for name in tally}, ng
 
 
 def setsu_in_print_order(m):
@@ -446,6 +507,9 @@ def apply_name_corrections(rows, fixes, unresolved):
         for t in targets:
             t["name"], t["name_src"] = name, "correction"
             t.pop("name_evidence", None)
+            if lv == "setsu" and "set_no" in fx:
+                # 画像で確かめた節番号（OCR が番号を読めず、名前の中の数字などを番号にしていたとき）
+                t["no"], t["no_src"] = fx["set_no"], "correction"
         n += 1
         unresolved[:] = [u for u in unresolved if not (
             u[0] == lv and (u[1]["id"] == fid or (lv in ("kan", "kou") and u[1]["id"].startswith(fid + "-")))
@@ -555,14 +619,21 @@ def main():
         for m in c["目"]:
             for k, ok in m["checks"].items():
                 rule_counts[k] += int(ok)
+    # 外部の資料との突き合わせ（予算書の項・計上額調の款と会計・説明書の計の行）。書き出す行の値で数える
+    total_rows = []
+    for f in ("setsumeisho-ocr.json", "setsumeisho-toku.json"):
+        d = json.load(open(w(f), encoding="utf-8"))
+        total_rows += [m for m in (d["目"] if isinstance(d, dict) else d) if m["kind"] == "計"]
+    external, external_ng = external_checks(rows, ex.yo, ex.keijou, total_rows)
+    for line in external_ng:
+        print(f"NG  外部の検算 {line}", file=sys.stderr)
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",
         "unit_source": "千円", "accounts": accounts, "rows": rows,
         "checks": {
             "rows": len(rows), "all_ok": stats["ok"],
             "rules": {"A_説明欄": rule_counts["A"], "B_財源": rule_counts["B"], "C_比較": rule_counts["C"], "D_節": rule_counts["D"]},
-            "external": {"項_予算書": "一般会計 106/106・特別会計 83/83", "款_計上額調": "一般会計 29/29",
-                         "会計_計上額調": "特別会計 28/28（14会計の歳入・歳出）", "計の行": "一般会計 74/74・特別会計 23/23"},
+            "external": external,
             "readings": {"agree_2plus": round(vals["2plus"] / vals["n"], 4) if vals["n"] else 0,
                          "confirmed_by_image": vals["image"]},
             "corrections": n_fix,
@@ -578,7 +649,8 @@ def main():
         "schema_version": 1,
         "gov": {"id": GOV_ID, "name": "福岡県", "kind": "prefecture"},
         "datasets": [{"year": YEAR, "label": YEAR_LABEL, "basis": "initial", "file": f"budget-{YEAR}-initial.json",
-                      "status": "verified" if stats["ng"] == 0 else "partial"}],
+                      # verified は、目の全検算と外部の資料との突き合わせがすべて一致したときだけ
+                      "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"}],
         "sources": sources,
     }
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:

@@ -85,6 +85,21 @@ STEPS = [
 ]
 
 
+def _export_deps():
+    """書き出し（export_fukuoka_pref.py）が読む入力: 前のステップの出力と、sources.json の資料の PDF（SHA256 を確かめる）。
+    引数は --work <dir> だけなので、ここで並べる（どれかが欠けたら、書き出しのステップを飛ばす）"""
+    outs = ["kessan-kmk.json", "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
+            "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json",
+            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json"]
+    with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
+        pdfs = [s["file"] for s in json.load(f)["sources"]]
+    return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
+
+
+# ステップの、引数に出てこない入力（{out:...}・{pdf:...} の形）
+STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps()}
+
+
 def resolve(arg, data, outdir, tmpdir):
     def rep(m):
         kind, name = m.group(1), m.group(2)
@@ -114,7 +129,9 @@ def run_all(data, keep=None):
             argv = [resolve(a, data, outdir, tmpdir) for a in args]
             # 入力がない（原本がない・前のステップの出力ができていない）ステップは飛ばす。
             # 前のステップが飛ばされると出力ファイルができないので、それを入力にする後のステップも飛ぶ
-            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            # 引数に出てこない入力（書き出しが読む前のステップの出力・資料の PDF）は STEP_DEPS で足して確かめる
+            deps = [resolve(a, data, outdir, tmpdir) for a in STEP_DEPS.get(name, [])]
+            missing = [a for a in argv + deps if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
             if missing:
                 results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}
                 continue

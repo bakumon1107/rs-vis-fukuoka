@@ -195,4 +195,14 @@ test('index との突き合わせ: 資料の一覧にない出典・名前の資
   assert.ok(errs.some(e => e.includes('出典 r8-other')));
   assert.ok(errs.some(e => e.includes('名前の資料 r6-unknown')));
   assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index).some(e => e.includes('gov_id')));
+  // 推定の値がある・全検算が一致しないのに verified
+  assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index).some(e => e.includes('推定の値')));
+  const notAllOk = file([row()]);
+  notAllOk.checks.all_ok = 0;
+  assert.ok(validateAgainstIndex(notAllOk, index).some(e => e.includes('全検算が一致しない')));
+});
+
+test('小数の parent も例外で止まらずにエラーとして返す', () => {
+  const items = [{ name: '親', amount: v(17_854_435_000) }, { name: '内訳', amount: v(1), parent: 0.5 }];
+  assert.ok(validateBudgetFile(file([row({ items })])).errors.some(e => e.includes('parent が不正')));
 });

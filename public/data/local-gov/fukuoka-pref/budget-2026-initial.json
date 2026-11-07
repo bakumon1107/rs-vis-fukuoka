@@ -8399,10 +8399,9 @@
    },
    "setsu": [
     {
-     "no": 1,
+     "no": null,
      "name": "空港周辺整備機構貸付金償還金",
      "name_src": "correction",
-     "no_src": "textlayer",
      "amount": {
       "v": 576000,
       "src": "ocr",
@@ -11707,8 +11706,11 @@
     },
     {
      "no": 2,
-     "name": "令和年災害復旧債",
-     "name_src": "readings",
+     "name": "令和5年災害復旧債",
+     "name_src": "search",
+     "name_evidence": [
+      "r6-kessan-gaiyou"
+     ],
      "no_src": "ocr",
      "amount": {
       "v": 882000000,
@@ -11718,7 +11720,7 @@
     },
     {
      "no": 3,
-     "name": "令和年災害復旧債",
+     "name": "令和7年災害復旧債",
      "name_src": "readings",
      "no_src": "ocr",
      "amount": {
@@ -11729,7 +11731,7 @@
     },
     {
      "no": 4,
-     "name": "令和年災害復旧債",
+     "name": "令和8年災害復旧債",
      "name_src": "readings",
      "no_src": "ocr",
      "amount": {
@@ -28385,7 +28387,7 @@
      "no": 19,
      "name": "扶助費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 80834000,
       "src": "ocr",
@@ -45080,7 +45082,7 @@
      "no": 24,
      "name": "積立金",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 2747000,
       "src": "ocr",
@@ -51601,7 +51603,7 @@
      "no": 4,
      "name": "共済費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 4254000,
       "src": "ocr",
@@ -58843,7 +58845,7 @@
      "no": 11,
      "name": "役務費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 490000,
       "src": "ocr",
@@ -72746,7 +72748,7 @@
      "no": 11,
      "name": "役務費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 37662000,
       "src": "ocr",
@@ -83122,7 +83124,7 @@
      "no": 4,
      "name": "共済費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 14946000,
       "src": "ocr",
@@ -88358,7 +88360,7 @@
      "no": 11,
      "name": "役務費",
      "name_src": "reference",
-     "no_src": "textlayer",
+     "no_src": "ocr",
      "amount": {
       "v": 74000,
       "src": "ocr",
@@ -89102,10 +89104,10 @@
      }
     },
     {
-     "no": 6,
-     "name": "苅田港本港地区埠頭用地整備事業債",
-     "name_src": "readings",
-     "no_src": "ocr",
+     "no": 7,
+     "name": "苅田港本港6地区埠頭用地整備事業債",
+     "name_src": "correction",
+     "no_src": "correction",
      "amount": {
       "v": 21700000,
       "src": "ocr",
@@ -89113,8 +89115,8 @@
      }
     },
     {
-     "no": 78,
-     "name": "苅田港本港地区埠頭用地整備事業債",
+     "no": 8,
+     "name": "苅田港本港7地区埠頭用地整備事業債",
      "name_src": "readings",
      "no_src": "ocr",
      "amount": {
@@ -89146,7 +89148,7 @@
      }
     },
     {
-     "no": 51,
+     "no": 11,
      "name": "苅田港南港5地区埠頭用地整備事業債",
      "name_src": "correction",
      "no_src": "ocr",
@@ -89157,9 +89159,9 @@
      }
     },
     {
-     "no": 61,
-     "name": "苅田港南港地区埠頭用地造成事業債",
-     "name_src": "readings",
+     "no": 12,
+     "name": "苅田港南港6地区埠頭用地造成事業債",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 105300000,
@@ -89168,7 +89170,7 @@
      }
     },
     {
-     "no": 71,
+     "no": 13,
      "name": "苅田港南港7地区埠頭用地整備事業債",
      "name_src": "correction",
      "no_src": "ocr",
@@ -89179,7 +89181,7 @@
      }
     },
     {
-     "no": 81,
+     "no": 14,
      "name": "苅田港南港8地区埠頭用地整備事業債",
      "name_src": "correction",
      "no_src": "ocr",
@@ -89190,9 +89192,9 @@
      }
     },
     {
-     "no": 91,
-     "name": "苅田港南港地区埠頭用地造成事業債",
-     "name_src": "readings",
+     "no": 15,
+     "name": "苅田港南港9地区埠頭用地造成事業債",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 28000000,
@@ -91238,7 +91240,7 @@
   "external": {
    "項_予算書": "一般会計 106/106・特別会計 83/83",
    "款_計上額調": "一般会計 29/29",
-   "会計_計上額調": "特別会計 28/28（14会計の歳入・歳出）",
+   "会計_計上額調": "特別会計 28/28",
    "計の行": "一般会計 74/74・特別会計 23/23"
   },
   "readings": {

@@ -36,6 +36,17 @@ class TestResolveSetsu:
         # 行は消さずに細節に直す（期末手当 799 は職員手当等の細節。消すと細節が欠ける）
         assert [(s["amount"], s.get("節から細節に")) for s in new if not s.get("top", True)] == [(799, True)]
 
+    def test_drop_duplicate_row_is_removed(self):
+        # 同じ行を2度読んだ重複（区分の文字も金額も同じ行がほかにある）は細節にせず消す
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False},
+              {"no": 2, "label": "給料", "amount": 400, "top": True}]
+        m = moku(1000, ss)
+        t = moku(1000, setsu((1, 600), (2, 400)))
+        new, _ = cc.resolve_setsu(m, t)
+        assert [(s["label"], s.get("top", True)) for s in new] == [("報酬", True), ("給料", True), ("期末手当", False)]
+
     def test_ambiguous_is_rejected(self):
         # 合う組み合わせが同じ変更数で2通りあるときは採用しない
         m = moku(100, setsu((1, 50), (2, 40)))

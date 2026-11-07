@@ -61,9 +61,9 @@ export interface NumberedName {
 export type NameSource = 'text' | 'reference' | 'search' | 'readings' | 'correction' | 'ocr';
 export const NAME_SOURCES: readonly NameSource[] = ['text', 'reference', 'search', 'readings', 'correction', 'ocr'];
 
-/** 節番号の出典。ocr: 説明書の OCR（旧 OCR を含む）/ textlayer: 発行元の文字層 */
-export type SetsuNoSource = 'ocr' | 'textlayer';
-export const SETSU_NO_SOURCES: readonly SetsuNoSource[] = ['ocr', 'textlayer'];
+/** 節番号の出典。ocr: 説明書の OCR（旧 OCR を含む）/ textlayer: 発行元の文字層 / correction: 画像で確かめて修正表に記録 */
+export type SetsuNoSource = 'ocr' | 'textlayer' | 'correction';
+export const SETSU_NO_SOURCES: readonly SetsuNoSource[] = ['ocr', 'textlayer', 'correction'];
 
 /** 名前とその出典（事項・節・細節） */
 export interface NameWithSource {
