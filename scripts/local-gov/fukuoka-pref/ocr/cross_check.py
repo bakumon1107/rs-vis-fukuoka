@@ -292,7 +292,12 @@ def resolve_setsu(m, t, th=None):
             k = next(i for i, o in enumerate(m["節"]) if o is s)
             same = [o for o in (m["節"][i] for i in (k - 1, k + 1) if 0 <= i < len(m["節"]))
                     if o["amount"] == s["amount"] and o.get("label") == s.get("label")]
-            dup = any(s.get("y") is not None and o.get("y") is not None and abs(o["y"] - s["y"]) < SAME_LINE_DY for o in same)
+            # 同じ印字の行 = 同じページで y 座標がほぼ同じ（節は複数ページにまたがって結合されるので、ページも比べる。どちらかが不明なら消さない）
+            def same_line(o):
+                if any(x.get(f) is None for x in (s, o) for f in ("page", "y")):
+                    return False
+                return o["page"] == s["page"] and abs(o["y"] - s["y"]) < SAME_LINE_DY
+            dup = any(same_line(o) for o in same)
             for j, n in enumerate(new):
                 if n.get("no") is None and n["amount"] == s["amount"] and n.get("top", True):
                     if dup:

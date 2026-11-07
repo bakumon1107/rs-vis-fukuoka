@@ -178,7 +178,7 @@ test('書き出した正規化データがすべて検証を通る', { skip: dat
     assert.deepEqual(r.errors, [], `${path.relative(process.cwd(), p)}`);
     // 同じ自治体の index.json（資料の一覧）と突き合わせる: 出典のページ・名前の資料の id が資料の一覧にあること
     const index = JSON.parse(fs.readFileSync(path.join(path.dirname(p), 'index.json'), 'utf-8')) as LocalGovIndex;
-    assert.deepEqual(validateAgainstIndex(f, index), [], `${path.relative(process.cwd(), p)} と index.json`);
+    assert.deepEqual(validateAgainstIndex(f, index, path.basename(p)), [], `${path.relative(process.cwd(), p)} と index.json`);
   }
 });
 
@@ -188,18 +188,37 @@ test('index との突き合わせ: 資料の一覧にない出典・名前の資
     datasets: [{ year: 2026, label: '令和8年度', basis: 'initial', file: 'budget-2026-initial.json', status: 'verified' }],
     sources: [{ id: 'r8-setsumeisho-ippan', title: '説明書', url: 'https://example.invalid/a.pdf', sha256: 'x', retrieved: '2026-11-06' }],
   };
-  assert.deepEqual(validateAgainstIndex(file([row()]), index), []);
+  const name = 'budget-2026-initial.json';
+  assert.deepEqual(validateAgainstIndex(file([row()]), index, name), []);
   const bad = row({ moku: { no: 1, name: '一般管理費', name_src: 'search', name_evidence: ['r6-unknown'] },
     pages: [{ source: 'r8-other', page: 1 }] });
-  const errs = validateAgainstIndex(file([bad]), index);
+  const errs = validateAgainstIndex(file([bad]), index, name);
   assert.ok(errs.some(e => e.includes('出典 r8-other')));
   assert.ok(errs.some(e => e.includes('名前の資料 r6-unknown')));
-  assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index).some(e => e.includes('gov_id')));
+  assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index, name).some(e => e.includes('gov_id')));
   // 推定の値がある・全検算が一致しないのに verified
-  assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index).some(e => e.includes('推定の値')));
+  assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index, name).some(e => e.includes('推定の値')));
   const notAllOk = file([row()]);
   notAllOk.checks.all_ok = 0;
-  assert.ok(validateAgainstIndex(notAllOk, index).some(e => e.includes('全検算が一致しない')));
+  assert.ok(validateAgainstIndex(notAllOk, index, name).some(e => e.includes('全検算が一致しない')));
+  // datasets にないファイル・年度か基準が食い違うファイル
+  assert.ok(validateAgainstIndex(file([row()]), index, 'budget-2026-other.json').some(e => e.includes('datasets に budget-2026-other.json がない')));
+  assert.ok(validateAgainstIndex(file([row()], { year: 2025 }), index, name).some(e => e.includes('ファイルは 2025')));
+});
+
+test('index との突き合わせ: 同じ年度に補正が複数回あっても、ファイルの名前で項目を特定して status を見る', () => {
+  const index: LocalGovIndex = {
+    schema_version: 1, gov: { id: 'fukuoka-pref', name: '福岡県', kind: 'prefecture' },
+    datasets: [
+      { year: 2026, label: '令和8年度 補正1', basis: 'supplementary', file: 'budget-2026-supplementary-1.json', status: 'partial' },
+      { year: 2026, label: '令和8年度 補正2', basis: 'supplementary', file: 'budget-2026-supplementary-2.json', status: 'verified' },
+    ],
+    sources: [{ id: 'r8-setsumeisho-ippan', title: '説明書', url: 'https://example.invalid/a.pdf', sha256: 'x', retrieved: '2026-11-06' }],
+  };
+  const inferred = file([row({ previous: v(1, 'inferred') })], { basis: 'supplementary' });
+  // 補正1（partial）は推定の値があってよい。補正2（verified）は推定の値があればエラー
+  assert.deepEqual(validateAgainstIndex(inferred, index, 'budget-2026-supplementary-1.json'), []);
+  assert.ok(validateAgainstIndex(inferred, index, 'budget-2026-supplementary-2.json').some(e => e.includes('推定の値')));
 });
 
 test('小数の parent も例外で止まらずにエラーとして返す', () => {

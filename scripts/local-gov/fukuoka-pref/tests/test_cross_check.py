@@ -38,15 +38,27 @@ class TestResolveSetsu:
 
     def test_drop_duplicate_row_is_removed(self):
         # 同じ印字の行を2度読んだ重複（隣の行が区分の文字も金額も同じで、y 座標も同じ）は細節にせず消す
-        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "y": 100},
-              {"no": None, "label": "期末手当", "amount": 300, "top": True, "y": 190},
-              {"no": None, "label": "期末手当", "amount": 300, "top": False, "y": 192},
-              {"no": 2, "label": "給料", "amount": 400, "top": True, "y": 280}]
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "page": 10, "y": 100},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True, "page": 10, "y": 190},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False, "page": 10, "y": 192},
+              {"no": 2, "label": "給料", "amount": 400, "top": True, "page": 10, "y": 280}]
         m = moku(1000, ss)
         t = moku(1000, setsu((1, 600), (2, 400)))
         new, notes = cc.resolve_setsu(m, t)
         assert [(s["label"], s.get("top", True)) for s in new] == [("報酬", True), ("給料", True), ("期末手当", False)]
         assert not any(n.startswith("要確認") for n in notes)
+
+    def test_adjacent_same_name_on_other_page_is_kept(self):
+        # 節は複数ページにまたがって結合される。別のページの隣の行は、y 座標が近くても同じ印字の行ではないので消さない
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "page": 10, "y": 100},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True, "page": 10, "y": 3000},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False, "page": 11, "y": 3001},
+              {"no": 2, "label": "給料", "amount": 400, "top": True, "page": 11, "y": 3100}]
+        m = moku(1000, ss)
+        t = moku(1000, setsu((1, 600), (2, 400)))
+        new, notes = cc.resolve_setsu(m, t)
+        assert len([s for s in new if not s.get("top", True)]) == 2
+        assert any(n.startswith("要確認") for n in notes)
 
     def test_adjacent_same_name_on_other_line_is_kept(self):
         # 隣の行が同じ名前・同じ額でも、別の行（節とその細節が同じ名前・同じ額など）なら消さずに細節に直し、要確認と記録する

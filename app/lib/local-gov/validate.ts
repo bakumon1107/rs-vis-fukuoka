@@ -172,15 +172,18 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
 /**
  * 予算のファイルと、自治体の index（資料の一覧・データの一覧）の突き合わせ。
  * 出典のページ（pages[].source）と、全文検索で確かめた名前の資料（name_evidence）が、資料の一覧にあること。
- * 画面は資料の一覧から PDF の URL を引くので、ない id があるとリンクが切れる
+ * 画面は資料の一覧から PDF の URL を引くので、ない id があるとリンクが切れる。
+ * fileName（ファイルの名前）で datasets の項目を特定する。同じ年度に補正が複数回あると、年度・基準だけでは決まらない
  */
-export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex): string[] {
+export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex, fileName: string): string[] {
   const errors: string[] = [];
   const ids = new Set(index.sources.map(s => s.id));
   if (file.gov_id !== index.gov.id) errors.push(`gov_id ${file.gov_id} が index の ${index.gov.id} と違う`);
-  const ds = index.datasets.find(d => d.year === file.year && d.basis === file.basis);
+  const ds = index.datasets.find(d => d.file === fileName);
   if (!ds) {
-    errors.push(`index の datasets に ${file.year}・${file.basis} がない`);
+    errors.push(`index の datasets に ${fileName} がない`);
+  } else if (ds.year !== file.year || ds.basis !== file.basis) {
+    errors.push(`index の datasets の ${fileName} は ${ds.year}・${ds.basis} だが、ファイルは ${file.year}・${file.basis}`);
   } else if (ds.status === 'verified') {
     // verified と書けるのは、推定の値がなく、全検算が一致したときだけ（共通 JSON 形式の設計 3.1）
     const { inferredCount } = validateBudgetFile(file);
