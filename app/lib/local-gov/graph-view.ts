@@ -129,22 +129,23 @@ export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料に�
  * 最初の画面のグラフ（左の3列の全体）は、データと見方が同じなら選択によらず同じなので覚えておく（選ぶたびに全目を組み立て直さない）。
  * 正規化データは読み込んだ後に変えない前提（同じオブジェクトなら同じ結果）
  */
-const baseCache = new WeakMap<LocalBudgetFile, Map<LocalGraphView, LocalGraph>>();
-function baseGraph(file: LocalBudgetFile, view: LocalGraphView): LocalGraph {
-  let byView = baseCache.get(file);
-  if (!byView) baseCache.set(file, (byView = new Map()));
-  let g = byView.get(view);
-  if (!g) byView.set(view, (g = buildLocalGraph(file, { view, depth: BASE_DEPTH })));
+const fullCache = new WeakMap<LocalBudgetFile, Map<string, LocalGraph>>();
+/**
+ * 絞り込まない全体のグラフ（見方・深さごと）。最初の画面（depth = BASE_DEPTH）と、深い列の箱と帯の全体の額に使う。
+ * データと見方と深さが同じなら選択によらず同じなので覚えておく（選ぶたびに全目を組み立て直さない）。
+ * 正規化データは読み込んだ後に変えない前提（同じオブジェクトなら同じ結果）
+ */
+function fullGraph(file: LocalBudgetFile, view: LocalGraphView, depth: number): LocalGraph {
+  let byKey = fullCache.get(file);
+  if (!byKey) fullCache.set(file, (byKey = new Map()));
+  const key = `${view}:${depth}`;
+  let g = byKey.get(key);
+  if (!g) byKey.set(key, (g = buildLocalGraph(file, { view, depth })));
   return g;
 }
 
-/** 目の行の ID → 本年度（財源を選んだときに、深い列の目の箱を目の額で描く） */
-function mokuAmounts(file: LocalBudgetFile): Map<string, number> {
-  return new Map(file.rows.map(r => [r.id, r.amount.v ?? 0]));
-}
-
 export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, selectedId: string | null): LocalGraphDisplay {
-  const base = baseGraph(file, view);
+  const base = fullGraph(file, view, BASE_DEPTH);
   const highlight = new Map<string, number>();
   const highlightNodes = new Set<string>();
   if (!selectedId) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
@@ -172,16 +173,14 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
     return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
   }
   const baseCols = new Set(base.columns.map(c => c.key));
-  // 深い列（左の列にない列）は選んだものの分だけ足す。箱と帯は全体の額で出し（灰色の下地）、選んだものの分は重ねる帯で示す。
-  // 財源で絞り込んだときは、組み立て直したグラフの目の値がその財源の額なので、目の箱と目への帯は目の本年度にする（目の額に見えないように）
-  const fullOf = sel.filter.funding ? mokuAmounts(file) : null;
-  const deepNodes = focused.nodes
-    .filter(n => !baseCols.has(n.col))
-    .map(n => (fullOf && n.row !== undefined ? { ...n, value: fullOf.get(n.row) ?? n.value } : n));
-  const deepValue = new Map(deepNodes.map(n => [n.id, n.value]));
-  const deepEdges = focused.edges
-    .filter(e => deepValue.has(e.target))
-    .map(e => (fullOf ? { ...e, value: deepValue.get(e.target)! } : e));
+  // 深い列（左の列にない列）は、選んだものに含まれる箱だけを足す。箱と帯は全体の額（絞り込まない同じ深さのグラフの値）で出し
+  // （灰色の下地）、選んだものの分は重ねる帯で示す（設計書 3.3）。組み立て直したグラフの値をそのまま使うと、目を選んだときの項の箱が
+  // その目の額になり、財源を選んだときの目の箱がその財源の額になって、箱の額に見えてしまう
+  const full = fullGraph(file, view, sel.depth);
+  const deepIds = new Set(focused.nodes.filter(n => !baseCols.has(n.col)).map(n => n.id));
+  const deepNodes = full.nodes.filter(n => deepIds.has(n.id));
+  const shown = new Set([...base.nodes.map(n => n.id), ...deepIds]);
+  const deepEdges = full.edges.filter(e => deepIds.has(e.target) && shown.has(e.source));
   for (const e of focused.edges) highlight.set(edgeKey(e.source, e.target), e.value);
   for (const n of focused.nodes) highlightNodes.add(n.id);
 

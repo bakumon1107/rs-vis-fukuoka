@@ -243,6 +243,16 @@ test('データの一覧: 年度の指定がなければ、その基準で最も
   assert.equal(pickDataset(index, 'initial', 2024), undefined);
 });
 
+test('表示: 深い列の箱は全体の額で描き、選んだ分は重ねる帯で示す（全会計で目を選んでも項の箱は項全体の額）', () => {
+  // 項 2-1 には目 2-1-1（100）と 2-1-2（50）がある
+  const d = composeDisplay(FILE, 'all', 'moku:general/expense/2-1-1');
+  assert.equal(d.graph.nodes.find(n => n.id === 'kou:general:expense:2-1')?.value, 150);
+  assert.equal(d.graph.edges.find(e => e.target === 'kou:general:expense:2-1')?.value, 150);
+  assert.equal(d.highlight.get(edgeKey('kan:general:expense:2', 'kou:general:expense:2-1')), 100);
+  // 深い列の目は選んだ目だけ
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]), [['moku:general/expense/2-1-1', 100]]);
+});
+
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
   assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });
