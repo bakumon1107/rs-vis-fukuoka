@@ -3,6 +3,7 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2（LocalSourcesPage）
  */
 import type { LocalBudgetFile, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
+import { FUNDING_KINDS } from './graph';
 
 /** 画像で確かめて直した値（値の出典が correction のもの） */
 export interface CorrectionEntry {
@@ -18,7 +19,6 @@ export interface CorrectionEntry {
 /** 名前の出典ごとの件数（款・項・目は目の行ごと、事項・節・細節は1件ずつ） */
 export type NameSourceCounts = Record<'kan' | 'kou' | 'moku' | 'item' | 'setsu' | 'sub', Partial<Record<NameSource, number>>>;
 
-const FUNDING_LABEL = { national: '国庫支出金', bond: '地方債', other: 'その他', general: '一般財源' } as const;
 
 function whereOf(r: MokuRow) {
   return `${r.kan.name} ／ ${r.kou.name} ／ ${r.moku.name}`;
@@ -33,7 +33,7 @@ export function valueCorrections(file: LocalBudgetFile): CorrectionEntry[] {
     push(r, '本年度', r.amount);
     push(r, '前年度', r.previous);
     if (r.funding) {
-      for (const k of Object.keys(FUNDING_LABEL) as (keyof typeof FUNDING_LABEL)[]) push(r, `財源 ${FUNDING_LABEL[k]}`, r.funding[k]);
+      for (const f of FUNDING_KINDS) push(r, `財源 ${f.label}`, r.funding[f.key]);
     }
     r.items?.forEach(it => push(r, `事項 ${it.name}`, it.amount));
     r.setsu?.forEach(s => push(r, `節 ${s.no ?? ''} ${s.name}`.replace(/\s+/g, ' '), s.amount));
@@ -74,6 +74,11 @@ export function nameSourceCounts(file: LocalBudgetFile): NameSourceCounts {
     });
   }
   return c;
+}
+
+/** 目の行の出典（pages[].source）に出てくる資料の id（出てきた順）。画面の「出典」に出す資料を、年度に依らず決める */
+export function sourcesUsed(file: LocalBudgetFile): string[] {
+  return [...new Set(file.rows.flatMap(r => r.pages.map(p => p.source)))];
 }
 
 /** 説明欄に事項が1つだけで金額が印字されていない目の数（事項に目の額を当てたもの） */

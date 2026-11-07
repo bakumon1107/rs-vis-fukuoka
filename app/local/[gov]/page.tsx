@@ -14,10 +14,11 @@ import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
-import { useLocalBudget } from '@/client/hooks/useLocalBudget';
+import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { composeDisplay } from '@/app/lib/local-gov/graph-view';
+import { sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
@@ -40,13 +41,19 @@ function LocalGovContent() {
   const router = useRouter();
   const view: LocalGraphView = searchParams.get('view') === 'all' ? 'all' : 'general';
   const selectedId = searchParams.get('sel');
-  const state = useLocalBudget(gov);
+  // 年度（西暦）。なければ最新の年度
+  const year = yearFromQuery(searchParams.get('year'));
+  const state = useLocalBudget(gov, year);
   const panel = useSidePanel({ side: 'right' });
 
-  // 見方・選択は URL のクエリに持つ（共有できる）
+  // 年度・見方・選択は URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
-    (next: { view?: LocalGraphView; sel?: string | null }) => {
+    (next: { year?: number; view?: LocalGraphView; sel?: string | null }) => {
       const q = new URLSearchParams(searchParams.toString());
+      if (next.year !== undefined) {
+        q.set('year', String(next.year));
+        q.delete('sel');
+      }
       if (next.view !== undefined) {
         q.set('view', next.view);
         q.delete('sel');
@@ -71,10 +78,20 @@ function LocalGovContent() {
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
-    return <p className="p-8 text-sm text-destructive">{state.message}</p>;
+    // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+    return (
+      <div className="min-h-screen bg-mirai-surface">
+        <AppHeader current="/" />
+        <p className="px-4 pt-4 text-sm text-destructive">{state.message}</p>
+      </div>
+    );
   }
-  const { index, file } = state;
-  const dataset = index.datasets.find(d => d.year === file.year && d.basis === file.basis);
+  const { index, dataset, file } = state;
+  // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
+  const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
+  // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）
+  const used = new Set(sourcesUsed(file));
+  const sourceTitles = index.sources.filter(s => used.has(s.id)).map(s => s.title).join('・');
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -82,7 +99,7 @@ function LocalGovContent() {
       <main className="px-4 pb-16 pt-4" style={{ marginRight: row ? panel.effectiveWidth + 24 : 0 }}>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
-            {index.gov.name} {dataset?.label ?? file.year_label}
+            {index.gov.name} {dataset.label}
             {file.basis === 'initial' ? '当初予算' : ''}
           </h1>
           <span className="text-sm text-mirai-text-muted">
@@ -92,6 +109,20 @@ function LocalGovContent() {
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
+          {years.length > 1 && (
+            <select
+              aria-label="年度"
+              value={file.year}
+              onChange={e => setQuery({ year: Number(e.target.value) })}
+              className="rounded-full border border-mirai-border bg-card px-3 py-1 text-sm"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>
+                  {index.datasets.find(d => d.year === y && d.basis === dataset.basis)?.label ?? y}
+                </option>
+              ))}
+            </select>
+          )}
           {VIEWS.map(v => (
             <button
               key={v.key}
@@ -134,9 +165,9 @@ function LocalGovContent() {
         </div>
 
         <p className="mt-3 text-xs text-mirai-text-muted">
-          出典: {index.sources.filter(s => s.id.startsWith('r8-setsumeisho')).map(s => s.title).join('・')}（{index.gov.name}）。
-          金額は説明書に印字された数字（千円単位）を円に直したもの。帯は推計せず、印字された数字の合計で描いています。{' '}
-          <Link href={`/local/${gov}/about`} className="text-primary-accent underline">
+          出典: {sourceTitles}（{index.gov.name}）。
+          {file.unit_source === '千円' ? '金額は資料に印字された数字（千円単位）を円に直したもの。' : '金額は資料に印字された数字（円単位）。'}帯は推計せず、印字された数字の合計で描いています。{' '}
+          <Link href={`/local/${gov}/about?year=${file.year}`}className="text-primary-accent underline">
             データについて（検算の方法と結果・資料の一覧）
           </Link>
         </p>

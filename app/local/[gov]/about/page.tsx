@@ -6,18 +6,28 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2
  */
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { Suspense, useMemo } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
-import { useLocalBudget } from '@/client/hooks/useLocalBudget';
+import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import {
   nameSourceCounts,
   noAmountPrintedCount,
   valueCorrections,
+  valueSourceCounts,
 } from '@/app/lib/local-gov/summary';
-import type { NameSource } from '@/types/local-gov';
+import { VALUE_SOURCES, type NameSource, type ValueSource } from '@/types/local-gov';
+
+const VALUE_SRC_LABEL: Record<ValueSource, string> = {
+  text: '資料のテキスト',
+  ocr: '読み取り',
+  textlayer: 'PDF の文字情報',
+  correction: '画像で確認して修正',
+  'blank-as-zero': '空欄を 0 とみなした',
+  inferred: '推定',
+};
 
 const NAME_LEVELS = [
   ['kan', '款'],
@@ -38,21 +48,40 @@ const NAME_SOURCES: [NameSource, string][] = [
 ];
 
 export default function LocalGovAboutPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner fullscreen />}>
+      <LocalGovAboutContent />
+    </Suspense>
+  );
+}
+
+function LocalGovAboutContent() {
   const { gov } = useParams<{ gov: string }>();
-  const state = useLocalBudget(gov);
+  // 年度はサンキー図のページと同じクエリ（year）で受け取る。なければ最新の年度
+  const year = yearFromQuery(useSearchParams().get('year'));
+  const state = useLocalBudget(gov, year);
   const summary = useMemo(() => {
     if (state.status !== 'ready') return null;
     const f = state.file;
     return {
       corrections: valueCorrections(f),
       names: nameSourceCounts(f),
+      values: valueSourceCounts(f),
       noAmount: noAmountPrintedCount(f),
     };
   }, [state]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
-  if (state.status === 'error') return <p className="p-8 text-sm text-destructive">{state.message}</p>;
-  const { index, file } = state;
+  if (state.status === 'error') {
+    // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+    return (
+      <div className="min-h-screen bg-mirai-surface">
+        <AppHeader current="/" />
+        <p className="px-4 pt-4 text-sm text-destructive">{state.message}</p>
+      </div>
+    );
+  }
+  const { index, dataset, file } = state;
   const c = file.checks;
 
   return (
@@ -60,18 +89,19 @@ export default function LocalGovAboutPage() {
       <AppHeader current="/" />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-sm text-mirai-text">
         <div>
-          <Link href={`/local/${gov}`} className="text-xs text-primary-accent underline">
+          <Link href={`/local/${gov}?year=${file.year}`} className="text-xs text-primary-accent underline">
             ← サンキー図に戻る
           </Link>
           <h1 className="mt-1 text-xl font-bold">
-            {index.gov.name} {file.year_label} データについて
+            {index.gov.name} {dataset.label} データについて
           </h1>
         </div>
 
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">数字の作り方</h2>
+          {/* 説明書・予算書の本体・計上額調などの説明は福岡県の資料に合わせたもの。2件目の自治体を載せるときに、資料の説明を index.json に移す */}
           <p>
-            県が公開している「予算に関する説明書」（スキャン画像の PDF）を文字認識（OCR）で読み取り、目（もく）ごとの本年度・前年度・財源内訳・節・説明欄の事項を取り出しています。
+            {index.gov.name}が公開している「予算に関する説明書」（スキャン画像の PDF）を文字認識（OCR）で読み取り、目（もく）ごとの本年度・前年度・財源内訳・節・説明欄の事項を取り出しています。
             金額は説明書に印字された千円単位の数字を円に直したもので、推計や按分はしていません。
           </p>
           <p>読み取った数字は、次の検算で確かめています。</p>
@@ -98,6 +128,12 @@ export default function LocalGovAboutPage() {
               <li>
                 2通り以上の読み取りで同じ値: {(c.readings.agree_2plus * 100).toFixed(2)}%（1通り以下で画像で確認した値{' '}
                 {c.readings.confirmed_by_image ?? 0} 件）
+              </li>
+            )}
+            {summary && (
+              <li>
+                値の出典（目の本年度・前年度・財源内訳・事項・節）:{' '}
+                {VALUE_SOURCES.filter(k => summary.values[k]).map(k => `${VALUE_SRC_LABEL[k]} ${summary.values[k]}`).join('、')}
               </li>
             )}
             {summary && summary.noAmount > 0 && (

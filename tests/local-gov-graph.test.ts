@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import { aggregateTail, composeDisplay, edgeKey, selectionToFilter } from '../app/lib/local-gov/graph-view';
-import { nameSourceCounts, noAmountPrintedCount, valueCorrections, valueSourceCounts } from '../app/lib/local-gov/summary';
+import { nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts } from '../app/lib/local-gov/summary';
 import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number): Value => ({ v: n, src: 'ocr' });
@@ -174,6 +174,17 @@ test('要約: 画像で直した値・出典ごとの件数を集める', () => 
   const n = nameSourceCounts(f);
   assert.deepEqual([n.kan, n.moku, n.item], [{ text: 1 }, { ocr: 1 }, { readings: 1 }]);
   assert.equal(noAmountPrintedCount(f), 1);
+});
+
+test('要約: 出典に出す資料は、目の行が参照している資料（重複なし・出てきた順）', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [
+      row('general/expense/1-1-1', { pages: [{ source: 'r8-ippan', page: 10 }, { source: 'r8-ippan', page: 11 }] }),
+      row('special-a/expense/1-1-1', { pages: [{ source: 'r8-toku', page: 3 }] }),
+    ],
+  };
+  assert.deepEqual(sourcesUsed(f), ['r8-ippan', 'r8-toku']);
 });
 
 // 実データ（福岡県 R8 当初予算）で組み立てて、列の合計と帯の保存を確かめる

@@ -6,6 +6,7 @@
  */
 import type { LocalGovIndex, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
+import { FUNDING_KINDS } from '@/app/lib/local-gov/graph';
 
 const NAME_SRC_LABEL: Record<NameSource, string> = {
   text: '資料のテキスト',
@@ -23,12 +24,6 @@ const VALUE_SRC_NOTE: Partial<Record<ValueSource, string>> = {
   inferred: '推定',
 };
 
-const FUNDING_LABELS = [
-  ['national', '国庫支出金'],
-  ['bond', '地方債'],
-  ['other', 'その他'],
-  ['general', '一般財源'],
-] as const;
 
 function yen(v: Value | undefined) {
   return v && v.v !== null ? formatBudgetFromYen(v.v) : '—';
@@ -91,10 +86,10 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">財源内訳</h3>
           <table className="w-full">
             <tbody>
-              {FUNDING_LABELS.map(([k, label]) => (
-                <tr key={k}>
+              {FUNDING_KINDS.map(({ key, label }) => (
+                <tr key={key}>
                   <th className="py-0.5 text-left font-normal">{label}</th>
-                  <td className="text-right">{yen(row.funding![k])}<Mark v={row.funding![k]} /></td>
+                  <td className="text-right">{yen(row.funding![key])}<Mark v={row.funding![key]} /></td>
                 </tr>
               ))}
             </tbody>
