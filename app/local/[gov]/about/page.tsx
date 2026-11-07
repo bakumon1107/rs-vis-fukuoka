@@ -11,6 +11,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import {
   nameSourceCounts,
@@ -105,6 +106,8 @@ function LocalGovAboutContent() {
             {index.gov.name} {dataset.label} データについて
           </h1>
         </div>
+
+        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} linkToAbout={false} />}
 
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">数字の作り方</h2>

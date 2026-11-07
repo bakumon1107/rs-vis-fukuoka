@@ -18,6 +18,7 @@ import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
+import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay } from '@/app/lib/local-gov/graph-view';
 import { sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
@@ -151,11 +152,15 @@ function LocalGovContent() {
           ))}
           <span className="text-xs text-mirai-text-muted">
             {VIEWS.find(v => v.key === view)?.note}
-            {view === 'all' && '。公営企業会計は含みません'}
+            {view === 'all' &&
+              '。公営企業会計は含みません。国庫支出金・県債の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
+                '一部の国庫支出金・県債が制度上「一般財源」に数えられるためです'}
           </span>
         </div>
 
         {/* 選択中の表示と、選択の解除（全部の流れを見る）を常に出す */}
+        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} />}
+
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
           {display?.selected ? (
             <>
