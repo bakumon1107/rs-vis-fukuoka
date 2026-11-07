@@ -208,16 +208,33 @@ test('表示: 右端の深い列の箱が多ければ上位だけ残し、残り
     edges: [40, 30, 20, 6, 4].map((v, i) => ({ source: 'k', target: `m${i}`, value: v })),
   };
   const hl = new Map([[edgeKey('k', 'm3'), 6], [edgeKey('k', 'm0'), 40]]);
-  const out = aggregateTail(g, hl, new Set(['m3', 'm0']), 2, new Set(['m4']));
+  const entry = new Set(['funding', 'kan', 'kou']);
+  const out = aggregateTail(g, hl, new Set(['m3', 'm0']), 2, new Set(['m4']), entry);
   // 上位2件（m0・m1）と残す指定の m4 は残り、m2・m3 が「その他 2件」になる
   assert.deepEqual(out.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]),
     [['m0', 40], ['m1', 30], ['m4', 4], ['other:moku', 26]]);
   assert.equal(out.graph.edges.find(e => e.target === 'other:moku')?.value, 26);
   assert.equal(out.highlight.get(edgeKey('k', 'other:moku')), 6);
   assert.ok(out.highlightNodes.has('other:moku') && !out.highlightNodes.has('m3'));
-  // 項の列（最初の画面の右端）はまとめない
+  // 項の列（一般会計の最初の画面の右端）はまとめない
   const kouOnly = { ...g, columns: [{ key: 'kou', label: '項' }], nodes: g.nodes.map(n => ({ ...n, col: 'kou' })), edges: [] };
-  assert.equal(aggregateTail(kouOnly, new Map(), new Set(), 2, new Set()).graph.nodes.length, 6);
+  assert.equal(aggregateTail(kouOnly, new Map(), new Set(), 2, new Set(), entry).graph.nodes.length, 6);
+  // 全会計で会計を選んで開いた項の列は深い列なのでまとめる（全会計の最初の画面は 歳入の款 → 会計 → 款）
+  const allEntry = new Set(['revenue', 'account', 'kan']);
+  assert.equal(aggregateTail(g, new Map(), new Set(), 2, new Set(), allEntry).graph.nodes.some(n => n.id === 'other:moku'), true);
+  const kouDeep = { ...g, nodes: g.nodes.map(n => (n.col === 'kou' ? { ...n, col: 'account' } : { ...n, col: 'kou' })),
+    columns: [{ key: 'account', label: '会計' }, { key: 'kou', label: '項' }] };
+  assert.ok(aggregateTail(kouDeep, new Map(), new Set(), 2, new Set(), allEntry).graph.nodes.some(n => n.id === 'other:kou'));
+});
+
+const R8_FILE = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref', 'budget-2026-initial.json');
+
+test('実データ（福岡県 R8）: 全会計で一般会計を選ぶと、開いた項の列（62件）を上位 N 件＋その他にまとめる', { skip: !fs.existsSync(R8_FILE) }, () => {
+  const file = JSON.parse(fs.readFileSync(R8_FILE, 'utf8')) as LocalBudgetFile;
+  const d = composeDisplay(file, 'all', 'account:general');
+  const kou = d.graph.nodes.filter(n => n.col === 'kou');
+  assert.equal(kou.length, 26);
+  assert.ok(kou.some(n => n.id === 'other:kou' && n.name === 'その他 37件'));
 });
 
 test('要約: 画像で直した値・出典ごとの件数を集める', () => {
@@ -248,7 +265,7 @@ test('要約: 出典に出す資料は、目の行が参照している資料（
 });
 
 // 実データ（福岡県 R8 当初予算）で組み立てて、列の合計と帯の保存を確かめる
-const DATA = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref', 'budget-2026-initial.json');
+const DATA = R8_FILE;
 
 test('実データ（福岡県 R8）: 一般会計の列の合計がすべて歳出の総額、どのノードも入り = 出', { skip: !fs.existsSync(DATA) }, () => {
   const file = JSON.parse(fs.readFileSync(DATA, 'utf8')) as LocalBudgetFile;

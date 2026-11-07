@@ -114,7 +114,7 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
                       </span>
                     )}
                   </span>
-                  <span className="shrink-0">{yen(it.amount)}</span>
+                  <span className="shrink-0">{yen(it.amount)}<Mark v={it.amount} /></span>
                 </div>
                 {childrenOf(i).length > 0 && (
                   <ul className="mt-0.5 space-y-0.5 border-l border-mirai-border pl-3 text-xs text-mirai-text-secondary">
@@ -125,7 +125,7 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
                           {c.headcount !== undefined && <span className="text-mirai-text-muted">（{c.headcount}人）</span>}
                           <NameMark src={c.name_src} />
                         </span>
-                        <span className="shrink-0">{yen(c.amount)}</span>
+                        <span className="shrink-0">{yen(c.amount)}<Mark v={c.amount} /></span>
                       </li>
                     ))}
                   </ul>
@@ -159,7 +159,7 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
                           {sb.name}
                           <NameMark src={sb.name_src} />
                         </span>
-                        <span className="shrink-0">{yen(sb.amount)}</span>
+                        <span className="shrink-0">{yen(sb.amount)}<Mark v={sb.amount} /></span>
                       </li>
                     ))}
                   </ul>

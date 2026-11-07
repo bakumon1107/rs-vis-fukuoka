@@ -33,7 +33,6 @@ export const edgeKey = (source: string, target: string) => `${source}\u0000${tar
 
 /** 右端の列の箱がこれより多ければ、上位だけを残して残りを「その他」にまとめる（設計書 4.3） */
 export const TOP_N = 25;
-const AGGREGATE_COLS = new Set(['moku', 'item']);
 
 /**
  * 右端の列（先へ帯の出ない箱）の箱が多いとき、金額の大きい上位 n 件（と keep の箱）を残し、残りを1つの「その他」にまとめる。
@@ -44,12 +43,15 @@ export function aggregateTail(
   highlight: Map<string, number>,
   highlightNodes: Set<string>,
   n: number,
-  keep: Set<string>
+  keep: Set<string>,
+  /** 最初の画面の列（深い列でない列）。この列が右端ならまとめない */
+  entryCols: Set<string>
 ): { graph: LocalGraph; highlight: Map<string, number>; highlightNodes: Set<string> } {
   const hasOut = new Set(graph.edges.map(e => e.source));
   const lastCol = graph.columns.filter(c => graph.nodes.some(nd => nd.col === c.key)).at(-1)?.key;
-  // まとめるのは選んで開いた深い列（目・事項）だけ。最初の画面の右端（項）は、選んで先を開く入口なのでまとめない
-  if (!lastCol || !AGGREGATE_COLS.has(lastCol)) return { graph, highlight, highlightNodes };
+  // まとめるのは選んで開いた深い列（最初の3列より右。一般会計の目・事項、全会計の項・目）だけ。
+  // 最初の画面の右端（一般会計の項・全会計の款）は、選んで先を開く入口なのでまとめない
+  if (!lastCol || entryCols.has(lastCol)) return { graph, highlight, highlightNodes };
   const tail = graph.nodes.filter(nd => nd.col === lastCol && !hasOut.has(nd.id));
   if (tail.length <= n + 1) return { graph, highlight, highlightNodes };
   const ranked = [...tail].sort((a, b) => b.value - a.value);
@@ -179,7 +181,7 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   const n = nodeOf(graph);
   const selected = n ? { id: n.id, name: n.name, col: n.col } : null;
   // 右端の深い列の箱が多ければ上位だけ残す（選んだ箱は残す）
-  const agg = aggregateTail(graph, highlight, highlightNodes, TOP_N, new Set(selectedId ? [selectedId] : []));
+  const agg = aggregateTail(graph, highlight, highlightNodes, TOP_N, new Set(selectedId ? [selectedId] : []), baseCols);
   // 目・事項を選んだら、その目を詳細パネルに出す
   return { ...agg, selected, row: n?.row ?? null, note };
 }
