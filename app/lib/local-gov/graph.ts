@@ -161,7 +161,8 @@ function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
   const accountsOf = new Map<string, Set<string>>();
   const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
   for (const r of file.rows) {
-    if (r.side !== 'expense' || enterprise.has(r.account)) continue;
+    // 図に出る行（0 円でない行）だけで数える（設計書 3.2・4.4: ラベル・印は図に出る行だけから決める）
+    if (r.side !== 'expense' || enterprise.has(r.account) || amountOf(r) === 0) continue;
     const s = accountsOf.get(r.kan.name) ?? new Set<string>();
     s.add(r.account);
     accountsOf.set(r.kan.name, s);
@@ -189,6 +190,7 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
       // ほかの行の箱に混ざる（設計書 3.2: 印は図に出る行だけから決める）
       if (amountOf(r) === 0) continue;
       if (only && only !== 'none' && r.funding && (r.funding[only].v ?? 0) === 0) continue;
+      if (only === 'none' && r.funding) continue;
       if (!only) gross += amountOf(r);
       const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
       if (!r.funding) {

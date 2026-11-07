@@ -144,7 +144,7 @@ function LocalGovAboutContent() {
             )}
             {summary && (
               <li>
-                値の出典（目の本年度・前年度・財源内訳・事項・節）:{' '}
+                値の出典（目の本年度・前年度・財源内訳・事項・節・細節）:{' '}
                 {VALUE_SOURCES.filter(k => summary.values[k]).map(k => `${VALUE_SRC_LABEL[k]} ${summary.values[k]}`).join('、')}
               </li>
             )}
@@ -220,7 +220,7 @@ function LocalGovAboutContent() {
                   <span className="text-mirai-text-muted">
                     {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
                   </span>{' '}
-                  {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '—'}
+                  {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}
                   {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}
                   {r.previous && srcNote(r.previous.src)}）
                 </li>

@@ -166,6 +166,13 @@ test('一般会計: 財源内訳のない目は「財源の記載なし」の箱
   assert.equal(edgesInto(g, 'kan:general:expense:3')['funding:none'], 7);
   // 財源を選んだときは、財源内訳のない目は出さない
   assert.ok(!buildLocalGraph(f, { view: 'general', filter: { funding: 'general' } }).nodes.some(n => n.id === 'moku:general/expense/3-1-2'));
+  // 「財源の記載なし」を選んだときは、財源内訳のある行から箱を作らない（図に出ない行の印を混ぜない）
+  const mixed: LocalBudgetFile = {
+    ...f,
+    rows: [...f.rows, row('general/expense/3-1-3', { amount: v(5), funding: fund(0, 0, 0, 5), kan: { no: 3, name: '款3' } })],
+  };
+  const nk = buildLocalGraph(mixed, { view: 'general', filter: { funding: 'none' } }).nodes.find(n => n.id === 'kan:general:expense:3');
+  assert.equal(nk?.value, 7);
   // 「財源の記載なし」を選ぶと、財源内訳のない目の本年度で目まで追う
   const d = composeDisplay(f, 'general', 'funding:none');
   assert.equal(d.highlight.get(edgeKey('kou:general:expense:3-1', 'moku:general/expense/3-1-2')), 7);

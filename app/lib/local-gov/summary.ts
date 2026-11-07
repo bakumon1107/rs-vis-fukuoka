@@ -52,7 +52,7 @@ export function valueNotes(file: LocalBudgetFile): ValueNoteEntry[] {
   return out;
 }
 
-/** 値の出典ごとの件数（目の本年度・前年度・財源・事項・節） */
+/** 値の出典ごとの件数（目の本年度・前年度・財源・事項・節・細節。valueNotes の一覧と同じ範囲） */
 export function valueSourceCounts(file: LocalBudgetFile): Partial<Record<ValueSource, number>> {
   const c: Partial<Record<ValueSource, number>> = {};
   const add = (v: Value | undefined) => {
@@ -63,7 +63,10 @@ export function valueSourceCounts(file: LocalBudgetFile): Partial<Record<ValueSo
     add(r.previous);
     if (r.funding) Object.values(r.funding).forEach(add);
     r.items?.forEach(it => add(it.amount));
-    r.setsu?.forEach(s => add(s.amount));
+    r.setsu?.forEach(s => {
+      add(s.amount);
+      s.sub?.forEach(sb => add(sb.amount));
+    });
   }
   return c;
 }
