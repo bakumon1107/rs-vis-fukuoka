@@ -15,7 +15,7 @@ import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import {
   nameSourceCounts,
   noAmountPrintedCount,
-  valueCorrections,
+  valueNotes,
   valueSourceCounts,
   zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
@@ -70,7 +70,7 @@ function LocalGovAboutContent() {
     if (state.status !== 'ready') return null;
     const f = state.file;
     return {
-      corrections: valueCorrections(f),
+      notes: valueNotes(f),
       names: nameSourceCounts(f),
       values: valueSourceCounts(f),
       zero: zeroAmountRows(f),
@@ -192,13 +192,17 @@ function LocalGovAboutContent() {
 
         {summary && (
           <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
-            <h2 className="font-bold">画像で確かめて直した値（{summary.corrections.length} 件）</h2>
-            <p>読み取りで食い違った・読めなかった数字は、PDF の画像を見て確かめた値を使っています。</p>
+            <h2 className="font-bold">読み取り以外の方法で決めた値（{summary.notes.length} 件）</h2>
+            <p>
+              読み取りで食い違った・読めなかった数字は、PDF の画像を見て確かめた値を使っています。空欄を 0 とみなした値（本年度・前年度・比較の関係が
+              成り立つときだけ）もここに並べます。図や詳細パネルで見られない値（歳入の目など）も含みます。
+            </p>
             <ul className="space-y-1 text-xs">
-              {summary.corrections.map((x, i) => (
+              {summary.notes.map((x, i) => (
                 <li key={i}>
                   <span className="text-mirai-text-muted">{x.where}</span> {x.field}:{' '}
                   <b>{x.value === null ? '—' : formatBudgetFromYen(x.value)}</b>
+                  <span className="text-amber-700">［{VALUE_SRC_LABEL[x.src]}］</span>
                   {x.note && <span className="text-mirai-text-muted">（{x.note}）</span>}
                 </li>
               ))}

@@ -5,14 +5,15 @@
 import type { LocalBudgetFile, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
 import { FUNDING_KINDS } from './graph';
 
-/** 画像で確かめて直した値（値の出典が correction のもの） */
-export interface CorrectionEntry {
+/** 確定した読み取り（ocr・text）以外の出典の値（画像で確認・文字層・空欄を 0 とみなした・推定） */
+export interface ValueNoteEntry {
   row: string;
-  /** 目の名前（款・項・目） */
+  /** 会計・歳入出・款・項・目 */
   where: string;
-  /** どの値か（本年度・財源 国庫支出金・節 18 など） */
+  /** どの値か（本年度・財源 国庫支出金・節 18・細節 普通旅費 など） */
   field: string;
   value: number | null;
+  src: ValueSource;
   note?: string;
 }
 
@@ -20,14 +21,21 @@ export interface CorrectionEntry {
 export type NameSourceCounts = Record<'kan' | 'kou' | 'moku' | 'item' | 'setsu' | 'sub', Partial<Record<NameSource, number>>>;
 
 
-function whereOf(r: MokuRow) {
-  return `${r.kan.name} ／ ${r.kou.name} ／ ${r.moku.name}`;
+function whereOf(file: LocalBudgetFile, r: MokuRow) {
+  const acc = file.accounts.find(a => a.id === r.account)?.name ?? r.account;
+  return `${acc} ／ ${r.side === 'revenue' ? '歳入' : '歳出'} ／ ${r.kan.name} ／ ${r.kou.name} ／ ${r.moku.name}`;
 }
 
-export function valueCorrections(file: LocalBudgetFile): CorrectionEntry[] {
-  const out: CorrectionEntry[] = [];
+/**
+ * 確定した読み取り以外の出典の値をすべて集める（設計書 4.4）。歳入の目の値のように、図からも詳細パネルからも見られない値があるので、
+ * 「データについて」で一覧にして、どの値が画像で確認・空欄を 0 とみなした などかを示す
+ */
+export function valueNotes(file: LocalBudgetFile): ValueNoteEntry[] {
+  const out: ValueNoteEntry[] = [];
   const push = (r: MokuRow, field: string, v: Value | undefined) => {
-    if (v?.src === 'correction') out.push({ row: r.id, where: whereOf(r), field, value: v.v, note: v.note });
+    if (v && v.src !== 'ocr' && v.src !== 'text') {
+      out.push({ row: r.id, where: whereOf(file, r), field, value: v.v, src: v.src, note: v.note });
+    }
   };
   for (const r of file.rows) {
     push(r, '本年度', r.amount);
@@ -36,7 +44,10 @@ export function valueCorrections(file: LocalBudgetFile): CorrectionEntry[] {
       for (const f of FUNDING_KINDS) push(r, `財源 ${f.label}`, r.funding[f.key]);
     }
     r.items?.forEach(it => push(r, `事項 ${it.name}`, it.amount));
-    r.setsu?.forEach(s => push(r, `節 ${s.no ?? ''} ${s.name}`.replace(/\s+/g, ' '), s.amount));
+    r.setsu?.forEach(s => {
+      push(r, `節 ${s.no ?? ''} ${s.name}`.replace(/\s+/g, ' '), s.amount);
+      s.sub?.forEach(sb => push(r, `細節 ${sb.name}`, sb.amount));
+    });
   }
   return out;
 }

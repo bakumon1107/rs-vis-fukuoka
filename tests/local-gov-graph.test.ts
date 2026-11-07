@@ -7,7 +7,7 @@ import {
   aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter,
 } from '../app/lib/local-gov/graph-view';
 import {
-  nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts, zeroAmountRows,
+  nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueNotes, valueSourceCounts, zeroAmountRows,
 } from '../app/lib/local-gov/summary';
 import { pickDataset } from '../client/hooks/useLocalBudget';
 import type { LocalBudgetFile, LocalGovIndex, LocalGraph, MokuRow, Value } from '../types/local-gov';
@@ -360,7 +360,8 @@ test('要約: 画像で直した値・出典ごとの件数を集める', () => 
       items: [{ name: '事務費', amount: v(100), no_amount_printed: true, name_src: 'readings' }],
     })],
   };
-  assert.deepEqual(valueCorrections(f).map(c => [c.field, c.value, c.note]), [['前年度', 90, '画像で確認']]);
+  assert.deepEqual(valueNotes(f).map(c => [c.field, c.value, c.src, c.note]), [['前年度', 90, 'correction', '画像で確認']]);
+  assert.match(valueNotes(f)[0].where, /^一般会計 ／ 歳出 ／ 総務費/);
   assert.deepEqual(valueSourceCounts(f), { ocr: 2, correction: 1 });
   const n = nameSourceCounts(f);
   assert.deepEqual([n.kan, n.moku, n.item], [{ text: 1 }, { ocr: 1 }, { readings: 1 }]);
