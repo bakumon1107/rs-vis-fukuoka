@@ -202,7 +202,11 @@ function LocalGovContent() {
           isResizing={panel.isResizing}
           onResetWidth={panel.resetWidth}
         >
-          <LocalDetailPanel row={row} index={index} />
+          <LocalDetailPanel
+            row={row}
+            index={index}
+            accountName={file.accounts.find(a => a.id === row.account)?.name ?? row.account}
+          />
         </SidePanelChrome>
       )}
     </div>

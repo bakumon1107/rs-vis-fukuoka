@@ -40,7 +40,7 @@ function NameMark({ src }: { src?: NameSource }) {
   return <span className="ml-1 text-[10px] text-amber-700" title={NAME_SRC_LABEL.ocr}>※名前は読み取り</span>;
 }
 
-export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGovIndex }) {
+export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; index: LocalGovIndex; accountName: string }) {
   const diff = row.amount.v !== null && row.previous?.v != null ? row.amount.v - row.previous.v : null;
   const sources = new Map(index.sources.map(s => [s.id, s]));
   // 説明欄の事項は、親の事項の下に内訳（入れ子の事項）を字下げして並べる。
@@ -54,7 +54,8 @@ export function LocalDetailPanel({ row, index }: { row: MokuRow; index: LocalGov
     <div className="h-full space-y-4 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
       <div>
         <p className="text-xs text-mirai-text-muted">
-          {row.kan.name} ／ {row.kou.name}
+          {/* 全会計の見方では同じ名前の款（公債費・予備費など）が複数の会計にあるので、会計の名前も出す */}
+          {accountName} ／ {row.kan.name} ／ {row.kou.name}
         </p>
         <h2 className="text-base font-bold">
           {row.moku.name}
