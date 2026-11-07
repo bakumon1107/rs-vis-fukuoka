@@ -146,7 +146,7 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
                 style={{ cursor: aggregate ? 'default' : 'pointer' }}
               >
                 <title>
-                  {`${n.name}　${formatBudgetFromYen(n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n金額の小さい項目をまとめています' : ''}`}
+                  {`${n.name}　${formatBudgetFromYen(n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）' : ''}`}
                 </title>
                 <rect
                   x={node.x}
