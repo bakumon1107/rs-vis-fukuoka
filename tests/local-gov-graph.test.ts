@@ -187,6 +187,20 @@ test('全会計: 公営企業会計はデータにあっても描かない（歳
   assert.equal(g.totals.gross, buildLocalGraph(FILE, { view: 'all' }).totals.gross);
 });
 
+test('全会計: 名前でまとめた歳入の款は、まとめた行のどれかが読み取りのみなら印を付ける', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [
+      row('general/revenue/5-1-1', { amount: v(3), kan: { no: 5, name: '繰入金', name_src: 'text' } }),
+      row('special:a/revenue/1-1-1', { amount: v(40), kan: { no: 1, name: '繰入金', name_src: 'ocr' } }),
+      row('special:a/expense/1-1-1', { amount: v(40) }),
+      row('general/expense/2-1-1', { amount: v(3), funding: fund(0, 0, 0, 3) }),
+    ],
+  };
+  const g = buildLocalGraph(f, { view: 'all' });
+  assert.deepEqual(g.nodes.find(n => n.id === 'revenue:繰入金')?.flags, ['name-ocr']);
+});
+
 test('名前の出典がない名前は、読み取りのみ（ocr）と同じく印を付ける', () => {
   const f: LocalBudgetFile = {
     ...FILE,
@@ -413,13 +427,17 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
     if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
     if (n.col === 'account') accounts++;
   }
-  assert.equal(accounts, file.accounts.length);
+  // 公営企業会計は描かない（設計書 3.2）。R8 にはないが、書き出した後もこのテストがそのまま使えるように除いて数える
+  const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  assert.equal(accounts, file.accounts.length - enterprise.size);
   // 歳入の款・会計・款・項・目の列の合計はどれも全会計の総計（歳入 = 歳出）
   for (const col of ['revenue', 'account', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), g.totals.gross, col);
-  // 左端の歳入の款の箱は、同じ名前の歳入の款の目の本年度の合計（全会計をまたいで。表記ゆれで箱が割れたり混ざったりしたら気づく）
+  // 左端の歳入の款の箱は、同じ名前の歳入の款の目の本年度の合計（公営企業会計を除く全会計をまたいで。表記ゆれで箱が割れたり混ざったりしたら気づく）
   const revByName = new Map<string, number>();
   for (const r of file.rows) {
-    if (r.side === 'revenue') revByName.set(r.kan.name, (revByName.get(r.kan.name) ?? 0) + (r.amount.v ?? 0));
+    if (r.side === 'revenue' && !enterprise.has(r.account)) {
+      revByName.set(r.kan.name, (revByName.get(r.kan.name) ?? 0) + (r.amount.v ?? 0));
+    }
   }
   const revNodes = g.nodes.filter(n => n.col === 'revenue');
   assert.equal(revNodes.length, [...revByName.values()].filter(v => v > 0).length);

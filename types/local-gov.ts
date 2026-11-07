@@ -172,7 +172,8 @@ export interface LocalGovIndex {
     kind: 'prefecture' | 'municipality';
     population?: { value: number; as_of: string; source: string }[];
   };
-  datasets: { year: number; label: string; basis: Basis | 'latest'; file: string; status: 'verified' | 'partial' }[];
+  /** ファイルがあるデータだけ（latest = 当初 + Σ補正 は画面で組み立てるので書かない。共通 JSON 形式の設計 3.1・5章） */
+  datasets: { year: number; label: string; basis: Basis; file: string; status: 'verified' | 'partial' }[];
   sources: SourceDocument[];
 }
 

@@ -83,7 +83,14 @@ class GraphBuilder {
   edges = new Map<string, { source: string; target: string; value: Yen }>();
 
   node(id: string, col: string, name: string, extra: Partial<Node> = {}): string {
-    if (!this.nodes.has(id)) this.nodes.set(id, { id, col, name, value: 0, ...extra });
+    const cur = this.nodes.get(id);
+    if (!cur) {
+      this.nodes.set(id, { id, col, name, value: 0, ...extra });
+    } else if (extra.flags?.length) {
+      // 同じ箱に複数の行がまとまるとき（全会計の歳入の款は名前でまとめる）は、印を足し合わせる。
+      // まとめた行のどれかの名前が読み取りのみなら、箱にも印を付ける（裏付けのない名前を裏付けありに見せない）
+      cur.flags = [...new Set([...(cur.flags ?? []), ...extra.flags])];
+    }
     return id;
   }
 
