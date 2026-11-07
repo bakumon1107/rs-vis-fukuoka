@@ -134,7 +134,7 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
             const isSelected = selected?.id === node.id;
             const labelLeft = node.column === 0;
             const ocrName = n.flags?.includes('name-ocr');
-            // 「その他」（まとめた箱）は選べない。中身は詳細パネル（目を選んだとき）か、左の箱を選び直して見る
+            // 「その他」（まとめた箱）は選べない。中身はほかの箱（左の列の款・項など）を選び直して見る（設計書 4.3）
             const aggregate = n.flags?.includes('aggregate');
             const cy = node.y + node.height / 2;
             return (
