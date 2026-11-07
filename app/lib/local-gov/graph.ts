@@ -176,9 +176,16 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     for (const r of rows) {
       if (r.account !== 'general' || r.side !== 'expense') continue;
       if (!only) gross += amountOf(r);
-      if (!r.funding) continue;
-      // 財源 → 款: その目の財源内訳（印字された数字）をそのまま款へ流す。款の財源は、含まれる目の財源の合計になる
       const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
+      if (!r.funding) {
+        // 財源内訳のない目（R8 は 0件）は「財源の記載なし」の箱から流す。目を図から落とさず、財源の列の合計も歳出の総額のまま（設計書 3.2）
+        if (only) continue;
+        const none = b.node('funding:none', 'funding', '財源の記載なし');
+        if (kan) b.edge(none, kan, amountOf(r));
+        addHierarchy(b, r, cols, null);
+        continue;
+      }
+      // 財源 → 款: その目の財源内訳（印字された数字）をそのまま款へ流す。款の財源は、含まれる目の財源の合計になる
       for (const f of FUNDING_KINDS) {
         if (only && f.key !== only) continue;
         const fv = r.funding[f.key].v ?? 0;

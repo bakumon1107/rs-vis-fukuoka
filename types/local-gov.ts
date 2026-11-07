@@ -182,7 +182,7 @@ export interface LocalGraph {
   gov_id: string;
   year: number;
   basis: 'initial' | 'latest' | 'settlement';
-  /** 列はデータ側で定義する（例: 財源 / 会計 / 款 / 項 / 目 / 事項） */
+  /** 列の一覧。見方ごとに app/lib/local-gov/graph.ts が決める（例: 財源 / 款 / 項 / 目 / 事項） */
   columns: { key: string; label: string }[];
   nodes: { id: string; col: string; name: string; value: Yen; row?: string; flags?: string[] }[];
   edges: { source: string; target: string; value: Yen }[];

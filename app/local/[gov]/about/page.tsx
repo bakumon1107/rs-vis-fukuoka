@@ -225,7 +225,8 @@ function LocalGovAboutContent() {
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">資料（{index.sources.length} 点）</h2>
           <p className="text-xs text-mirai-text-muted">
-            SHA256 は取得した PDF のハッシュ値です。県が資料を差し替えた場合は、この値で気づけるようにしています。
+            {index.gov.name}のデータの作成と確認に使った資料です（名前の裏付けに別の年度の資料も使うため、年度で絞っていません）。
+            SHA256 は取得した PDF のハッシュ値です。{index.gov.name}が資料を差し替えた場合は、この値で気づけるようにしています。
           </p>
           <ul className="space-y-1 text-xs">
             {index.sources.map(s => (

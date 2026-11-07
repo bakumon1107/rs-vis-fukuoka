@@ -83,6 +83,13 @@ function LocalGovContent() {
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
   );
+  // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
+  // （パネルの幅を変えている間はページが描き直され続ける）
+  const sourceTitles = useMemo(() => {
+    if (state.status !== 'ready') return '';
+    const used = new Set(sourcesUsed(state.file));
+    return state.index.sources.filter(s => used.has(s.id)).map(s => s.title).join('・');
+  }, [state]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
@@ -97,9 +104,6 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
-  // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）
-  const used = new Set(sourcesUsed(file));
-  const sourceTitles = index.sources.filter(s => used.has(s.id)).map(s => s.title).join('・');
 
   return (
     <div className="min-h-screen bg-mirai-surface">

@@ -154,6 +154,19 @@ test('表示: 図にない箱を指す選択（古い事項の番号・歳入の
   }
 });
 
+test('一般会計: 財源内訳のない目は「財源の記載なし」の箱から流す（目を落とさず、財源の列の合計は歳出の総額のまま）', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [...FILE.rows, row('general/expense/3-1-2', { amount: v(7) })],
+  };
+  const g = buildLocalGraph(f, { view: 'general' });
+  assert.equal(colTotal(g, 'funding'), 187);
+  assert.equal(colTotal(g, 'moku'), 187);
+  assert.equal(edgesInto(g, 'kan:general:expense:3')['funding:none'], 7);
+  // 財源を選んだときは、財源内訳のない目は出さない
+  assert.ok(!buildLocalGraph(f, { view: 'general', filter: { funding: 'general' } }).nodes.some(n => n.id === 'moku:general/expense/3-1-2'));
+});
+
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
   assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });
@@ -358,6 +371,17 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
   assert.equal(accounts, file.accounts.length);
   // 歳入の款・会計・款・項・目の列の合計はどれも全会計の総計（歳入 = 歳出）
   for (const col of ['revenue', 'account', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), g.totals.gross, col);
+  // 右端の目の箱は正規化データの目の本年度と比べる（列の合計が合っていても、目が別の款・会計の下に入る誤りに気づけるように）
+  const rowOf = new Map(file.rows.map(r => [r.id, r]));
+  const mokuNodes = g.nodes.filter(n => n.col === 'moku');
+  assert.equal(mokuNodes.length, file.rows.filter(r => r.side === 'expense' && (r.amount.v ?? 0) > 0).length);
+  for (const n of mokuNodes) {
+    const r = rowOf.get(n.row ?? '');
+    assert.equal(n.value, r?.amount.v, n.id);
+    // 目の帯は、同じ会計・同じ款・同じ項の箱から入る
+    const e = g.edges.find(x => x.target === n.id);
+    assert.equal(e?.source, `kou:${r?.account}:expense:${r?.kan.no}-${r?.kou.no}`, n.id);
+  }
   // 同じ名前の歳出の款（公債費 4 など）は会計の名前を添えて、ラベルが重ならない
   const kanNames = g.nodes.filter(n => n.col === 'kan').map(n => n.name);
   assert.equal(new Set(kanNames).size, kanNames.length);
