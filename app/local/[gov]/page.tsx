@@ -15,6 +15,7 @@ import { AppHeader } from '@/components/navigation/AppHeader';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
 import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { composeDisplay } from '@/app/lib/local-gov/graph-view';
@@ -51,6 +52,7 @@ function LocalGovContent() {
   const year = yearFromQuery(searchParams.get('year'));
   const state = useLocalBudget(gov, year);
   const panel = useSidePanel({ side: 'right' });
+  const isNarrow = useIsNarrow();
 
   // 年度・見方・選択は URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
@@ -102,7 +104,8 @@ function LocalGovContent() {
   return (
     <div className="min-h-screen bg-mirai-surface">
       <AppHeader current="/" />
-      <main className="px-4 pb-16 pt-4" style={{ marginRight: row ? panel.effectiveWidth + 24 : 0 }}>
+      {/* 横のパネルの分だけ右を空ける。狭い幅ではパネルは画面の下から出るので空けない（空けると本文の幅がなくなり、見出しが縦に1字ずつになる） */}
+      <main className="px-4 pb-16 pt-4" style={{ marginRight: row && !isNarrow ? panel.effectiveWidth + 24 : 0 }}>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}

@@ -136,12 +136,27 @@ function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: stri
   const moku = b.node(mokuId(r), 'moku', r.moku.name, { row: r.id, flags: nameFlags(r.moku.name_src) });
   b.edge(kou, moku, v);
   if (!cols.has('item') || !r.items || value !== undefined) return;
-  // 事項は親の事項だけ（入れ子の内訳は親に含まれる）。事項のない目（税交付金・公債費の元金など）は目で止まる
+  // 事項は親の事項だけ（入れ子の内訳は親に含まれる）。事項のない目（R8 の一般会計で水防費・予備費など4つ）は目で止まる。
+  // ID は items の配列の位置（入れ子も数える）。名前で決めると、別の目の「職員費」などが1つの箱に混ざる
   r.items.forEach((it, i) => {
     if (it.parent !== undefined || it.amount.v === null) return;
     const item = b.node(`item:${r.id}:${i}`, 'item', it.name, { row: r.id, flags: nameFlags(it.name_src) });
     b.edge(moku, item, it.amount.v);
   });
+}
+
+/**
+ * 複数の会計に出てくる歳出の款の名前。ファイル全体で数える（絞り込んだグラフでも、最初の画面と同じラベルにするため）
+ */
+function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
+  const accountsOf = new Map<string, Set<string>>();
+  for (const r of file.rows) {
+    if (r.side !== 'expense') continue;
+    const s = accountsOf.get(r.kan.name) ?? new Set<string>();
+    s.add(r.account);
+    accountsOf.set(r.kan.name, s);
+  }
+  return new Set([...accountsOf].filter(([, s]) => s.size > 1).map(([name]) => name));
 }
 
 export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions): LocalGraph {
@@ -175,9 +190,11 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
       }
     }
   } else {
+    const dupKan = duplicatedExpenseKanNames(file);
     for (const r of rows) {
       const acc = file.accounts.find(a => a.id === r.account);
-      const accNode = b.node(`account:${r.account}`, 'account', acc?.name ?? r.account);
+      const accName = acc?.name ?? r.account;
+      const accNode = b.node(`account:${r.account}`, 'account', accName);
       if (r.side === 'revenue') {
         // 歳入の款 → 会計。歳入の款は名前でまとめる（会計をまたいで同じ名前の款は1つの箱）
         const rev = b.node(`revenue:${r.kan.name}`, 'revenue', r.kan.name, { flags: nameFlags(r.kan.name_src) });
@@ -185,6 +202,9 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
       } else {
         gross += amountOf(r);
         addHierarchy(b, r, cols, accNode);
+        // 同じ名前の歳出の款が複数の会計にあるときは、ラベルに会計の名前を添える（R8: 公債費 4・予備費 3 など。添えないと見分けられない）
+        const kn = b.nodes.get(kanId(r));
+        if (kn && dupKan.has(r.kan.name)) kn.name = `${r.kan.name}（${accName}）`;
       }
     }
   }

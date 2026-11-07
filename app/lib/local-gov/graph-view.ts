@@ -89,7 +89,7 @@ export function selectionToFilter(view: LocalGraphView, id: string): { filter: L
   if (m && view === 'general') return { filter: { funding: m[1] as FundingKey }, depth: BASE_DEPTH + 1 };
   m = /^kan:(.+):(revenue|expense):(\d+)$/.exec(id);
   if (m) {
-    // 一般会計の見方で款を選んだら目まで（事項まで開くと民生費などで数百件になる）。全会計の見方は項・目まで
+    // 一般会計の見方で款を選んだら目まで（事項まで開くと、R8 で農林水産業費 178件・教育費 160件などになる）。全会計の見方は目まで
     return { filter: { account: m[1], side: m[2] as 'revenue' | 'expense', kan: Number(m[3]) },
       depth: view === 'general' ? BASE_DEPTH + 1 : BASE_DEPTH + 2 };
   }

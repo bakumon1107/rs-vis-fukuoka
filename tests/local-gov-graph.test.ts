@@ -245,9 +245,58 @@ test('実データ（福岡県 R8）: 一般会計の列の合計がすべて歳
   for (const n of g.nodes) {
     if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
   }
-  // サンキー図は負の太さの帯を描けない。どちらの見方でも帯の値はすべて正（負の値が来たら graph.ts の扱いを決める）
-  for (const view of ['general', 'all'] as const) {
-    const neg = buildLocalGraph(file, { view }).edges.filter(e => e.value < 0);
-    assert.deepEqual(neg, [], `${view} に負の帯`);
+  // 事項の列は、事項のない目（水防費など4つ）の分だけ小さい（設計書 3.2）
+  assert.equal(colTotal(g, 'item'), total - 328_571_000);
+  // 左端の財源の箱: 出の合計 = その財源の内訳の合計（全目）
+  for (const f of ['national', 'bond', 'other', 'general'] as const) {
+    const sum = file.rows
+      .filter(r => r.account === 'general' && r.side === 'expense')
+      .reduce((s, r) => s + (r.funding?.[f].v ?? 0), 0);
+    assert.equal(out.get(`funding:${f}`), sum, f);
   }
+  // サンキー図は負の太さの帯を描けない。0 円の帯も作らない。どちらの見方でも帯の値はすべて正（負の値が来たら graph.ts の扱いを決める）
+  for (const view of ['general', 'all'] as const) {
+    const bad = buildLocalGraph(file, { view }).edges.filter(e => e.value <= 0);
+    assert.deepEqual(bad, [], `${view} に正でない帯`);
+  }
+});
+
+test('実データ（福岡県 R8）: 全会計は入りと出の両方がある箱（会計の箱を含む）で入り = 出。款のラベルは会計で見分けられる', { skip: !fs.existsSync(DATA) }, () => {
+  const file = JSON.parse(fs.readFileSync(DATA, 'utf8')) as LocalBudgetFile;
+  const g = buildLocalGraph(file, { view: 'all' });
+  const into = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const e of g.edges) {
+    into.set(e.target, (into.get(e.target) ?? 0) + e.value);
+    out.set(e.source, (out.get(e.source) ?? 0) + e.value);
+  }
+  let accounts = 0;
+  for (const n of g.nodes) {
+    if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
+    if (n.col === 'account') accounts++;
+  }
+  assert.equal(accounts, file.accounts.length);
+  // 歳入の款・会計・款・項・目の列の合計はどれも全会計の総計（歳入 = 歳出）
+  for (const col of ['revenue', 'account', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), g.totals.gross, col);
+  // 同じ名前の歳出の款（公債費 4 など）は会計の名前を添えて、ラベルが重ならない
+  const kanNames = g.nodes.filter(n => n.col === 'kan').map(n => n.name);
+  assert.equal(new Set(kanNames).size, kanNames.length);
+  assert.equal(kanNames.filter(n => n.startsWith('公債費（')).length, 4);
+});
+
+test('全会計: 同じ名前の歳出の款が複数の会計にあれば、ラベルに会計の名前を添える（絞り込んでも同じラベル）', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [
+      ...FILE.rows,
+      row('special:a/expense/2-1-1', { amount: v(5), kan: { no: 2, name: '款2' } }),
+      row('special:a/revenue/2-1-1', { amount: v(5) }),
+    ],
+  };
+  const g = buildLocalGraph(f, { view: 'all' });
+  assert.equal(g.nodes.find(n => n.id === 'kan:general:expense:2')?.name, '款2（一般会計）');
+  assert.equal(g.nodes.find(n => n.id === 'kan:special:a:expense:2')?.name, '款2（A特別会計）');
+  assert.equal(g.nodes.find(n => n.id === 'kan:general:expense:3')?.name, '款3');
+  const focused = buildLocalGraph(f, { view: 'all', filter: { account: 'general', side: 'expense', kan: 2 } });
+  assert.equal(focused.nodes.find(n => n.id === 'kan:general:expense:2')?.name, '款2（一般会計）');
 });
