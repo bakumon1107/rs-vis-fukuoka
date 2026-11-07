@@ -54,7 +54,14 @@ export function aggregateTail(
   if (!lastCol || entryCols.has(lastCol)) return { graph, highlight, highlightNodes };
   const tail = graph.nodes.filter(nd => nd.col === lastCol && !hasOut.has(nd.id));
   if (tail.length <= n + 1) return { graph, highlight, highlightNodes };
-  const ranked = [...tail].sort((a, b) => b.value - a.value);
+  // 上位は重ねる帯の額（選んだものの分。財源を選んだときはその財源の額）で選び、同じなら箱の額。
+  // 箱の額で選ぶと、選んだ財源が多く入っている目が「その他」に入ってしまう（設計書 4.3）
+  const litInto = new Map<string, number>();
+  for (const e of graph.edges) {
+    const h = highlight.get(edgeKey(e.source, e.target));
+    if (h) litInto.set(e.target, (litInto.get(e.target) ?? 0) + h);
+  }
+  const ranked = [...tail].sort((a, b) => (litInto.get(b.id) ?? 0) - (litInto.get(a.id) ?? 0) || b.value - a.value);
   const merged = new Set(ranked.slice(n).filter(nd => !keep.has(nd.id)).map(nd => nd.id));
   if (merged.size <= 1) return { graph, highlight, highlightNodes };
   const otherId = `other:${lastCol}`;
@@ -83,7 +90,9 @@ export function aggregateTail(
 
 /**
  * 箱の ID から絞り込みと開く深さを決める（graph.ts の ID の形に対応）。
- * 財源・歳入の款（左端の列）は絞り込みにできない（財源の内訳は款より先で按分しないと分けられない）ので、その箱から出る帯だけを重ねる
+ * 一般会計の財源は、各目のその財源の額で目まで絞り込む（財源内訳は目ごとに印字されているので按分にならない）。
+ * 全会計の歳入の款は絞り込まない（どの歳出に使われたかは資料にない）ので null を返し、その箱から出る帯だけを重ねる。
+ * 「その他」（other:）も絞り込まない（選べない箱）。設計書 3.3・4.3
  */
 export function selectionToFilter(view: LocalGraphView, id: string): { filter: LocalGraphFilter; depth: number } | null {
   // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）

@@ -209,11 +209,12 @@ test('表示: 右端の深い列の箱が多ければ上位だけ残し、残り
   };
   const hl = new Map([[edgeKey('k', 'm3'), 6], [edgeKey('k', 'm0'), 40]]);
   const entry = new Set(['funding', 'kan', 'kou']);
-  const out = aggregateTail(g, hl, new Set(['m3', 'm0']), 2, new Set(['m4']), entry);
-  // 上位2件（m0・m1）と残す指定の m4 は残り、m2・m3 が「その他 2件」になる
+  const out = aggregateTail(g, hl, new Set(['m3', 'm0']), 1, new Set(['m4']), entry);
+  // 上位1件（重ねる帯の額が最大の m0）と残す指定の m4 は残り、m1・m2・m3 が「その他 3件」になる。
+  // 色の付いた m3 の重ねる帯（6）は「その他」への帯に足し合わされる
   assert.deepEqual(out.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]),
-    [['m0', 40], ['m1', 30], ['m4', 4], ['other:moku', 26]]);
-  assert.equal(out.graph.edges.find(e => e.target === 'other:moku')?.value, 26);
+    [['m0', 40], ['m4', 4], ['other:moku', 56]]);
+  assert.equal(out.graph.edges.find(e => e.target === 'other:moku')?.value, 56);
   assert.equal(out.highlight.get(edgeKey('k', 'other:moku')), 6);
   assert.ok(out.highlightNodes.has('other:moku') && !out.highlightNodes.has('m3'));
   // 項の列（一般会計の最初の画面の右端）はまとめない
@@ -228,6 +229,22 @@ test('表示: 右端の深い列の箱が多ければ上位だけ残し、残り
 });
 
 const R8_FILE = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref', 'budget-2026-initial.json');
+
+test('表示: まとめの上位は重ねる帯の額で選ぶ（財源を選んだとき、その財源が多い目を残す）', () => {
+  const g: LocalGraph = {
+    schema_version: 1, gov_id: 't', year: 2026, basis: 'initial', totals: { gross: 100 },
+    columns: [{ key: 'kou', label: '項' }, { key: 'moku', label: '目' }],
+    nodes: [
+      { id: 'k', col: 'kou', name: '項', value: 100 },
+      ...[40, 30, 20, 10].map((v, i) => ({ id: `m${i}`, col: 'moku', name: `目${i}`, value: v })),
+    ],
+    edges: [40, 30, 20, 10].map((v, i) => ({ source: 'k', target: `m${i}`, value: v })),
+  };
+  // 選んだ財源は m3（10 のうち 9）と m2（20 のうち 5）に多い。箱の額では m0・m1 が上位だが、重ねる帯の額で m3・m2 を残す
+  const hl = new Map([[edgeKey('k', 'm3'), 9], [edgeKey('k', 'm2'), 5], [edgeKey('k', 'm0'), 1]]);
+  const out = aggregateTail(g, hl, new Set(['m3', 'm2', 'm0']), 2, new Set(), new Set(['funding', 'kan', 'kou']));
+  assert.deepEqual(out.graph.nodes.filter(n => n.col === 'moku').map(n => n.id), ['m2', 'm3', 'other:moku']);
+});
 
 test('実データ（福岡県 R8）: 全会計で一般会計を選ぶと、開いた項の列（62件）を上位 N 件＋その他にまとめる', { skip: !fs.existsSync(R8_FILE) }, () => {
   const file = JSON.parse(fs.readFileSync(R8_FILE, 'utf8')) as LocalBudgetFile;

@@ -30,7 +30,7 @@ const VIEWS: { key: LocalGraphView; label: string; note: string; opens: string }
     key: 'all',
     label: '全会計',
     note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
-    opens: '会計を選ぶと項、款・項を選ぶと目まで開きます',
+    opens: '会計を選ぶと項、款・項・目を選ぶと目まで開きます',
   },
 ];
 
