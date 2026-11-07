@@ -6,7 +6,9 @@ import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import {
   aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter,
 } from '../app/lib/local-gov/graph-view';
-import { nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts } from '../app/lib/local-gov/summary';
+import {
+  nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts, zeroAmountRows,
+} from '../app/lib/local-gov/summary';
 import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number): Value => ({ v: n, src: 'ocr' });
@@ -121,6 +123,24 @@ test('表示: 目を選ぶと事項まで開き、財源 → 款 の帯はその
   // 深い列は選んだ目の分だけ
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.id), ['moku:general/expense/2-1-2']);
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'item').map(n => n.name), ['施設整備費']);
+});
+
+test('表示: 選ぶ箱ごとの開く深さ（設計書 4.3）', () => {
+  const cols = (view: 'general' | 'all', id: string) => [...new Set(composeDisplay(FILE, view, id).graph.nodes.map(n => n.col))];
+  // 一般会計: 財源・款は目まで、項・目・事項は事項まで
+  assert.deepEqual(cols('general', 'funding:general'), ['funding', 'kan', 'kou', 'moku']);
+  assert.deepEqual(cols('general', 'kou:general:expense:2-1'), ['funding', 'kan', 'kou', 'moku', 'item']);
+  assert.deepEqual(cols('general', 'moku:general/expense/2-1-1'), ['funding', 'kan', 'kou', 'moku', 'item']);
+  assert.deepEqual(cols('general', 'item:general/expense/2-1-1:0'), ['funding', 'kan', 'kou', 'moku', 'item']);
+  // 全会計: 会計は項まで、款・項・目は目まで
+  assert.deepEqual(cols('all', 'account:general'), ['revenue', 'account', 'kan', 'kou']);
+  assert.deepEqual(cols('all', 'kan:general:expense:2'), ['revenue', 'account', 'kan', 'kou', 'moku']);
+  assert.deepEqual(cols('all', 'kou:general:expense:2-1'), ['revenue', 'account', 'kan', 'kou', 'moku']);
+  assert.deepEqual(cols('all', 'moku:general/expense/2-1-1'), ['revenue', 'account', 'kan', 'kou', 'moku']);
+});
+
+test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
+  assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });
 
 test('表示: 款を選ぶと目まで開く（一般会計）', () => {
@@ -247,6 +267,17 @@ test('実データ（福岡県 R8）: 一般会計の列の合計がすべて歳
   }
   // 事項の列は、事項のない目（水防費など4つ）の分だけ小さい（設計書 3.2）
   assert.equal(colTotal(g, 'item'), total - 328_571_000);
+  // 右端の箱は正規化データの額と比べる（箱の値は入りの帯の合計なので、入りと比べても誤りに気づけない）
+  const rowOf = new Map(file.rows.map(r => [r.id, r]));
+  for (const n of g.nodes) {
+    if (out.has(n.id)) continue;
+    const r = rowOf.get(n.row ?? '');
+    if (n.col === 'moku') assert.equal(n.value, r?.amount.v, n.id);
+    if (n.col === 'item') assert.equal(n.value, r?.items?.[Number(n.id.split(':').at(-1))].amount.v, n.id);
+  }
+  // 本年度の計上がない目（選挙費6件・歳入4件）は箱を作らず、「データについて」の一覧に出す
+  assert.equal(zeroAmountRows(file).length, 10);
+  assert.ok(zeroAmountRows(file).every(r => !g.nodes.some(n => n.id === `moku:${r.id}`)));
   // 左端の財源の箱: 出の合計 = その財源の内訳の合計（全目）
   for (const f of ['national', 'bond', 'other', 'general'] as const) {
     const sum = file.rows

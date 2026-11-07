@@ -76,6 +76,11 @@ export function nameSourceCounts(file: LocalBudgetFile): NameSourceCounts {
   return c;
 }
 
+/** 本年度の計上がない目（0 円・空欄）。図には箱を出さないので、「データについて」に一覧で出す（設計書 3.2） */
+export function zeroAmountRows(file: LocalBudgetFile): MokuRow[] {
+  return file.rows.filter(r => (r.amount.v ?? 0) === 0);
+}
+
 /** 目の行の出典（pages[].source）に出てくる資料の id（出てきた順）。画面の「出典」に出す資料を、年度に依らず決める */
 export function sourcesUsed(file: LocalBudgetFile): string[] {
   return [...new Set(file.rows.flatMap(r => r.pages.map(p => p.source)))];

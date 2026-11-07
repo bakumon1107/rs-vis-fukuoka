@@ -17,6 +17,7 @@ import {
   noAmountPrintedCount,
   valueCorrections,
   valueSourceCounts,
+  zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
 import { VALUE_SOURCES, type NameSource, type ValueSource } from '@/types/local-gov';
 
@@ -67,6 +68,7 @@ function LocalGovAboutContent() {
       corrections: valueCorrections(f),
       names: nameSourceCounts(f),
       values: valueSourceCounts(f),
+      zero: zeroAmountRows(f),
       noAmount: noAmountPrintedCount(f),
     };
   }, [state]);
@@ -188,6 +190,23 @@ function LocalGovAboutContent() {
                   <span className="text-mirai-text-muted">{x.where}</span> {x.field}:{' '}
                   <b>{x.value === null ? '—' : formatBudgetFromYen(x.value)}</b>
                   {x.note && <span className="text-mirai-text-muted">（{x.note}）</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {summary && summary.zero.length > 0 && (
+          <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+            <h2 className="font-bold">本年度の計上がない目（{summary.zero.length} 件）</h2>
+            <p>本年度が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。前年度の額とあわせて、ここに並べます。</p>
+            <ul className="space-y-1 text-xs">
+              {summary.zero.map(r => (
+                <li key={r.id}>
+                  <span className="text-mirai-text-muted">
+                    {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
+                  </span>{' '}
+                  {r.moku.name}（前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}）
                 </li>
               ))}
             </ul>

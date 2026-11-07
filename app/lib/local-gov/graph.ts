@@ -160,6 +160,11 @@ function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
 }
 
 export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions): LocalGraph {
+  // 補正のファイルは差分（増減）なので、そのまま描くと補正後の額に見える（減額は負の帯にもなる）。
+  // 当初 + Σ補正（basis: latest）を組み立てる処理は補正の取り込みのときに作る（共通 JSON 形式の設計 5章）。それまでは受け付けない
+  if (file.basis === 'supplementary') {
+    throw new Error('補正（差分）のファイルからはグラフを組み立てません（当初 + 補正 の組み立ては未実装）');
+  }
   const columns = COLUMNS[opts.view].slice(0, opts.depth ?? undefined);
   const cols = new Set(columns.map(c => c.key));
   const b = new GraphBuilder();
@@ -229,7 +234,7 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     schema_version: LOCAL_GOV_SCHEMA_VERSION,
     gov_id: file.gov_id,
     year: file.year,
-    basis: file.basis === 'supplementary' ? 'latest' : file.basis,
+    basis: file.basis,
     columns,
     nodes,
     edges,
