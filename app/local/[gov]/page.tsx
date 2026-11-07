@@ -177,7 +177,7 @@ function LocalGovContent() {
               {display.note && <span className="text-xs text-mirai-text-muted">{display.note}</span>}
             </>
           ) : (
-            <span className="text-mirai-text-muted">四角を押すと、その流れだけを表示します（{VIEWS.find(v => v.key === view)?.opens}）</span>
+            <span className="text-mirai-text-muted">四角を押すと、その流れに色を付けます（ほかは灰色。{VIEWS.find(v => v.key === view)?.opens}）</span>
           )}
           <span className="ml-auto text-xs text-mirai-text-muted">
             <span className="text-amber-700">※</span> 名前は読み取り（資料で裏付けが取れていない）
