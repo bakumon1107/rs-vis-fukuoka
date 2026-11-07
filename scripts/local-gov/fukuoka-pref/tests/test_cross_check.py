@@ -37,7 +37,31 @@ class TestResolveSetsu:
         assert [(s["amount"], s.get("節から細節に")) for s in new if not s.get("top", True)] == [(799, True)]
 
     def test_drop_duplicate_row_is_removed(self):
-        # 同じ行を2度読んだ重複（区分の文字も金額も同じ行がほかにある）は細節にせず消す
+        # 同じ印字の行を2度読んだ重複（隣の行が区分の文字も金額も同じで、y 座標も同じ）は細節にせず消す
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "y": 100},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True, "y": 190},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False, "y": 192},
+              {"no": 2, "label": "給料", "amount": 400, "top": True, "y": 280}]
+        m = moku(1000, ss)
+        t = moku(1000, setsu((1, 600), (2, 400)))
+        new, notes = cc.resolve_setsu(m, t)
+        assert [(s["label"], s.get("top", True)) for s in new] == [("報酬", True), ("給料", True), ("期末手当", False)]
+        assert not any(n.startswith("要確認") for n in notes)
+
+    def test_adjacent_same_name_on_other_line_is_kept(self):
+        # 隣の行が同じ名前・同じ額でも、別の行（節とその細節が同じ名前・同じ額など）なら消さずに細節に直し、要確認と記録する
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "y": 100},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True, "y": 190},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False, "y": 280},
+              {"no": 2, "label": "給料", "amount": 400, "top": True, "y": 370}]
+        m = moku(1000, ss)
+        t = moku(1000, setsu((1, 600), (2, 400)))
+        new, notes = cc.resolve_setsu(m, t)
+        assert sorted(s.get("節から細節に", False) for s in new if not s.get("top", True)) == [False, True]
+        assert any(n.startswith("要確認") for n in notes)
+
+    def test_adjacent_same_name_without_position_is_kept(self):
+        # y 座標がなければ重複と判断できないので消さない
         ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True},
               {"no": None, "label": "期末手当", "amount": 300, "top": True},
               {"no": None, "label": "期末手当", "amount": 300, "top": False},
@@ -45,7 +69,7 @@ class TestResolveSetsu:
         m = moku(1000, ss)
         t = moku(1000, setsu((1, 600), (2, 400)))
         new, _ = cc.resolve_setsu(m, t)
-        assert [(s["label"], s.get("top", True)) for s in new] == [("報酬", True), ("給料", True), ("期末手当", False)]
+        assert len([s for s in new if not s.get("top", True)]) == 2
 
     def test_drop_same_name_in_other_setsu_is_not_duplicate(self):
         # 別の節の細節に同じ名前・同じ額の行があっても、隣り合っていなければ重複ではない。消さずに細節に直す
