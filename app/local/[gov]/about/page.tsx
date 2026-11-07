@@ -48,6 +48,11 @@ const NAME_SOURCES: [NameSource, string][] = [
   ['ocr', '読み取りのみ（裏付けなし）'],
 ];
 
+/** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
+function srcNote(src: ValueSource) {
+  return src === 'text' || src === 'ocr' ? null : <span className="text-amber-700">［{VALUE_SRC_LABEL[src]}］</span>;
+}
+
 export default function LocalGovAboutPage() {
   return (
     <Suspense fallback={<LoadingSpinner fullscreen />}>
@@ -206,7 +211,9 @@ function LocalGovAboutContent() {
                   <span className="text-mirai-text-muted">
                     {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
                   </span>{' '}
-                  {r.moku.name}（前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}）
+                  {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '—'}
+                  {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}
+                  {r.previous && srcNote(r.previous.src)}）
                 </li>
               ))}
             </ul>
