@@ -185,6 +185,10 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     const only = opts.filter?.funding;
     for (const r of rows) {
       if (r.account !== 'general' || r.side !== 'expense') continue;
+      // 図に出ない行（0 円の目、財源で絞ったときにその財源が 0 円の目）は箱も作らない。箱を作ると、その行の名前の印が
+      // ほかの行の箱に混ざる（設計書 3.2: 印は図に出る行だけから決める）
+      if (amountOf(r) === 0) continue;
+      if (only && only !== 'none' && r.funding && (r.funding[only].v ?? 0) === 0) continue;
       if (!only) gross += amountOf(r);
       const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
       if (!r.funding) {
@@ -224,6 +228,8 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
       const acc = file.accounts.find(a => a.id === r.account);
       // 公営企業会計は描かない（収益的・資本的収支に分かれ歳入と歳出が一致しない。設計書 3.2）
       if (acc?.kind === 'enterprise') continue;
+      // 0 円の目は図に出ないので箱も作らない（名前でまとめる歳入の款に、図に出ない行の印を混ぜない）
+      if (amountOf(r) === 0) continue;
       const accName = acc?.name ?? r.account;
       const accNode = b.node(`account:${r.account}`, 'account', accName);
       if (r.side === 'revenue') {

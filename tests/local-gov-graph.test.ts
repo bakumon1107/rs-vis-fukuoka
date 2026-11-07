@@ -199,6 +199,16 @@ test('全会計: 名前でまとめた歳入の款は、まとめた行のどれ
   };
   const g = buildLocalGraph(f, { view: 'all' });
   assert.deepEqual(g.nodes.find(n => n.id === 'revenue:繰入金')?.flags, ['name-ocr']);
+  // 図に出ない 0 円の行の印は混ぜない
+  const z: LocalBudgetFile = {
+    ...f,
+    rows: [
+      row('general/revenue/5-1-1', { amount: v(3), kan: { no: 5, name: '繰入金', name_src: 'text' } }),
+      row('special:a/revenue/1-1-1', { amount: v(0), kan: { no: 1, name: '繰入金', name_src: 'ocr' } }),
+      row('general/expense/2-1-1', { amount: v(3), funding: fund(0, 0, 0, 3), kan: { no: 2, name: '款2', name_src: 'text' } }),
+    ],
+  };
+  assert.equal(buildLocalGraph(z, { view: 'all' }).nodes.find(n => n.id === 'revenue:繰入金')?.flags, undefined);
 });
 
 test('名前の出典がない名前は、読み取りのみ（ocr）と同じく印を付ける', () => {
@@ -440,6 +450,9 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
     }
   }
   const revNodes = g.nodes.filter(n => n.col === 'revenue');
+  // 表記ゆれで同じ款が2つの箱に割れていないこと（空白・全角半角の違いを除くと同じになる名前の箱が2つない）
+  const norm = (s: string) => s.normalize('NFKC').replace(/\s/g, '');
+  assert.equal(new Set(revNodes.map(n => norm(n.name))).size, revNodes.length);
   assert.equal(revNodes.length, [...revByName.values()].filter(v => v > 0).length);
   for (const n of revNodes) assert.equal(n.value, revByName.get(n.name), n.id);
   // 右端の目の箱は正規化データの目の本年度と比べる（列の合計が合っていても、目が別の款・会計の下に入る誤りに気づけるように）
