@@ -89,6 +89,8 @@ function LocalGovAboutContent() {
     );
   }
   const { index, dataset, file } = state;
+  // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
+  const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
 
   return (
@@ -209,7 +211,7 @@ function LocalGovAboutContent() {
               {summary.zero.map(r => (
                 <li key={r.id}>
                   <span className="text-mirai-text-muted">
-                    {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
+                    {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
                   </span>{' '}
                   {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '—'}
                   {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}

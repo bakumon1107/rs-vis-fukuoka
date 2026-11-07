@@ -98,21 +98,21 @@ export function selectionToFilter(view: LocalGraphView, id: string): { filter: L
   // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）
   let m = /^funding:(national|bond|other|general)$/.exec(id);
   if (m && view === 'general') return { filter: { funding: m[1] as FundingKey }, depth: BASE_DEPTH + 1 };
-  m = /^kan:(.+):(revenue|expense):(\d+)$/.exec(id);
+  // 款・項・目・事項は歳出だけ（歳入の目は図に箱がない。全会計の歳入の款は revenue:<名前> で、下の null の扱い）
+  m = /^kan:(.+):expense:(\d+)$/.exec(id);
   if (m) {
     // 一般会計の見方で款を選んだら目まで（事項まで開くと、R8 で農林水産業費 178件・教育費 160件などになる）。全会計の見方は目まで
-    return { filter: { account: m[1], side: m[2] as 'revenue' | 'expense', kan: Number(m[3]) },
+    return { filter: { account: m[1], side: 'expense', kan: Number(m[2]) },
       depth: view === 'general' ? BASE_DEPTH + 1 : BASE_DEPTH + 2 };
   }
-  m = /^kou:(.+):(revenue|expense):(\d+)-(\d+)$/.exec(id);
+  m = /^kou:(.+):expense:(\d+)-(\d+)$/.exec(id);
   if (m) {
-    return { filter: { account: m[1], side: m[2] as 'revenue' | 'expense', kan: Number(m[3]), kou: Number(m[4]) },
-      depth: BASE_DEPTH + 2 };
+    return { filter: { account: m[1], side: 'expense', kan: Number(m[2]), kou: Number(m[3]) }, depth: BASE_DEPTH + 2 };
   }
-  m = /^(?:moku|item):(.+)\/(revenue|expense)\/(\d+)-(\d+)-(\d+)(?::\d+)?$/.exec(id);
+  m = /^(?:moku|item):(.+)\/expense\/(\d+)-(\d+)-(\d+)(?::\d+)?$/.exec(id);
   if (m) {
-    return { filter: { account: m[1], side: m[2] as 'revenue' | 'expense', kan: Number(m[3]), kou: Number(m[4]),
-      moku: Number(m[5]) }, depth: BASE_DEPTH + 2 };
+    return { filter: { account: m[1], side: 'expense', kan: Number(m[2]), kou: Number(m[3]), moku: Number(m[4]) },
+      depth: BASE_DEPTH + 2 };
   }
   m = /^account:(.+)$/.exec(id);
   if (m && view === 'all') return { filter: { account: m[1] }, depth: BASE_DEPTH + 1 };
@@ -124,8 +124,26 @@ export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため�
 export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
 
+/**
+ * 最初の画面のグラフ（左の3列の全体）は、データと見方が同じなら選択によらず同じなので覚えておく（選ぶたびに全目を組み立て直さない）。
+ * 正規化データは読み込んだ後に変えない前提（同じオブジェクトなら同じ結果）
+ */
+const baseCache = new WeakMap<LocalBudgetFile, Map<LocalGraphView, LocalGraph>>();
+function baseGraph(file: LocalBudgetFile, view: LocalGraphView): LocalGraph {
+  let byView = baseCache.get(file);
+  if (!byView) baseCache.set(file, (byView = new Map()));
+  let g = byView.get(view);
+  if (!g) byView.set(view, (g = buildLocalGraph(file, { view, depth: BASE_DEPTH })));
+  return g;
+}
+
+/** 目の行の ID → 本年度（財源を選んだときに、深い列の目の箱を目の額で描く） */
+function mokuAmounts(file: LocalBudgetFile): Map<string, number> {
+  return new Map(file.rows.map(r => [r.id, r.amount.v ?? 0]));
+}
+
 export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, selectedId: string | null): LocalGraphDisplay {
-  const base = buildLocalGraph(file, { view, depth: BASE_DEPTH });
+  const base = baseGraph(file, view);
   const highlight = new Map<string, number>();
   const highlightNodes = new Set<string>();
   if (!selectedId) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
@@ -148,15 +166,21 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   }
 
   const focused = buildLocalGraph(file, { view, filter: sel.filter, depth: sel.depth });
+  // 図にない箱を指す選択（書き出し直しで事項の番号が変わった URL・別の見方の ID など）は、選択なしに戻す（設計書 3.2）
+  if (!focused.nodes.some(n => n.id === selectedId)) {
+    return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
+  }
   const baseCols = new Set(base.columns.map(c => c.key));
   // 深い列（左の列にない列）は選んだものの分だけ足す。箱と帯は全体の額で出し（灰色の下地）、選んだものの分は重ねる帯で示す。
-  // 財源で絞り込んだときは、組み立て直したグラフの目の値がその財源の額なので、箱は財源で絞らないグラフから取る（目の額に見えないように）
-  const deepFrom = sel.filter.funding
-    ? buildLocalGraph(file, { view, filter: { ...sel.filter, funding: undefined }, depth: sel.depth })
-    : focused;
-  const focusedDeep = new Set(focused.nodes.filter(n => !baseCols.has(n.col)).map(n => n.id));
-  const deepNodes = deepFrom.nodes.filter(n => focusedDeep.has(n.id));
-  const deepEdges = deepFrom.edges.filter(e => focusedDeep.has(e.target));
+  // 財源で絞り込んだときは、組み立て直したグラフの目の値がその財源の額なので、目の箱と目への帯は目の本年度にする（目の額に見えないように）
+  const fullOf = sel.filter.funding ? mokuAmounts(file) : null;
+  const deepNodes = focused.nodes
+    .filter(n => !baseCols.has(n.col))
+    .map(n => (fullOf && n.row !== undefined ? { ...n, value: fullOf.get(n.row) ?? n.value } : n));
+  const deepValue = new Map(deepNodes.map(n => [n.id, n.value]));
+  const deepEdges = focused.edges
+    .filter(e => deepValue.has(e.target))
+    .map(e => (fullOf ? { ...e, value: deepValue.get(e.target)! } : e));
   for (const e of focused.edges) highlight.set(edgeKey(e.source, e.target), e.value);
   for (const n of focused.nodes) highlightNodes.add(n.id);
 
@@ -177,8 +201,6 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
     note = NOTE_ITEM_FUNDING;
   } else if (view === 'all' && sel.filter.side === 'expense') {
     note = NOTE_REVENUE_UNKNOWN;
-  } else if (view === 'all' && sel.filter.side === 'revenue') {
-    note = NOTE_EXPENSE_UNKNOWN;
   }
 
   const graph: LocalGraph = {

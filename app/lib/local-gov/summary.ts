@@ -1,6 +1,6 @@
 /**
  * 「データについて」ページに出す要約を、正規化データから集める。純粋関数（HTTP・React なし）。
- * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2（LocalSourcesPage）
+ * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2（app/local/[gov]/about/page.tsx が使う）
  */
 import type { LocalBudgetFile, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
 import { FUNDING_KINDS } from './graph';

@@ -139,6 +139,21 @@ test('表示: 選ぶ箱ごとの開く深さ（設計書 4.3）', () => {
   assert.deepEqual(cols('all', 'moku:general/expense/2-1-1'), ['revenue', 'account', 'kan', 'kou', 'moku']);
 });
 
+test('表示: 図にない箱を指す選択（古い事項の番号・歳入の目・別の見方の ID）は選択なしに戻す', () => {
+  for (const [view, id] of [
+    ['general', 'item:general/expense/2-1-1:99'],
+    ['general', 'kan:general:revenue:1'],
+    ['general', 'moku:general/revenue/1-1-1'],
+    ['all', 'item:general/expense/2-1-1:0'],
+    ['all', 'funding:bond'],
+  ] as const) {
+    const d = composeDisplay(FILE, view, id);
+    assert.equal(d.selected, null, id);
+    assert.equal(d.highlight.size, 0, id);
+    assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))].length, 3, id);
+  }
+});
+
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
   assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });
