@@ -24,7 +24,7 @@ import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
 // opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3）
 const VIEWS: { key: LocalGraphView; label: string; note: string; opens: string }[] = [
-  { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '款を選ぶと目、項・目を選ぶと事項まで開きます' },
+  { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '財源・款を選ぶと目、項・目を選ぶと事項まで開きます' },
   {
     key: 'all',
     label: '全会計',
@@ -157,6 +157,7 @@ function LocalGovContent() {
               >
                 全部の流れを見る
               </button>
+              {display.note && <span className="text-xs text-mirai-text-muted">{display.note}</span>}
             </>
           ) : (
             <span className="text-mirai-text-muted">四角を押すと、その流れだけを表示します（{VIEWS.find(v => v.key === view)?.opens}）</span>

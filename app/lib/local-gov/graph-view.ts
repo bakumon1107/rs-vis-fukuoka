@@ -9,7 +9,7 @@
  *   （目を選んだときの 財源 → 款）は、その割合の太さで重ねる
  */
 import type { LocalBudgetFile, LocalGraph } from '@/types/local-gov';
-import { buildLocalGraph, type LocalGraphFilter, type LocalGraphView } from './graph';
+import { buildLocalGraph, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
 
 /** 最初に出す列の数（深い列は選んだときだけ開く） */
 export const BASE_DEPTH = 3;
@@ -25,6 +25,8 @@ export interface LocalGraphDisplay {
   highlightNodes: Set<string>;
   /** 選んだ目の行の ID（詳細パネルに出す）。目・事項を選んだときだけ */
   row: string | null;
+  /** 資料にない対応に色を付けなかったときの理由（図の上に出す）。なければ null */
+  note: string | null;
 }
 
 export const edgeKey = (source: string, target: string) => `${source}\u0000${target}`;
@@ -82,7 +84,10 @@ export function aggregateTail(
  * 財源・歳入の款（左端の列）は絞り込みにできない（財源の内訳は款より先で按分しないと分けられない）ので、その箱から出る帯だけを重ねる
  */
 export function selectionToFilter(view: LocalGraphView, id: string): { filter: LocalGraphFilter; depth: number } | null {
-  let m = /^kan:(.+):(revenue|expense):(\d+)$/.exec(id);
+  // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）
+  let m = /^funding:(national|bond|other|general)$/.exec(id);
+  if (m && view === 'general') return { filter: { funding: m[1] as FundingKey }, depth: BASE_DEPTH + 1 };
+  m = /^kan:(.+):(revenue|expense):(\d+)$/.exec(id);
   if (m) {
     // 一般会計の見方で款を選んだら目まで（事項まで開くと民生費などで数百件になる）。全会計の見方は項・目まで
     return { filter: { account: m[1], side: m[2] as 'revenue' | 'expense', kan: Number(m[3]) },
@@ -103,18 +108,23 @@ export function selectionToFilter(view: LocalGraphView, id: string): { filter: L
   return null;
 }
 
+/** 資料にない対応に色を付けないときに、図の上に出す理由（設計書 3.3 の表） */
+export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため、財源の帯は色を付けていません';
+export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
+export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
+
 export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, selectedId: string | null): LocalGraphDisplay {
   const base = buildLocalGraph(file, { view, depth: BASE_DEPTH });
   const highlight = new Map<string, number>();
   const highlightNodes = new Set<string>();
-  if (!selectedId) return { graph: base, selected: null, highlight, highlightNodes, row: null };
+  if (!selectedId) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
 
   const sel = selectionToFilter(view, selectedId);
   const nodeOf = (g: LocalGraph) => g.nodes.find(n => n.id === selectedId);
   if (!sel) {
-    // 左端の列の箱: その箱から出る帯だけを重ねる
+    // 絞り込まない左端の箱（全会計の歳入の款）: その箱から出る帯だけを重ねる
     const n = nodeOf(base);
-    if (!n) return { graph: base, selected: null, highlight, highlightNodes, row: null };
+    if (!n) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
     highlightNodes.add(n.id);
     for (const e of base.edges) {
       if (e.source === n.id) {
@@ -122,17 +132,44 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
         highlightNodes.add(e.target);
       }
     }
-    return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes, row: null };
+    const note = n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : null;
+    return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes, row: null, note };
   }
 
   const focused = buildLocalGraph(file, { view, filter: sel.filter, depth: sel.depth });
   const baseCols = new Set(base.columns.map(c => c.key));
-  // 深い列（左の列にない列）は選んだものの分だけ足す。左の列から深い列への帯も選んだものの分
-  const deepNodes = focused.nodes.filter(n => !baseCols.has(n.col));
-  const deepIds = new Set(deepNodes.map(n => n.id));
-  const deepEdges = focused.edges.filter(e => deepIds.has(e.target));
+  // 深い列（左の列にない列）は選んだものの分だけ足す。箱と帯は全体の額で出し（灰色の下地）、選んだものの分は重ねる帯で示す。
+  // 財源で絞り込んだときは、組み立て直したグラフの目の値がその財源の額なので、箱は財源で絞らないグラフから取る（目の額に見えないように）
+  const deepFrom = sel.filter.funding
+    ? buildLocalGraph(file, { view, filter: { ...sel.filter, funding: undefined }, depth: sel.depth })
+    : focused;
+  const focusedDeep = new Set(focused.nodes.filter(n => !baseCols.has(n.col)).map(n => n.id));
+  const deepNodes = deepFrom.nodes.filter(n => focusedDeep.has(n.id));
+  const deepEdges = deepFrom.edges.filter(e => focusedDeep.has(e.target));
   for (const e of focused.edges) highlight.set(edgeKey(e.source, e.target), e.value);
   for (const n of focused.nodes) highlightNodes.add(n.id);
+
+  let note: string | null = null;
+  const item = /^item:/.test(selectedId) ? focused.nodes.find(n => n.id === selectedId) : undefined;
+  if (item) {
+    // 事項を選んだら、款 → 項 → 目 → 事項 に事項の金額だけを重ねる（事項は目に含まれるので按分にならない）。
+    // 財源 → 款 は色を付けない（事項ごとの財源内訳は資料にない）。同じ目のほかの事項は灰色
+    highlight.clear();
+    highlightNodes.clear();
+    for (const e of focused.edges) {
+      if (e.source.startsWith('funding:')) continue;
+      if (e.target.startsWith('item:') && e.target !== item.id) continue;
+      highlight.set(edgeKey(e.source, e.target), item.value);
+      highlightNodes.add(e.source);
+      highlightNodes.add(e.target);
+    }
+    note = NOTE_ITEM_FUNDING;
+  } else if (view === 'all' && sel.filter.side === 'expense') {
+    note = NOTE_REVENUE_UNKNOWN;
+  } else if (view === 'all' && sel.filter.side === 'revenue') {
+    note = NOTE_EXPENSE_UNKNOWN;
+  }
+
   const graph: LocalGraph = {
     ...base,
     columns: focused.columns,
@@ -144,5 +181,5 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   // 右端の深い列の箱が多ければ上位だけ残す（選んだ箱は残す）
   const agg = aggregateTail(graph, highlight, highlightNodes, TOP_N, new Set(selectedId ? [selectedId] : []));
   // 目・事項を選んだら、その目を詳細パネルに出す
-  return { ...agg, selected, row: n?.row ?? null };
+  return { ...agg, selected, row: n?.row ?? null, note };
 }

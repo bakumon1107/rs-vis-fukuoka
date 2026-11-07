@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { aggregateTail, composeDisplay, edgeKey, selectionToFilter } from '../app/lib/local-gov/graph-view';
+import {
+  aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter,
+} from '../app/lib/local-gov/graph-view';
 import { nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts } from '../app/lib/local-gov/summary';
 import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
@@ -121,12 +123,48 @@ test('表示: 目を選ぶと事項まで開き、財源 → 款 の帯はその
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'item').map(n => n.name), ['施設整備費']);
 });
 
-test('表示: 款を選ぶと目まで開く（一般会計）。財源の箱は、その箱から出る帯だけを重ねる', () => {
+test('表示: 款を選ぶと目まで開く（一般会計）', () => {
   const d = composeDisplay(FILE, 'general', 'kan:general:expense:2');
   assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))], ['funding', 'kan', 'kou', 'moku']);
-  const f = composeDisplay(FILE, 'general', 'funding:bond');
-  assert.deepEqual([...f.highlight.values()], [30]);
-  assert.ok(f.highlightNodes.has('kan:general:expense:2'));
+  assert.equal(d.note, null);
+});
+
+test('表示: 財源を選ぶと、各目のその財源の額で 款 → 項 → 目 まで重ねる（按分しない・事項は開かない）', () => {
+  const d = composeDisplay(FILE, 'general', 'funding:bond');
+  assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))], ['funding', 'kan', 'kou', 'moku']);
+  // 地方債は目 2-1-2 の 30 だけ
+  assert.equal(d.highlight.get(edgeKey('funding:bond', 'kan:general:expense:2')), 30);
+  assert.equal(d.highlight.get(edgeKey('kan:general:expense:2', 'kou:general:expense:2-1')), 30);
+  assert.equal(d.highlight.get(edgeKey('kou:general:expense:2-1', 'moku:general/expense/2-1-2')), 30);
+  assert.equal(d.highlight.has(edgeKey('funding:general', 'kan:general:expense:2')), false);
+  // 深い列の目は、地方債のある目だけ。箱は目の額（50）で出し、地方債の分（30）は重ねる帯で示す
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]), [['moku:general/expense/2-1-2', 50]]);
+  assert.ok(!d.highlightNodes.has('funding:general'));
+});
+
+test('表示: 事項を選ぶと、款 → 項 → 目 → 事項 に事項の金額だけを重ね、財源の帯には色を付けない', () => {
+  const d = composeDisplay(FILE, 'general', 'item:general/expense/2-1-1:0');
+  assert.equal(d.selected?.name, '職員費');
+  assert.equal(d.row, 'general/expense/2-1-1');
+  assert.equal(d.note, NOTE_ITEM_FUNDING);
+  assert.equal([...d.highlight.keys()].some(k => k.startsWith('funding:')), false);
+  assert.equal(d.highlight.get(edgeKey('kan:general:expense:2', 'kou:general:expense:2-1')), 60);
+  assert.equal(d.highlight.get(edgeKey('kou:general:expense:2-1', 'moku:general/expense/2-1-1')), 60);
+  assert.equal(d.highlight.get(edgeKey('moku:general/expense/2-1-1', 'item:general/expense/2-1-1:0')), 60);
+  // 同じ目のほかの事項は並べるが灰色
+  assert.ok(d.graph.nodes.some(n => n.id === 'item:general/expense/2-1-1:1'));
+  assert.ok(!d.highlightNodes.has('item:general/expense/2-1-1:1'));
+  assert.ok(!d.highlightNodes.has('funding:general'));
+});
+
+test('表示: 全会計で歳出を選ぶと歳入の列に色を付けない。歳入の款を選ぶと会計から先に色を付けない', () => {
+  const d = composeDisplay(FILE, 'all', 'kan:general:expense:2');
+  assert.equal([...d.highlight.keys()].some(k => k.startsWith('revenue:')), false);
+  assert.ok(d.highlight.get(edgeKey('account:general', 'kan:general:expense:2')));
+  assert.equal(d.note, NOTE_REVENUE_UNKNOWN);
+  const r = composeDisplay(FILE, 'all', 'revenue:繰入金');
+  assert.deepEqual([...r.highlight.keys()], [edgeKey('revenue:繰入金', 'account:special:a')]);
+  assert.equal(r.note, NOTE_EXPENSE_UNKNOWN);
 });
 
 test('表示: 会計の ID に「:」が入っていても絞り込みを読める', () => {
@@ -134,7 +172,9 @@ test('表示: 会計の ID に「:」が入っていても絞り込みを読め�
     { account: 'special:a', side: 'expense', kan: 1 });
   assert.deepEqual(selectionToFilter('all', 'moku:special:a/expense/1-1-1')?.filter,
     { account: 'special:a', side: 'expense', kan: 1, kou: 1, moku: 1 });
-  assert.equal(selectionToFilter('general', 'funding:bond'), null);
+  // 財源は一般会計の見方では目まで追う絞り込みになる。全会計の歳入の款は絞り込まない
+  assert.deepEqual(selectionToFilter('general', 'funding:bond'), { filter: { funding: 'bond' }, depth: 4 });
+  assert.equal(selectionToFilter('all', 'revenue:県税'), null);
 });
 
 test('表示: 右端の深い列の箱が多ければ上位だけ残し、残りを「その他」にまとめる（帯と重ねも足し合わせる）', () => {

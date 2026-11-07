@@ -33,6 +33,11 @@ export interface LocalGraphFilter {
   kan?: number;
   kou?: number;
   moku?: number;
+  /**
+   * 財源（一般会計の見方だけ）。各目の財源内訳のうちこの財源の額で 財源 → 款 → 項 → 目 を組み立てる
+   * （財源内訳は目ごとに印字されているので按分にならない）。事項ごとの財源内訳は資料にないので、事項の列は作らない
+   */
+  funding?: FundingKey;
 }
 
 export interface LocalGraphOptions {
@@ -49,6 +54,8 @@ export const FUNDING_KINDS = [
   { key: 'other', label: 'その他' },
   { key: 'general', label: '一般財源' },
 ] as const;
+
+export type FundingKey = (typeof FUNDING_KINDS)[number]['key'];
 
 const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
   general: [
@@ -115,9 +122,10 @@ const mokuId = (r: MokuRow) => `moku:${r.id}`;
 /**
  * 款 → 項 → 目（→ 事項）の帯を足す。cols は作る列の key の一覧。
  * from: 款へ流し込む左の列のノード（全会計の見方の会計）。null なら款への帯は足さない（一般会計の見方は財源の帯が担う）
+ * value: 款 → 項 → 目 に流す額（省略時は目の本年度）。財源で絞り込んだときはその財源の額で、事項は作らない
  */
-function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: string | null) {
-  const v = amountOf(r);
+function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: string | null, value?: Yen) {
+  const v = value ?? amountOf(r);
   if (!cols.has('kan')) return;
   const kan = b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) });
   if (from) b.edge(from, kan, v);
@@ -127,7 +135,7 @@ function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: stri
   if (!cols.has('moku')) return;
   const moku = b.node(mokuId(r), 'moku', r.moku.name, { row: r.id, flags: nameFlags(r.moku.name_src) });
   b.edge(kou, moku, v);
-  if (!cols.has('item') || !r.items) return;
+  if (!cols.has('item') || !r.items || value !== undefined) return;
   // 事項は親の事項だけ（入れ子の内訳は親に含まれる）。事項のない目（税交付金・公債費の元金など）は目で止まる
   r.items.forEach((it, i) => {
     if (it.parent !== undefined || it.amount.v === null) return;
@@ -144,19 +152,27 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
   let gross = 0;
 
   if (opts.view === 'general') {
+    const only = opts.filter?.funding;
     for (const r of rows) {
       if (r.account !== 'general' || r.side !== 'expense') continue;
-      gross += amountOf(r);
+      if (!only) gross += amountOf(r);
       if (!r.funding) continue;
       // 財源 → 款: その目の財源内訳（印字された数字）をそのまま款へ流す。款の財源は、含まれる目の財源の合計になる
       const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
       for (const f of FUNDING_KINDS) {
+        if (only && f.key !== only) continue;
         const fv = r.funding[f.key].v ?? 0;
         const fund = b.node(`funding:${f.key}`, 'funding', f.label);
         if (kan) b.edge(fund, kan, fv);
       }
-      // 款から先（款 → 項 → 目 → 事項）。款への入りは上の財源の帯
-      addHierarchy(b, r, cols, null);
+      // 款から先（款 → 項 → 目 → 事項）。款への入りは上の財源の帯。財源で絞り込んだら、その財源の額で目まで
+      if (only) {
+        const fv = r.funding[only].v ?? 0;
+        gross += fv;
+        addHierarchy(b, r, cols, null, fv);
+      } else {
+        addHierarchy(b, r, cols, null);
+      }
     }
   } else {
     for (const r of rows) {
