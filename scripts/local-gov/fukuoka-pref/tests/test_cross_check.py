@@ -62,10 +62,11 @@ class TestResolveSetsu:
 
     def test_adjacent_same_name_on_other_line_is_kept(self):
         # 隣の行が同じ名前・同じ額でも、別の行（節とその細節が同じ名前・同じ額など）なら消さずに細節に直し、要確認と記録する
-        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "y": 100},
-              {"no": None, "label": "期末手当", "amount": 300, "top": True, "y": 190},
-              {"no": None, "label": "期末手当", "amount": 300, "top": False, "y": 280},
-              {"no": 2, "label": "給料", "amount": 400, "top": True, "y": 370}]
+        # 同じページ（page を付けて y 座標の比較まで進める）で、隣の行は1行下（y が 90 離れる）
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True, "page": 10, "y": 100},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True, "page": 10, "y": 190},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False, "page": 10, "y": 280},
+              {"no": 2, "label": "給料", "amount": 400, "top": True, "page": 10, "y": 370}]
         m = moku(1000, ss)
         t = moku(1000, setsu((1, 600), (2, 400)))
         new, notes = cc.resolve_setsu(m, t)
