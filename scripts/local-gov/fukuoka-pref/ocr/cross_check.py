@@ -19,6 +19,9 @@ import json
 import sys
 from collections import Counter
 
+# 同じ印字の行とみなす y 座標の差（ページの画像の画素）。R8 の説明書で、節の欄の隣り合う行の間隔は 84〜98（最小 84）なので、その半分
+SAME_LINE_DY = 40
+
 
 def key(m):
     return (m.get("会計"), m["side"], m["款"], (m["項"] or (None,))[0], m["目番号"])
@@ -279,9 +282,30 @@ def resolve_setsu(m, t, th=None):
                     n["amount"], n["出典"] = val, "文字層"
                     break
         elif op == "drop":
+            # 節の合計から外す番号なしの行は2種類ある:
+            # - 同じ印字の行を2度読んだ重複（読み取りの並びで隣の行が、区分の文字も金額も同じで、y 座標も同じ行）→ 消す
+            # - 字下げの判定で節と見なされた細節 → 消さずに細節に直す（R8 6款5項5目 職員手当等の「期末手当 799」、
+            #   8款2項5目 旅費の「費用弁償 4,067」。消すと細節が欠けていた）
+            # 消すのは位置で重複と言えるときだけ。離れた行（別の節の細節など）や、隣でも別の行（節とその細節が同じ名前・同じ額など）、
+            # y 座標のない行は消さずに細節に直す（消すと実在する細節が欠ける）。隣の別の行が同じ名前・同じ額のときは要確認と記録する。
+            # 細節に直した行の所属は、書き出し（export）で印字の順の直前の節になり、細節の合計 = 節の額 の検証で確かめる
+            k = next(i for i, o in enumerate(m["節"]) if o is s)
+            same = [o for o in (m["節"][i] for i in (k - 1, k + 1) if 0 <= i < len(m["節"]))
+                    if o["amount"] == s["amount"] and o.get("label") == s.get("label")]
+            # 同じ印字の行 = 同じページで y 座標がほぼ同じ（節は複数ページにまたがって結合されるので、ページも比べる。どちらかが不明なら消さない）
+            def same_line(o):
+                if any(x.get(f) is None for x in (s, o) for f in ("page", "y")):
+                    return False
+                return o["page"] == s["page"] and abs(o["y"] - s["y"]) < SAME_LINE_DY
+            dup = any(same_line(o) for o in same)
             for j, n in enumerate(new):
-                if n.get("no") is None and n["amount"] == s["amount"]:
-                    new.pop(j)
+                if n.get("no") is None and n["amount"] == s["amount"] and n.get("top", True):
+                    if dup:
+                        new.pop(j)
+                    else:
+                        n["top"], n["節から細節に"] = False, True
+                        if same:
+                            notes.append(f"要確認: 番号なしの行 {s['amount']} は隣の行と同じ名前・同じ額（別の行なので細節として残す）")
                     break
         elif op == "add":
             new.append(dict(s, 出典="文字層"))

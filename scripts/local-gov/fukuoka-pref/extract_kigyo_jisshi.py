@@ -18,10 +18,14 @@
 - 款・項の金額 = 予算書の本体の第3条・第4条（並び順で対応）
 """
 import json
+import os
 import re
 import sys
 
 import pdfplumber
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python3 -P でも同じディレクトリの部品を読む
+from name_lines import NameJoiner  # noqa: E402
 
 AMT = re.compile(r"^\d{1,3}(,\d{3})*$")
 
@@ -51,8 +55,9 @@ def main():
     with pdfplumber.open(pdf_path) as pdf:
         cur = None
         anchors = None
-        pending_name = ""
+        names = NameJoiner(prepend_to_named=True)  # 行に分かれた款・項・目の名前をつなぐ（name_lines.py）
         for pno, page in enumerate(pdf.pages, 1):
+            names.reset()  # 前のページの末尾のかけらを、このページの名前に付けない
             text = (page.extract_text() or "").replace(" ", "")
             m = re.search(r"令和\d+年度福岡県(\S+?事業会計)予算実施計画", text)
             if m:
@@ -103,44 +108,35 @@ def main():
                     namepart = "".join(w["text"] for w in row if w not in frags and 150 <= w["x0"] < 500)
                     if namepart and not frags:
                         # 2行に分かれた名前は「上の行／番号と金額だけの行／下の行」と並ぶ（病院事業「支払利息及び／企業債取扱諸費」）。
-                        # 上の行は次の番号の行へ回し、下の行はその番号の行に足す
-                        if last is not None and last.get("_name_open"):
-                            last["name"] += namepart
-                            last["_name_open"] = False
-                        elif last is not None and not last["name"]:
-                            last["name"] = namepart
-                        else:
-                            pending_name = namepart
+                        # 上の行は次の番号の行へ回し、下の行はその番号の行に足す（name_lines.NameJoiner）
+                        names.name_only(namepart)
                     continue
                 x = lead["x0"]
                 level = "款" if x < (anchors["款"] + anchors["項"]) / 2 else ("項" if x < (anchors["項"] + anchors["目"]) / 2 else "目")
                 name = "".join(w["text"] for w in row[1:] if w not in frags and w["x0"] < 500)
-                name_open = False
-                if pending_name:
-                    name_open = not name  # 番号の行に名前がなければ、下の行が続く
-                    name = pending_name + name
-                    pending_name = ""
-                lst0 = _last(cur[sec][side])
-                if lst0 is not None:
-                    lst0.pop("_name_open", None)
-                rec = {"no": int(lead["text"]), "name": name, "_frag": "".join(w["text"] for w in frags), "pdf_page": pno,
-                       "_name_open": name_open}
+                # 番号の行にも名前があるときも、上の行の名前を前に付け足す書き方（「流域下水道／管理費負担金」）
+                name = names.entry_name(name)
+                rec = {"no": int(lead["text"]), "name": name, "_frag": "".join(w["text"] for w in frags), "pdf_page": pno}
                 lst = cur[sec][side]
+                entry = None
                 if level == "款":
-                    lst.append({**rec, "項": []})
+                    entry = {**rec, "項": []}
+                    lst.append(entry)
                 elif level == "項" and lst:
-                    lst[-1]["項"].append({**rec, "目": []})
+                    entry = {**rec, "目": []}
+                    lst[-1]["項"].append(entry)
                 elif level == "目" and lst and lst[-1]["項"]:
-                    lst[-1]["項"][-1]["目"].append(rec)
+                    entry = rec
+                    lst[-1]["項"][-1]["目"].append(entry)
                 else:
                     fail(f"p{pno}: 親のない{level}の行「{joined}」")
+                names.opened(entry)
     # 金額の確定と検算
     for k in out:
         for sec in ("収益的収入及び支出", "資本的収入及び支出"):
             for side in ("収入", "支出"):
                 for kan in k[sec][side]:
                     for node in [kan] + kan["項"] + [mo for kou in kan["項"] for mo in kou["目"]]:
-                        node.pop("_name_open", None)
                         f = node.pop("_frag")
                         node["金額"] = int(f.replace(",", "")) if AMT.match(f) else None
                         if node["金額"] is None:

@@ -23,6 +23,10 @@ import re
 import sys
 from collections import defaultdict
 
+# 正規表現の文字の範囲: ひらがな・カタカナ（U+3040〜U+30FF）と CJK 統合漢字（U+4E00〜U+9FFF）。
+# 文字そのものを書くと U+3040 が目に見えず範囲が読めないので、コードの数値から組み立てる
+JA_CHARS = f"{chr(0x3040)}-{chr(0x30FF)}{chr(0x4E00)}-{chr(0x9FFF)}"
+
 AMOUNT_RE = re.compile(r"^[△▲A^\-]?\s*(\d{1,3}(?:[,，.]\d{3})+|\d{1,3})$")
 
 # 中国語モデルが出す簡体字・異体字を日本の字形に直す（名称の表示用。金額の検算には使わない）
@@ -58,8 +62,9 @@ def norm_name(s: str) -> str:
     s = s.strip()
     # 事項の印「○」は先頭で「O」「〇」「0」と読まれる。数字の 0 と英字の O は先頭（次が日本語の字）だけを直す。
     # 名前の途中まで直すと、人数の「10人」が「1○人」に、「ＦＯＦ事務所」が「F○F事務所」になる（R8 で実例）
-    # ただし先頭の「0」の次が数の単位・助数詞（「0歳児保育」）なら、本当の数字なので直さない
-    s = re.sub(r"^(?:O|0(?![歳年月日人円回号次件か]))(?=[^\x00-\x7f])", "○", s)
+    # ただし先頭の「0」の次が年齢の単位（「0歳児保育」「0か月児」）なら、本当の数字なので直さない。
+    # 例外を広げすぎない: 「人・日・年・円・次」などは名前の頭にも来る（「○人材活躍…」が「0人材活躍…」のまま残った実例）
+    s = re.sub(r"^(?:O|0(?!歳|[かヶカ]月))(?=[^\x00-\x7f])", "○", s)
     return s.translate(SIMP).replace(" ", "")
 
 
@@ -111,24 +116,83 @@ def parse_explanations(items):
     return out, rest
 
 
-def parse_setsu(labels, amounts, col_left=None):
+# 節の区切りの横線が読めないときの、名前の行と金額の中心の高さの差の上限（300dpi の px）
+MAX_SETSU_LINE_GAP = 100
+
+
+def setsu_separators(hlines, labels):
+    """節の欄を横切る区切りの横線の高さ。節は1件ずつ横線で区切られる（細節は内側の枠なので、欄の左端までは届かない）。"""
+    if not hlines or not labels:
+        return []
+    x0, x1 = min(d["x0"] for d in labels), max(d["x1"] for d in labels)
+    return sorted(h["y"] for h in hlines if h["x0"] <= x0 + 10 and h["x1"] >= x1 - 10)
+
+
+def parse_setsu(labels, amounts, col_left=None, seps=None):
     """節: 区分と金額を高さで対応させる。
     節と細節の区別は字下げで行う（細節は内側の枠に入り、列の左端から 30px 以上右に始まる。300dpi・R8 で確認）。
-    番号の有無だけで区別すると、名前が2行にわたる節（番号が縦中央に別の文字として読まれる）を細節と誤認する。"""
-    lab_lines = lines_of(labels)
-    res = []
-    for d in sorted(amounts, key=lambda d: d["y0"]):
-        a = amount(d["text"])
-        if a is None:
-            continue
+    番号の有無だけで区別すると、名前が2行にわたる節（番号が縦中央に別の文字として読まれる）を細節と誤認する。
+    seps: 節の区切りの横線の高さ（setsu_separators）。名前の行は、間に区切りのない金額にだけ割り当てる。"""
+    # 名前が2行以上の節（「13 使用料及び／賃借料」）は、金額が行の真ん中に印字され、番号も行の間に単独で印字される。
+    # 金額にいちばん近い1行だけを名前にすると片方の行と番号を取りこぼす（番号の読めない歳入の節 59件のほとんど。2026-11-06）。
+    # 名前の各行と単独の番号を「いちばん近い金額」に割り当て、同じ金額に割り当たった行を上から順につなぐ
+    # 単独の数字は節番号。ただし、名前の単語と同じ行にあってその直後（右）に続く数字は名前の一部
+    # （「苅田港本港 6／地区埠頭用地…」の「6」。節番号「7」より近くにあり、節番号として拾っていた。281299 p96）
+    digit_words = [d for d in labels if re.fullmatch(r"\s*\d{1,2}\s*", d["text"])]
+    name_words = [d for d in labels if d not in digit_words]
+
+    def follows_name(d):
         cy = (d["y0"] + d["y1"]) / 2
-        best = min(lab_lines, key=lambda r: abs((min(x["y0"] for x in r) + max(x["y1"] for x in r)) / 2 - cy), default=None)
-        label = "".join(x["text"] for x in best) if best else ""
-        # 「酬 1報」のように番号の付いた断片が後ろに来ることがあるので、番号はどこにあっても拾う
-        mnum = re.search(r"(\d{1,2})", label)
-        left = min(x["x0"] for x in best) if best else None
+        return any(w["y0"] <= cy <= w["y1"] and w["x1"] - 5 <= d["x0"] for w in name_words)
+    nums = [d for d in digit_words if not follows_name(d)]
+    lab_lines = lines_of([d for d in labels if d not in nums])
+    amts = [(d, amount(d["text"])) for d in sorted(amounts, key=lambda d: d["y0"])]
+    amts = [(d, a) for d, a in amts if a is not None]
+    if not amts:
+        return []
+    centers = [(d["y0"] + d["y1"]) / 2 for d, _ in amts]
+
+    def nearest(y0, y1):
+        """いちばん近い金額の添字。間に節の区切りの横線があれば None（金額の読めなかった別の節の行。281299 p75「2 雑入」・
+        p83「5 小規模企業者等…」が前の節の名前につながった）。区切りの線がなければ高さの差で判断する。
+        高さの差だけでは決められない: 5行の名前の外側の行（約90px）と、次の節の1行目（約91px）が同じくらい離れる"""
+        cy = (y0 + y1) / 2
+        i = min(range(len(centers)), key=lambda i: abs(centers[i] - cy))
+        lo, hi = sorted((cy, centers[i]))
+        if seps:
+            return None if any(lo < s < hi for s in seps) else i
+        return i if hi - lo <= MAX_SETSU_LINE_GAP else None
+
+    lines_for = [[] for _ in amts]
+    for r in lab_lines:
+        i = nearest(min(x["y0"] for x in r), max(x["y1"] for x in r))
+        if i is not None:
+            lines_for[i].append(r)
+    nums_for = [[] for _ in amts]
+    for d in nums:
+        i = nearest(d["y0"], d["y1"])
+        if i is not None:
+            nums_for[i].append(d)
+    res = []
+    for i, (d, a) in enumerate(amts):
+        rows = sorted(lines_for[i], key=lambda r: min(x["y0"] for x in r))
+        words = [x["text"] for r in rows for x in r]
+        # 番号は単独の文字か、名前の断片の頭（「酬 1報」のように番号の付いた断片が後ろに来ることもある）。
+        # 断片の頭の1〜2桁だけを番号とし、名前の中の数字（「人生100年」の「10」）は拾わない（番号の後に数字が続けば番号でない）
+        mnum = re.search(r"(\d{1,2})", nums_for[i][0]["text"]) if nums_for[i] else None
+        if mnum is None:
+            for k, wtext in enumerate(words):
+                mnum = re.match(r"\s*(\d{1,2})(?!\d)", wtext)
+                if mnum:
+                    words[k] = wtext[mnum.end():]  # 番号の部分だけを名前から外す
+                    break
+        label = "".join(words)
+        xs = [x["x0"] for r in rows for x in r] + [n["x0"] for n in nums_for[i]]
+        left = min(xs) if xs else None
         is_top = (left - col_left < 30) if (col_left is not None and left is not None) else bool(mnum)
-        res.append({"label": norm_name(re.sub(r"\d", "", label)), "no": int(mnum.group(1)) if mnum else None,
+        # 細節を囲む括弧の線が「L」「I」「|」「｜」と読まれて名前の先頭に付く（「L証紙収入」「I高等学校使用料」）
+        label = re.sub(r"^[LI|｜]+", "", label.strip())
+        res.append({"label": norm_name(label), "no": int(mnum.group(1)) if mnum else None,
                     "top": is_top, "amount": a, "y": d["y0"]})
     return res
 
@@ -178,7 +242,43 @@ def moku_name(items):
     return (int(mno.group(1)) if mno else None), txt
 
 
-# 「特別会計歳入歳出予算事項別明細書」。間の「歳入歳出予算事項別」（9字）は OCR で崩れて字数が変わる（「入出予算事项别」）
+KOU_MARK = "项項填頂顶"  # 「項」の字の OCR の読み違い
+
+
+def title_rows(words, tol=40):
+    """表の見出しの単語を行ごとにまとめ、行の中は左から順につなぐ。
+    見出しは2段（上が「N款 名前」、下が「N項 名前」）で、名前は字間が広く1字ずつ別の単語に読まれる。
+    OCR の返した順につなぐと段と字の順が混ざる（「1款事」「務費」「1项事」「費」「務」→「1款事務費1项事費務」。281299 p13）。"""
+    rows = []
+    for d in sorted(words, key=lambda d: (d["y0"] + d["y1"]) / 2):
+        cy = (d["y0"] + d["y1"]) / 2
+        if rows and abs(cy - rows[-1][0]) < tol:
+            rows[-1][1].append(d)
+        else:
+            rows.append([cy, [d]])
+    return ["".join(d["text"] for d in sorted(r, key=lambda d: d["x0"])).replace(" ", "") for _, r in rows]
+
+
+def title_names(rows):
+    """表の見出しの行（title_rows）から (款名, 項名) を取り出す。読めなければ None。
+    名前の照合で、予算書の本体（議案の文字層）の款・項の名前と突き合わせる「独立した2つ目の読み取り」に使う。
+    「N款 名前」「N項 名前」の形で読めたものだけを取る（「場利用税6」のように番号が後ろに回ったものは取らない）。"""
+    kan = kou = None
+    for t in rows:
+        t = re.sub(r"[（(][^）)]*[）)]", "", t)
+        t = re.sub(r"[-—－‐一ー]\s*\d+\s*[-—－‐一ー]?", "", t)
+        # 款の番号とつながったページ番号（「4923款」）。2桁の款の番号（「11款」）は残す
+        t = re.sub(r"^\d{3}(?=\d{1,2}\s*款)", "", t)
+        t = re.sub(r"^\d\s*[歳岁][入出]", "", t)  # 「2歳入」「3歳出」
+        mk = re.search(rf"\d{{1,2}}\s*款\s*([{JA_CHARS}・]+?)(?=\d{{1,2}}\s*[{KOU_MARK}]|$)", t)
+        mo = re.search(rf"\d{{1,2}}\s*[{KOU_MARK}]\s*([{JA_CHARS}・、]+)$", t)
+        if mk and kan is None:
+            kan = mk.group(1)
+        if mo and kou is None:
+            kou = mo.group(1)
+    return kan, kou
+
+
 def choose_kou(title: str, cands, prev_no):
     """表の見出しから項を決める。見出しの「項」の字は OCR で落ちる・別の字になる（填・頂・项）、
     番号が名前の後ろに回る（「場利用税6」）ので、正規表現だけでは項の切り替わりを見落とす
@@ -197,13 +297,13 @@ def choose_kou(title: str, cands, prev_no):
     # ただし「10項」のように番号と項の字がはっきり読めていれば、名前が1文字でも新しい項とみなす
     # （PP-OCRv6 で「狩10項」。狩猟税の名前が「狩」しか残らず、項を見落として鉱区税に入れた実例）
     explicit = re.search(r"\d{1,2}\s*[项項填頂顶]", t)
-    n_chars = len(re.findall(r"[぀-ヿ一-鿿]", name))
+    n_chars = len(re.findall(rf"[{JA_CHARS}]", name))
     if not cands or (n_chars < 2 and not (explicit and n_chars >= 1)):
         return None
     nums = [int(x) for x in re.findall(r"\d{1,2}", t)]
     best, best_score = None, -1.0
     for no, cname in cands:
-        cn = re.sub(r"[^぀-ヿ一-鿿]", "", cname)
+        cn = re.sub(rf"[^{JA_CHARS}]", "", cname)
         s = difflib.SequenceMatcher(None, name, cn).ratio()
         if no in nums:
             s += 0.5
@@ -262,6 +362,7 @@ def apply_corrections(moku_list):
     print(f"修正表: {len(fixes)} 件を当てた", file=sys.stderr)
 
 
+# 「特別会計歳入歳出予算事項別明細書」。間の「歳入歳出予算事項別」（9字）は OCR で崩れて字数が変わる（「入出予算事项别」）
 KAIKEI_RE = re.compile(r"特[别別]会[計计].{0,12}明[細细]書")
 
 
@@ -286,6 +387,7 @@ def main():
     kaikei_i = -1
     skipping = False
     cur_side = None
+    cur_kan_title = cur_kou_title = None  # 見出しの OCR で読んだ款名・項名
     # 予算書の本体の款・項（extract_yosansho.py の出力）。項の決定と、項の合計の照合に使う
     yo = json.load(open(sys.argv[sys.argv.index("--yosansho") + 1], encoding="utf-8")) if "--yosansho" in sys.argv else None
     kou_names: dict = {}
@@ -345,8 +447,11 @@ def main():
             title = re.sub(r"^\d{3}(?=\D|\d款)", "", title)
             mk = re.search(r"(?<!\d)(\d{1,2})款", title)
             kan_changed = False
+            t_kan, t_kou = title_names(title_rows(t["title"]))
             if mk and int(mk.group(1)) != cur_kan:
                 cur_kan, cur_kou, kan_changed = int(mk.group(1)), None, True
+                cur_kan_title = norm_name(t_kan) if t_kan else None
+                cur_kou_title = None
             cands = kou_names.get((cur_kaikei, side_now, cur_kan))
             if cands:
                 ch = choose_kou(title, cands, cur_kou[0] if cur_kou else None)
@@ -354,6 +459,8 @@ def main():
                     ch = cands[0]  # 款の見出しだけで項の部分が読めない（「11款寄1寄金附」）→ 款の最初の項
                 if ch:
                     cur_kou = ch
+                    # 見出しで読んだ項名（議案の項名と突き合わせる2つ目の読み取り）。この見出しで読めなければ None
+                    cur_kou_title = norm_name(t_kou) if t_kou else None
             else:
                 mq = re.search(r"(\d+)[项項填頂顶]([^（(]*)", title)
                 if mq:
@@ -373,7 +480,9 @@ def main():
                 expl, rest = parse_explanations(cell[10])
                 vl = rec.get("vlines") or []
                 setsu_left = vl[8] if (not t.get("revenue") and len(vl) > 8) else None
-                setsu = parse_setsu(cell[8], cell[9], setsu_left)
+                setsu = parse_setsu(cell[8], cell[9], setsu_left, setsu_separators(rec.get("hlines"), cell[8]))
+                for s in setsu:
+                    s["page"] = page  # 目が複数ページにまたがるとき、節がどのページにあるか（名前を画像で確かめるため）
                 if t.get("revenue"):
                     # 歳入の節は列の左端から 45〜52px に印字され、細節はほぼない（R8 で実測）。すべて節として扱う
                     for s in setsu:
@@ -409,6 +518,7 @@ def main():
                 moku_list.append({
                     "kind": "目", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
                     "款": cur_kan, "項": cur_kou, "目番号": mno_val,
+                    "款_見出し": cur_kan_title, "項_見出し": cur_kou_title,
                     "目名": norm_name(name_body),
                     "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
                     "財源": zaigen, "財源の断片": zaigen_parts, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
