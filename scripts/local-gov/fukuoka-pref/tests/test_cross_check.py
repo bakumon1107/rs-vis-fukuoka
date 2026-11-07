@@ -47,6 +47,18 @@ class TestResolveSetsu:
         new, _ = cc.resolve_setsu(m, t)
         assert [(s["label"], s.get("top", True)) for s in new] == [("報酬", True), ("給料", True), ("期末手当", False)]
 
+    def test_drop_same_name_in_other_setsu_is_not_duplicate(self):
+        # 別の節の細節に同じ名前・同じ額の行があっても、隣り合っていなければ重複ではない。消さずに細節に直す
+        ss = [{"no": 1, "label": "報酬", "amount": 600, "top": True},
+              {"no": None, "label": "期末手当", "amount": 300, "top": False},
+              {"no": 2, "label": "給料", "amount": 400, "top": True},
+              {"no": None, "label": "期末手当", "amount": 300, "top": True}]
+        m = moku(1000, ss)
+        t = moku(1000, setsu((1, 600), (2, 400)))
+        new, _ = cc.resolve_setsu(m, t)
+        subs = [(s["label"], s.get("節から細節に", False)) for s in new if not s.get("top", True)]
+        assert sorted(subs) == [("期末手当", False), ("期末手当", True)]
+
     def test_ambiguous_is_rejected(self):
         # 合う組み合わせが同じ変更数で2通りあるときは採用しない
         m = moku(100, setsu((1, 50), (2, 40)))
