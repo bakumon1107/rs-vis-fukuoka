@@ -205,4 +205,9 @@ test('実データ（福岡県 R8）: 一般会計の列の合計がすべて歳
   for (const n of g.nodes) {
     if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
   }
+  // サンキー図は負の太さの帯を描けない。どちらの見方でも帯の値はすべて正（負の値が来たら graph.ts の扱いを決める）
+  for (const view of ['general', 'all'] as const) {
+    const neg = buildLocalGraph(file, { view }).edges.filter(e => e.value < 0);
+    assert.deepEqual(neg, [], `${view} に負の帯`);
+  }
 });

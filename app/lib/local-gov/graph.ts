@@ -80,6 +80,8 @@ class GraphBuilder {
   }
 
   edge(source: string, target: string, value: Yen) {
+    // 0 円の帯は作らない。負の値（財源内訳の △・補正の減額）は想定していない: サンキー図は負の太さを描けないので、
+    // 補正後（latest）を組み立てるときに扱い（減額は別の列にする など）を決める。実データのテストで負の帯がないことを確かめている
     if (value === 0) return;
     const k = `${source}\u0000${target}`;
     const e = this.edges.get(k);

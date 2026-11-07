@@ -4,7 +4,7 @@
  * 地方版のサンキー図（/local/<自治体>。例 /local/fukuoka-pref）。
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md
  *
- * ページは状態（見方・選択。URL のクエリに持つ）とデータの読み込み・レイアウトだけを持つ。
+ * ページは状態（年度・見方・選択。URL のクエリに持つ）とデータの読み込み・レイアウトだけを持つ。
  * グラフの組み立ては app/lib/local-gov（純粋関数）、描画は client/components/local-gov。
  */
 import Link from 'next/link';
@@ -22,9 +22,15 @@ import { sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
-const VIEWS: { key: LocalGraphView; label: string; note: string }[] = [
-  { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項' },
-  { key: 'all', label: '全会計', note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）' },
+// opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3）
+const VIEWS: { key: LocalGraphView; label: string; note: string; opens: string }[] = [
+  { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '款を選ぶと目、項・目を選ぶと事項まで開きます' },
+  {
+    key: 'all',
+    label: '全会計',
+    note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
+    opens: '会計を選ぶと項、款・項を選ぶと目まで開きます',
+  },
 ];
 
 export default function LocalGovPage() {
@@ -153,7 +159,7 @@ function LocalGovContent() {
               </button>
             </>
           ) : (
-            <span className="text-mirai-text-muted">四角を押すと、その流れだけを表示します（款・項を選ぶと、その先の目・事項が開きます）</span>
+            <span className="text-mirai-text-muted">四角を押すと、その流れだけを表示します（{VIEWS.find(v => v.key === view)?.opens}）</span>
           )}
           <span className="ml-auto text-xs text-mirai-text-muted">
             <span className="text-amber-700">※</span> 名前は読み取り（資料で裏付けが取れていない）
