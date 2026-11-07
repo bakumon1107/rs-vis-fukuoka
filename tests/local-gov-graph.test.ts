@@ -9,7 +9,8 @@ import {
 import {
   nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueCorrections, valueSourceCounts, zeroAmountRows,
 } from '../app/lib/local-gov/summary';
-import type { LocalBudgetFile, LocalGraph, MokuRow, Value } from '../types/local-gov';
+import { pickDataset } from '../client/hooks/useLocalBudget';
+import type { LocalBudgetFile, LocalGovIndex, LocalGraph, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number): Value => ({ v: n, src: 'ocr' });
 
@@ -169,6 +170,46 @@ test('一般会計: 財源内訳のない目は「財源の記載なし」の箱
   const d = composeDisplay(f, 'general', 'funding:none');
   assert.equal(d.highlight.get(edgeKey('kou:general:expense:3-1', 'moku:general/expense/3-1-2')), 7);
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.id), ['moku:general/expense/3-1-2']);
+});
+
+test('全会計: 公営企業会計はデータにあっても描かない（歳入と歳出が一致しない様式）', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    accounts: [...FILE.accounts, { id: 'enterprise:hospital', kind: 'enterprise', name: '病院事業会計' }],
+    rows: [
+      ...FILE.rows,
+      row('enterprise:hospital/revenue/1-1-1', { amount: v(100) }),
+      row('enterprise:hospital/expense/1-1-1', { amount: v(120) }),
+    ],
+  };
+  const g = buildLocalGraph(f, { view: 'all' });
+  assert.ok(!g.nodes.some(n => n.id.includes('enterprise:hospital')));
+  assert.equal(g.totals.gross, buildLocalGraph(FILE, { view: 'all' }).totals.gross);
+});
+
+test('名前の出典がない名前は、読み取りのみ（ocr）と同じく印を付ける', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [row('general/expense/4-1-1', { amount: v(10), funding: fund(0, 0, 0, 10),
+      kan: { no: 4, name: '款4', name_src: 'text' }, kou: { no: 1, name: '項4-1' } })],
+  };
+  const g = buildLocalGraph(f, { view: 'general' });
+  assert.equal(g.nodes.find(n => n.id === 'kan:general:expense:4')?.flags, undefined);
+  assert.deepEqual(g.nodes.find(n => n.id === 'kou:general:expense:4-1')?.flags, ['name-ocr']);
+});
+
+test('データの一覧: 年度の指定がなければ、その基準で最も新しい年度（並び順に頼らない）', () => {
+  const index = {
+    schema_version: 1, gov: { id: 't', name: 'テスト県', kind: 'prefecture' }, sources: [],
+    datasets: [
+      { year: 2026, label: '令和8年度', basis: 'initial', file: 'b-2026.json', status: 'verified' },
+      { year: 2025, label: '令和7年度', basis: 'initial', file: 'b-2025.json', status: 'verified' },
+      { year: 2027, label: '令和9年度', basis: 'settlement', file: 's-2027.json', status: 'verified' },
+    ],
+  } as LocalGovIndex;
+  assert.equal(pickDataset(index, 'initial')?.year, 2026);
+  assert.equal(pickDataset(index, 'initial', 2025)?.file, 'b-2025.json');
+  assert.equal(pickDataset(index, 'initial', 2024), undefined);
 });
 
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {

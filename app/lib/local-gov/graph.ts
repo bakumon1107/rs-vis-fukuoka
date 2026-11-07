@@ -110,7 +110,8 @@ function matches(row: MokuRow, f: LocalGraphFilter | undefined): boolean {
 
 /** 名前の確からしさの印（画面で「名前は読み取り」を付ける） */
 function nameFlags(src: string | undefined): string[] | undefined {
-  return src === 'ocr' ? ['name-ocr'] : undefined;
+  // 名前の出典がない名前（name_src は省略できる）も裏付けがないので、ocr と同じに扱う（設計書 4.4）
+  return src === undefined || src === 'ocr' ? ['name-ocr'] : undefined;
 }
 
 const amountOf = (row: MokuRow): Yen => row.amount.v ?? 0;
@@ -151,8 +152,9 @@ function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: stri
  */
 function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
   const accountsOf = new Map<string, Set<string>>();
+  const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
   for (const r of file.rows) {
-    if (r.side !== 'expense') continue;
+    if (r.side !== 'expense' || enterprise.has(r.account)) continue;
     const s = accountsOf.get(r.kan.name) ?? new Set<string>();
     s.add(r.account);
     accountsOf.set(r.kan.name, s);
@@ -213,6 +215,8 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     const dupKan = duplicatedExpenseKanNames(file);
     for (const r of rows) {
       const acc = file.accounts.find(a => a.id === r.account);
+      // 公営企業会計は描かない（収益的・資本的収支に分かれ歳入と歳出が一致しない。設計書 3.2）
+      if (acc?.kind === 'enterprise') continue;
       const accName = acc?.name ?? r.account;
       const accNode = b.node(`account:${r.account}`, 'account', accName);
       if (r.side === 'revenue') {

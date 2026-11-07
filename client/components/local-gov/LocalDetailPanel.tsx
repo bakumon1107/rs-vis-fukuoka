@@ -35,7 +35,8 @@ function Mark({ v }: { v: Value | undefined }) {
 }
 
 function NameMark({ src }: { src?: NameSource }) {
-  if (src !== 'ocr') return null;
+  // 名前の出典がない名前も裏付けがないので、ocr と同じに扱う（設計書 4.4。図の印・「データについて」の件数と同じ）
+  if (src !== undefined && src !== 'ocr') return null;
   return <span className="ml-1 text-[10px] text-amber-700" title={NAME_SRC_LABEL.ocr}>※名前は読み取り</span>;
 }
 

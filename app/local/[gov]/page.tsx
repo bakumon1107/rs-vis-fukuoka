@@ -104,8 +104,6 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
-  // 公営企業会計は歳入と歳出が一致しない様式なので全会計の見方の対象外（設計書 3.2）。データにないときは「含まない」と示す
-  const noEnterprise = !file.accounts.some(a => a.kind === 'enterprise');
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -118,7 +116,8 @@ function LocalGovContent() {
             {file.basis === 'initial' ? '当初予算' : ''}
           </h1>
           <span className="text-sm text-mirai-text-muted">
-            {view === 'general' ? '一般会計の歳出' : `全会計の歳出（総計${noEnterprise ? '・公営企業会計を除く' : ''}）`}{' '}
+            {/* 公営企業会計は全会計の見方に描かない（歳入と歳出が一致しない様式。設計書 3.2）ので、いつも「除く」と示す */}
+            {view === 'general' ? '一般会計の歳出' : '全会計の歳出（総計・公営企業会計を除く）'}{' '}
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
@@ -152,7 +151,7 @@ function LocalGovContent() {
           ))}
           <span className="text-xs text-mirai-text-muted">
             {VIEWS.find(v => v.key === view)?.note}
-            {view === 'all' && noEnterprise && '。公営企業会計は含みません'}
+            {view === 'all' && '。公営企業会計は含みません'}
           </span>
         </div>
 
