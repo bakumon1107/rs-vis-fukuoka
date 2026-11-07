@@ -35,9 +35,10 @@ export interface LocalGraphFilter {
   moku?: number;
   /**
    * 財源（一般会計の見方だけ）。各目の財源内訳のうちこの財源の額で 財源 → 款 → 項 → 目 を組み立てる
-   * （財源内訳は目ごとに印字されているので按分にならない）。事項ごとの財源内訳は資料にないので、事項の列は作らない
+   * （財源内訳は目ごとに印字されているので按分にならない）。事項ごとの財源内訳は資料にないので、事項の列は作らない。
+   * 'none' は財源内訳のない目（「財源の記載なし」の箱）
    */
-  funding?: FundingKey;
+  funding?: FundingKey | 'none';
 }
 
 export interface LocalGraphOptions {
@@ -178,13 +179,20 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
       if (!only) gross += amountOf(r);
       const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
       if (!r.funding) {
-        // 財源内訳のない目（R8 は 0件）は「財源の記載なし」の箱から流す。目を図から落とさず、財源の列の合計も歳出の総額のまま（設計書 3.2）
-        if (only) continue;
+        // 財源内訳のない目（R8 は 0件）は「財源の記載なし」の箱から流す。目を図から落とさず、財源の列の合計も歳出の総額のまま（設計書 3.2）。
+        // この箱を選んだとき（only === 'none'）は、ほかの財源と同じく目の本年度で目まで
+        if (only && only !== 'none') continue;
         const none = b.node('funding:none', 'funding', '財源の記載なし');
         if (kan) b.edge(none, kan, amountOf(r));
-        addHierarchy(b, r, cols, null);
+        if (only) {
+          gross += amountOf(r);
+          addHierarchy(b, r, cols, null, amountOf(r));
+        } else {
+          addHierarchy(b, r, cols, null);
+        }
         continue;
       }
+      if (only === 'none') continue;
       // 財源 → 款: その目の財源内訳（印字された数字）をそのまま款へ流す。款の財源は、含まれる目の財源の合計になる
       for (const f of FUNDING_KINDS) {
         if (only && f.key !== only) continue;

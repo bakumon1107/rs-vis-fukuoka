@@ -165,6 +165,10 @@ test('一般会計: 財源内訳のない目は「財源の記載なし」の箱
   assert.equal(edgesInto(g, 'kan:general:expense:3')['funding:none'], 7);
   // 財源を選んだときは、財源内訳のない目は出さない
   assert.ok(!buildLocalGraph(f, { view: 'general', filter: { funding: 'general' } }).nodes.some(n => n.id === 'moku:general/expense/3-1-2'));
+  // 「財源の記載なし」を選ぶと、財源内訳のない目の本年度で目まで追う
+  const d = composeDisplay(f, 'general', 'funding:none');
+  assert.equal(d.highlight.get(edgeKey('kou:general:expense:3-1', 'moku:general/expense/3-1-2')), 7);
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.id), ['moku:general/expense/3-1-2']);
 });
 
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
@@ -371,6 +375,14 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
   assert.equal(accounts, file.accounts.length);
   // 歳入の款・会計・款・項・目の列の合計はどれも全会計の総計（歳入 = 歳出）
   for (const col of ['revenue', 'account', 'kan', 'kou', 'moku']) assert.equal(colTotal(g, col), g.totals.gross, col);
+  // 左端の歳入の款の箱は、同じ名前の歳入の款の目の本年度の合計（全会計をまたいで。表記ゆれで箱が割れたり混ざったりしたら気づく）
+  const revByName = new Map<string, number>();
+  for (const r of file.rows) {
+    if (r.side === 'revenue') revByName.set(r.kan.name, (revByName.get(r.kan.name) ?? 0) + (r.amount.v ?? 0));
+  }
+  const revNodes = g.nodes.filter(n => n.col === 'revenue');
+  assert.equal(revNodes.length, [...revByName.values()].filter(v => v > 0).length);
+  for (const n of revNodes) assert.equal(n.value, revByName.get(n.name), n.id);
   // 右端の目の箱は正規化データの目の本年度と比べる（列の合計が合っていても、目が別の款・会計の下に入る誤りに気づけるように）
   const rowOf = new Map(file.rows.map(r => [r.id, r]));
   const mokuNodes = g.nodes.filter(n => n.col === 'moku');

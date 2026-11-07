@@ -96,8 +96,9 @@ export function aggregateTail(
  */
 export function selectionToFilter(view: LocalGraphView, id: string): { filter: LocalGraphFilter; depth: number } | null {
   // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）
-  let m = /^funding:(national|bond|other|general)$/.exec(id);
-  if (m && view === 'general') return { filter: { funding: m[1] as FundingKey }, depth: BASE_DEPTH + 1 };
+  // （none は財源内訳のない目の「財源の記載なし」）
+  let m = /^funding:(national|bond|other|general|none)$/.exec(id);
+  if (m && view === 'general') return { filter: { funding: m[1] as FundingKey | 'none' }, depth: BASE_DEPTH + 1 };
   // 款・項・目・事項は歳出だけ（歳入の目は図に箱がない。全会計の歳入の款は revenue:<名前> で、下の null の扱い）
   m = /^kan:(.+):expense:(\d+)$/.exec(id);
   if (m) {
