@@ -128,7 +128,9 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
           ) : null;
         })}
       </div>
-      <svg width={width} height={height} role="img" aria-label="予算の流れ（サンキー図）">
+      {/* role="img" だと中の箱が支援技術から隠れるので group にし、箱をボタンとして選べるようにする */}
+      <svg width={width} height={height} role="group" aria-label="予算の流れ（サンキー図）。四角を選ぶと、その流れに色を付けます">
+        <style>{`.local-node:focus{outline:none}.local-node:focus-visible rect{stroke:#111827;stroke-width:2;stroke-dasharray:3 2}`}</style>
         <g>
           {layout.links.map(link => {
             const k = edgeKey(link.source.id, link.target.id);
@@ -159,16 +161,30 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
             // 「その他」（まとめた箱）は選べない。中身はほかの箱（左の列の款・項など）を選び直して見る（設計書 4.3）
             const aggregate = n.flags?.includes('aggregate');
             const cy = node.y + node.height / 2;
+            const select = () => {
+              // タッチではタップでホバーが付き、離れても消えない（mouseleave が来ない）。押したらホバーを消す
+              setHovered(null);
+              onSelect(node.id);
+            };
+            // キーボード・支援技術でも選べるように、選べる箱はボタンとして扱う（Enter・Space で選ぶ）
+            const label = `${n.name} ${formatBudgetFromYen(n.value)}${ocrName ? '（名前は読み取り）' : ''}${isSelected ? '（選択中）' : ''}`;
             return (
               <g
                 key={node.id}
-                onClick={
+                className={aggregate ? undefined : 'local-node'}
+                role={aggregate ? 'img' : 'button'}
+                tabIndex={aggregate ? undefined : 0}
+                aria-label={aggregate ? `${label}。上位以外の項目をまとめた箱` : label}
+                aria-pressed={aggregate ? undefined : isSelected}
+                onClick={aggregate ? undefined : select}
+                onKeyDown={
                   aggregate
                     ? undefined
-                    : () => {
-                        // タッチではタップでホバーが付き、離れても消えない（mouseleave が来ない）。押したらホバーを消す
-                        setHovered(null);
-                        onSelect(node.id);
+                    : e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          select();
+                        }
                       }
                 }
                 onMouseEnter={() => setHovered(node.id)}
