@@ -253,6 +253,22 @@ test('表示: 深い列の箱は全体の額で描き、選んだ分は重ねる
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => [n.id, n.value]), [['moku:general/expense/2-1-1', 100]]);
 });
 
+test('表示: 元の色の箱は、選んだものに全部が含まれる箱だけ（一部だけなら灰色のまま帯だけ色付け）', () => {
+  // 地方債を選ぶ: 款2（150 のうち地方債 30）・目 2-1-2（50 のうち 30）は一部だけなので灰色。選んだ地方債の箱は元の色
+  const f = composeDisplay(FILE, 'general', 'funding:bond');
+  assert.ok(f.highlightNodes.has('funding:bond'));
+  assert.ok(!f.highlightNodes.has('kan:general:expense:2'));
+  assert.ok(!f.highlightNodes.has('moku:general/expense/2-1-2'));
+  assert.equal(f.highlight.get(edgeKey('funding:bond', 'kan:general:expense:2')), 30);
+  // 款2 を選ぶ: 款2 と、その下の項・目は全部が含まれるので元の色。一般財源の箱（ほかの款の分も含む）は灰色
+  const k = composeDisplay(FILE, 'general', 'kan:general:expense:2');
+  assert.ok(k.highlightNodes.has('kan:general:expense:2') && k.highlightNodes.has('kou:general:expense:2-1'));
+  assert.ok(k.highlightNodes.has('moku:general/expense/2-1-1'));
+  assert.ok(!k.highlightNodes.has('funding:general'));
+  // 地方債の箱は、地方債がすべて款2 にあるので元の色
+  assert.ok(k.highlightNodes.has('funding:bond'));
+});
+
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
   assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });

@@ -144,6 +144,31 @@ function fullGraph(file: LocalBudgetFile, view: LocalGraphView, depth: number): 
   return g;
 }
 
+/**
+ * 元の色で描く箱を、選んだものに全部が含まれる箱（と選んだ箱）だけにする（設計書 4.3）。一部だけが含まれる箱は灰色のまま、
+ * 帯だけを割合の太さで色付けする。判定は、描く箱の額と、その箱に入る（左端は出る）色付きの帯の合計を比べる
+ * （例: 全会計で会計を選んだとき、ほかの会計の分も含む歳入の款の箱は灰色。目を選んだときの項・款の箱も同じ）
+ */
+function wholeNodesOnly(graph: LocalGraph, highlight: Map<string, number>, candidates: Set<string>, selectedId: string): Set<string> {
+  const into = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const e of graph.edges) {
+    const h = highlight.get(edgeKey(e.source, e.target));
+    if (!h) continue;
+    into.set(e.target, (into.get(e.target) ?? 0) + h);
+    out.set(e.source, (out.get(e.source) ?? 0) + h);
+  }
+  const valueOf = new Map(graph.nodes.map(n => [n.id, n.value]));
+  return new Set(
+    [...candidates].filter(id => {
+      if (id === selectedId) return true;
+      const v = valueOf.get(id);
+      const lit = into.has(id) ? into.get(id)! : out.get(id) ?? 0;
+      return v !== undefined && lit >= v;
+    })
+  );
+}
+
 export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, selectedId: string | null): LocalGraphDisplay {
   const base = fullGraph(file, view, BASE_DEPTH);
   const highlight = new Map<string, number>();
@@ -164,7 +189,8 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
       }
     }
     const note = n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : null;
-    return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes, row: null, note };
+    const lit = wholeNodesOnly(base, highlight, highlightNodes, n.id);
+    return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes: lit, row: null, note };
   }
 
   const focused = buildLocalGraph(file, { view, filter: sel.filter, depth: sel.depth });
@@ -211,8 +237,10 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   };
   const n = nodeOf(graph);
   const selected = n ? { id: n.id, name: n.name, col: n.col } : null;
+  // 元の色で描く箱は、選んだものに全部が含まれる箱だけ（一部だけなら灰色のまま帯だけ色付け）
+  const lit = wholeNodesOnly(graph, highlight, highlightNodes, selectedId);
   // 右端の深い列の箱が多ければ上位だけ残す（選んだ箱は残す）
-  const agg = aggregateTail(graph, highlight, highlightNodes, TOP_N, new Set(selectedId ? [selectedId] : []), baseCols);
+  const agg = aggregateTail(graph, highlight, lit, TOP_N, new Set(selectedId ? [selectedId] : []), baseCols);
   // 目・事項を選んだら、その目を詳細パネルに出す
   return { ...agg, selected, row: n?.row ?? null, note };
 }

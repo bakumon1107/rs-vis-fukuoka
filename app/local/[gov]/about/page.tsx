@@ -245,7 +245,7 @@ function LocalGovAboutContent() {
                   {s.title}
                 </a>
                 <span className="ml-2 text-mirai-text-muted">
-                  取得 {s.retrieved}・SHA256 {s.sha256.slice(0, 12)}…
+                  取得 {s.retrieved}・SHA256 <span className="break-all font-mono">{s.sha256}</span>
                 </span>
               </li>
             ))}
