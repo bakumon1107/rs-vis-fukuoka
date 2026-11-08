@@ -168,7 +168,12 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   const present = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key)).map(c => c.key);
   if (present.length <= size) return display;
   const selCol = display.selected ? present.indexOf(display.selected.col) : -1;
-  const start = Math.max(0, Math.min(selCol >= 0 ? selCol - 1 : 0, present.length - size));
+  // 左端の列の箱（一般会計の財源など）を選んだときは、開いた列の右端までを見せる（財源で絞った目の列は、右の箱を押すと
+  // 財源の絞り込みが外れてたどれないため）。それ以外は選んだ箱の列を真ん中に
+  const start =
+    selCol === 0
+      ? present.length - size
+      : Math.max(0, Math.min(selCol >= 0 ? selCol - 1 : 0, present.length - size));
   const keep = new Set(present.slice(start, start + size));
   const nodes = graph.nodes.filter(n => keep.has(n.col));
   const ids = new Set(nodes.map(n => n.id));

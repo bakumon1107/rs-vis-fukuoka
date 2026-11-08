@@ -296,6 +296,8 @@ test('スマートフォンの幅: 選んだ箱の列を真ん中にした3列�
   assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', 'item:general/expense/2-1-1:0'))), ['kou', 'moku', 'item']);
   // 款を選ぶと 財源 → 款 → 項（款が真ん中）。目の列は右へ進むと見える
   assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', 'kan:general:expense:2'))), ['funding', 'kan', 'kou']);
+  // 左端の財源を選ぶと、開いた列の右端まで（款 → 項 → 目）。財源で絞った目の列が見える
+  assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', 'funding:bond'))), ['kan', 'kou', 'moku']);
 });
 
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {

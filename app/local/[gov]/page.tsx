@@ -112,7 +112,11 @@ function LocalGovContent() {
     <div className="min-h-screen bg-mirai-surface">
       <AppHeader current="/" />
       {/* 横のパネルの分だけ右を空ける。狭い幅ではパネルは画面の下から出るので空けない（空けると本文の幅がなくなり、見出しが縦に1字ずつになる） */}
-      <main className="px-4 pb-16 pt-4" style={{ marginRight: row && !isNarrow ? panel.effectiveWidth + 24 : 0 }}>
+      {/* 狭い幅で詳細パネル（画面の下から 45dvh）が出ているときは、図の下端と出典の行がパネルの裏に隠れないよう下に余白を足す */}
+      <main
+        className="px-4 pb-16 pt-4"
+        style={{ marginRight: row && !isNarrow ? panel.effectiveWidth + 24 : 0, paddingBottom: row && isNarrow ? '50dvh' : undefined }}
+      >
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}

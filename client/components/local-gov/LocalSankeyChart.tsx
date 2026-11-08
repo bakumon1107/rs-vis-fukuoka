@@ -161,7 +161,15 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
             return (
               <g
                 key={node.id}
-                onClick={aggregate ? undefined : () => onSelect(node.id)}
+                onClick={
+                  aggregate
+                    ? undefined
+                    : () => {
+                        // タッチではタップでホバーが付き、離れても消えない（mouseleave が来ない）。押したらホバーを消す
+                        setHovered(null);
+                        onSelect(node.id);
+                      }
+                }
                 onMouseEnter={() => setHovered(node.id)}
                 onMouseLeave={() => setHovered(null)}
                 style={{ cursor: aggregate ? 'default' : 'pointer' }}
