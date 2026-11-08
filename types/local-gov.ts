@@ -172,17 +172,18 @@ export interface LocalGovIndex {
     kind: 'prefecture' | 'municipality';
     population?: { value: number; as_of: string; source: string }[];
   };
-  datasets: { year: number; label: string; basis: Basis | 'latest'; file: string; status: 'verified' | 'partial' }[];
+  /** ファイルがあるデータだけ（latest = 当初 + Σ補正 は画面で組み立てるので書かない。共通 JSON 形式の設計 3.1・5章） */
+  datasets: { year: number; label: string; basis: Basis; file: string; status: 'verified' | 'partial' }[];
   sources: SourceDocument[];
 }
 
-/** 画面用のグラフの形（ノードと帯）。正規化データから組み立てる。どこで組み立てるかは画面とグラフの設計書で決める */
+/** 画面用のグラフ。正規化データから画面で組み立てる（app/lib/local-gov/graph.ts。ファイルにはしない） */
 export interface LocalGraph {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
   year: number;
   basis: 'initial' | 'latest' | 'settlement';
-  /** 列はデータ側で定義する（例: 財源 / 会計 / 款 / 項 / 目 / 事項） */
+  /** 列の一覧。見方ごとに app/lib/local-gov/graph.ts が決める（例: 財源 / 款 / 項 / 目 / 事項） */
   columns: { key: string; label: string }[];
   nodes: { id: string; col: string; name: string; value: Yen; row?: string; flags?: string[] }[];
   edges: { source: string; target: string; value: Yen }[];
