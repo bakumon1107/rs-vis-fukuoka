@@ -4,25 +4,10 @@
  * 選んだ目の詳細（表示専用）。本年度・前年度・増減、財源内訳、説明欄の事項、節、出典（PDF のページ）、値・名前の出典の印。
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2・4.4
  */
-import type { LocalGovIndex, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
+import type { LocalGovIndex, MokuRow, NameSource, Value } from '@/types/local-gov';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
+import { isNotableValueSource, NAME_SRC_LABEL, VALUE_SRC_LABEL } from '@/client/lib/local-gov-labels';
 import { FUNDING_KINDS } from '@/app/lib/local-gov/graph';
-
-const NAME_SRC_LABEL: Record<NameSource, string> = {
-  text: '資料のテキスト',
-  reference: '別の資料と照合',
-  search: '資料の全文検索で確認',
-  readings: '複数の読み取りが一致',
-  correction: '画像で確認',
-  ocr: '読み取り（裏付けなし）',
-};
-
-const VALUE_SRC_NOTE: Partial<Record<ValueSource, string>> = {
-  correction: '画像で確認して修正',
-  textlayer: 'PDF の文字情報から採用',
-  'blank-as-zero': '空欄を 0 とみなした',
-  inferred: '推定',
-};
 
 
 function yen(v: Value | undefined) {
@@ -30,8 +15,9 @@ function yen(v: Value | undefined) {
 }
 
 function Mark({ v }: { v: Value | undefined }) {
-  const note = v ? VALUE_SRC_NOTE[v.src] : undefined;
-  return note ? <span className="ml-1 text-[10px] text-amber-700">（{note}）</span> : null;
+  return v && isNotableValueSource(v.src) ? (
+    <span className="ml-1 text-[10px] text-amber-700">（{VALUE_SRC_LABEL[v.src]}）</span>
+  ) : null;
 }
 
 function NameMark({ src }: { src?: NameSource }) {

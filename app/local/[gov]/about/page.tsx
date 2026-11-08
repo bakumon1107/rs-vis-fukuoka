@@ -20,16 +20,14 @@ import {
   valueSourceCounts,
   zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
-import { VALUE_SOURCES, type NameSource, type ValueSource } from '@/types/local-gov';
-
-const VALUE_SRC_LABEL: Record<ValueSource, string> = {
-  text: '資料のテキスト',
-  ocr: '読み取り',
-  textlayer: 'PDF の文字情報',
-  correction: '画像で確認して修正',
-  'blank-as-zero': '空欄を 0 とみなした',
-  inferred: '推定',
-};
+import type { ValueSource } from '@/types/local-gov';
+import {
+  isNotableValueSource,
+  NAME_SOURCE_ORDER,
+  NAME_SRC_LABEL,
+  VALUE_SOURCE_ORDER,
+  VALUE_SRC_LABEL,
+} from '@/client/lib/local-gov-labels';
 
 const NAME_LEVELS = [
   ['kan', '款'],
@@ -40,18 +38,10 @@ const NAME_LEVELS = [
   ['sub', '細節'],
 ] as const;
 
-const NAME_SOURCES: [NameSource, string][] = [
-  ['text', '資料のテキスト'],
-  ['reference', '別の資料と照合'],
-  ['search', '資料の全文検索'],
-  ['readings', '複数の読み取りが一致'],
-  ['correction', '画像で確認'],
-  ['ocr', '読み取りのみ（裏付けなし）'],
-];
 
 /** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
 function srcNote(src: ValueSource) {
-  return src === 'text' || src === 'ocr' ? null : <span className="text-amber-700">［{VALUE_SRC_LABEL[src]}］</span>;
+  return isNotableValueSource(src) ? <span className="text-amber-700">［{VALUE_SRC_LABEL[src]}］</span> : null;
 }
 
 export default function LocalGovAboutPage() {
@@ -148,7 +138,7 @@ function LocalGovAboutContent() {
             {summary && (
               <li>
                 値の出典（目の本年度・前年度・財源内訳・事項・節・細節）:{' '}
-                {VALUE_SOURCES.filter(k => summary.values[k]).map(k => `${VALUE_SRC_LABEL[k]} ${summary.values[k]}`).join('、')}
+                {VALUE_SOURCE_ORDER.filter(k => summary.values[k]).map(k => `${VALUE_SRC_LABEL[k]} ${summary.values[k]}`).join('、')}
               </li>
             )}
             {summary && summary.noAmount > 0 && (
@@ -168,9 +158,9 @@ function LocalGovAboutContent() {
                 <thead>
                   <tr className="text-mirai-text-muted">
                     <th className="py-1 text-left font-normal">名前</th>
-                    {NAME_SOURCES.map(([k, label]) => (
+                    {NAME_SOURCE_ORDER.map(k => (
                       <th key={k} className="px-1 text-right font-normal">
-                        {label}
+                        {NAME_SRC_LABEL[k]}
                       </th>
                     ))}
                   </tr>
@@ -179,7 +169,7 @@ function LocalGovAboutContent() {
                   {NAME_LEVELS.map(([level, label]) => (
                     <tr key={level} className="border-t border-mirai-border">
                       <th className="py-1 text-left font-normal">{label}</th>
-                      {NAME_SOURCES.map(([k]) => (
+                      {NAME_SOURCE_ORDER.map(k => (
                         <td key={k} className={`px-1 text-right ${k === 'ocr' && summary.names[level][k] ? 'text-amber-700' : ''}`}>
                           {summary.names[level][k] ?? '—'}
                         </td>

@@ -21,6 +21,11 @@ export interface ValueNoteEntry {
 export type NameSourceCounts = Record<'kan' | 'kou' | 'moku' | 'item' | 'setsu' | 'sub', Partial<Record<NameSource, number>>>;
 
 
+/** 値に印を付ける出典か（確定した読み取り text・ocr 以外。設計書 4.4） */
+export function isNotableValueSource(src: ValueSource): boolean {
+  return src !== 'text' && src !== 'ocr';
+}
+
 function whereOf(file: LocalBudgetFile, r: MokuRow) {
   const acc = file.accounts.find(a => a.id === r.account)?.name ?? r.account;
   return `${acc} ／ ${r.side === 'revenue' ? '歳入' : '歳出'} ／ ${r.kan.name} ／ ${r.kou.name} ／ ${r.moku.name}`;
@@ -33,7 +38,7 @@ function whereOf(file: LocalBudgetFile, r: MokuRow) {
 export function valueNotes(file: LocalBudgetFile): ValueNoteEntry[] {
   const out: ValueNoteEntry[] = [];
   const push = (r: MokuRow, field: string, v: Value | undefined) => {
-    if (v && v.src !== 'ocr' && v.src !== 'text') {
+    if (v && isNotableValueSource(v.src)) {
       out.push({ row: r.id, where: whereOf(file, r), field, value: v.v, src: v.src, note: v.note });
     }
   };
