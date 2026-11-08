@@ -19,7 +19,7 @@ import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
-import { composeDisplay } from '@/app/lib/local-gov/graph-view';
+import { composeDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
 import { sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -80,6 +80,8 @@ function LocalGovContent() {
     () => (state.status === 'ready' ? composeDisplay(state.file, view, selectedId) : null),
     [state, view, selectedId]
   );
+  // スマートフォンの幅では、選んだ箱の列を真ん中にした3列だけを描く（設計書 4.3）
+  const shown = useMemo(() => (display && isNarrow ? windowColumns(display) : display), [display, isNarrow]);
   const row = useMemo(
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
@@ -185,7 +187,9 @@ function LocalGovContent() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl bg-card p-2 shadow-soft">
-          {display && <LocalSankeyChart display={display} onSelect={id => setQuery({ sel: id === selectedId ? null : id })} />}
+          {shown && (
+            <LocalSankeyChart display={shown} narrow={isNarrow} onSelect={id => setQuery({ sel: id === selectedId ? null : id })} />
+          )}
         </div>
 
         <p className="mt-3 text-xs text-mirai-text-muted">

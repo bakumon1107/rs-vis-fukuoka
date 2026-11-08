@@ -30,29 +30,45 @@ function shorten(s: string, max: number) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-function useWidth<T extends HTMLElement>() {
+/** 図の幅は枠の幅に合わせる（minWidth より狭くはしない。狭い幅では3列だけを描くので小さくてよい） */
+function useWidth<T extends HTMLElement>(minWidth: number) {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(1200);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const measure = () => setWidth(Math.max(640, el.clientWidth));
+    const measure = () => setWidth(Math.max(minWidth, el.clientWidth));
     measure();
     const ob = new ResizeObserver(measure);
     ob.observe(el);
     return () => ob.disconnect();
-  }, []);
+  }, [minWidth]);
   return { ref, width };
 }
+
+/** 狭い幅（スマートフォン）の描き方: 3列だけを描くので、図の最小幅・ラベルの長さ・左右の余白を小さくする（設計書 4.3） */
+const NARROW = { minWidth: 300, labelMax: 6, amountPx: 8, maxSide: 90, fontSize: 11, charPx: 11, showAmount: false };
+const WIDE = {
+  minWidth: 640,
+  labelMax: LABEL_MAX,
+  amountPx: AMOUNT_LABEL_PX,
+  maxSide: MAX_SIDE_MARGIN,
+  fontSize: 12,
+  charPx: LABEL_CHAR_PX,
+  showAmount: true,
+};
 
 export interface LocalSankeyChartProps {
   display: LocalGraphDisplay;
   onSelect: (id: string) => void;
+  /** スマートフォンの幅か（page.tsx が useIsNarrow で決め、表示するグラフも3列に絞って渡す） */
+  narrow?: boolean;
 }
 
-export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
+export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSankeyChartProps) {
   const { graph, highlight, highlightNodes, selected } = display;
-  const { ref, width } = useWidth<HTMLDivElement>();
+  const size = narrow ? NARROW : WIDE;
+  const { ref, width } = useWidth<HTMLDivElement>(size.minWidth);
   const [hovered, setHovered] = useState<string | null>(null);
 
   const colIndex = useMemo(() => new Map(graph.columns.map((c, i) => [c.key, i])), [graph.columns]);
@@ -61,15 +77,15 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
   const margin = useMemo(() => {
     const presentCols = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key));
     const labelPx = (col: string | undefined) =>
-      Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, LABEL_MAX))) * LABEL_CHAR_PX +
-      AMOUNT_LABEL_PX;
+      Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx +
+      size.amountPx;
     return {
       top: 16,
       bottom: 24,
-      left: Math.min(MAX_SIDE_MARGIN, labelPx(presentCols[0]?.key)),
-      right: Math.min(MAX_SIDE_MARGIN, labelPx(presentCols.at(-1)?.key)),
+      left: Math.min(size.maxSide, labelPx(presentCols[0]?.key)),
+      right: Math.min(size.maxSide, labelPx(presentCols.at(-1)?.key)),
     };
-  }, [graph]);
+  }, [graph, size]);
   const layout = useMemo(
     () =>
       computeMOFSankeyLayout<GraphNode>(
@@ -168,19 +184,22 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
                   y={cy}
                   textAnchor={labelLeft ? 'end' : 'start'}
                   dominantBaseline="middle"
-                  fontSize={12}
+                  fontSize={size.fontSize}
                   fontWeight={isSelected ? 700 : 500}
                   fill={lit ? '#1f2937' : '#9ca3af'}
                   stroke="#ffffff"
                   strokeWidth={3}
                   paintOrder="stroke"
                 >
-                  {shorten(n.name, LABEL_MAX)}
+                  {shorten(n.name, size.labelMax)}
                   {ocrName && <tspan fill="#b45309">※</tspan>}
-                  <tspan fill={lit ? '#6b7280' : '#9ca3af'} fontWeight={400}>
-                    {' '}
-                    {formatBudgetFromYen(n.value)}
-                  </tspan>
+                  {/* 狭い幅では金額を出さない（3列のラベルが重なる。金額はツールチップと詳細パネルで見る） */}
+                  {size.showAmount && (
+                    <tspan fill={lit ? '#6b7280' : '#9ca3af'} fontWeight={400}>
+                      {' '}
+                      {formatBudgetFromYen(n.value)}
+                    </tspan>
+                  )}
                 </text>
               </g>
             );

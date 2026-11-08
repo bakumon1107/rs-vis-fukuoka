@@ -159,6 +159,30 @@ function labelDuplicates(deep: LocalGraph['nodes'], all: LocalGraph['nodes'], ed
   });
 }
 
+/**
+ * スマートフォンの幅で、連続する size 列だけを見せる（設計書 4.3）。何も選んでいなければ最初の列から、選んでいれば選んだ箱の列を
+ * 真ん中にする（左端・右端では端から）。箱・帯の額と重ねる帯は変えず、見せない列の箱とそこにつながる帯を外すだけ
+ */
+export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphDisplay {
+  const { graph } = display;
+  const present = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key)).map(c => c.key);
+  if (present.length <= size) return display;
+  const selCol = display.selected ? present.indexOf(display.selected.col) : -1;
+  const start = Math.max(0, Math.min(selCol >= 0 ? selCol - 1 : 0, present.length - size));
+  const keep = new Set(present.slice(start, start + size));
+  const nodes = graph.nodes.filter(n => keep.has(n.col));
+  const ids = new Set(nodes.map(n => n.id));
+  return {
+    ...display,
+    graph: {
+      ...graph,
+      columns: graph.columns.filter(c => keep.has(c.key)),
+      nodes,
+      edges: graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)),
+    },
+  };
+}
+
 /** fullGraph の覚え書き（データごとに、`見方:深さ` → グラフ） */
 const fullCache = new WeakMap<LocalBudgetFile, Map<string, LocalGraph>>();
 /**

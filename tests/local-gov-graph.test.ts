@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import {
-  aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter,
+  aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter, windowColumns,
 } from '../app/lib/local-gov/graph-view';
 import {
   nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueNotes, valueSourceCounts, zeroAmountRows,
@@ -281,6 +281,21 @@ test('表示: 深い列で同じ名前の箱が並ぶときは、上の箱の名
   const d = composeDisplay(f, 'general', 'kan:general:expense:2');
   assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.name).sort(),
     ['教職員費（項2-1）', '教職員費（項B）', '旅費']);
+});
+
+test('スマートフォンの幅: 選んだ箱の列を真ん中にした3列だけを見せる（額と重ねる帯は変えない）', () => {
+  const cols = (d: ReturnType<typeof composeDisplay>) => d.graph.columns.map(c => c.key);
+  // 選んでいなければ最初の3列（そのまま）
+  assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', null))), ['funding', 'kan', 'kou']);
+  // 目を選ぶと 項 → 目 → 事項（目が真ん中）
+  const m = windowColumns(composeDisplay(FILE, 'general', 'moku:general/expense/2-1-1'));
+  assert.deepEqual(cols(m), ['kou', 'moku', 'item']);
+  assert.ok(m.graph.edges.every(e => m.graph.nodes.some(n => n.id === e.source) && m.graph.nodes.some(n => n.id === e.target)));
+  assert.equal(m.graph.nodes.find(n => n.id === 'kou:general:expense:2-1')?.value, 150);
+  // 事項（右端）を選ぶと右端から3列
+  assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', 'item:general/expense/2-1-1:0'))), ['kou', 'moku', 'item']);
+  // 款を選ぶと 財源 → 款 → 項（款が真ん中）。目の列は右へ進むと見える
+  assert.deepEqual(cols(windowColumns(composeDisplay(FILE, 'general', 'kan:general:expense:2'))), ['funding', 'kan', 'kou']);
 });
 
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
