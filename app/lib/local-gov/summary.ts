@@ -3,7 +3,7 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2（app/local/[gov]/about/page.tsx が使う）
  */
 import type { LocalBudgetFile, MokuRow, NameSource, Value, ValueSource } from '@/types/local-gov';
-import { FUNDING_KINDS } from './graph';
+import { FUNDING_KINDS, isOcrName } from './graph';
 
 /** 確定した読み取り（ocr・text）以外の出典の値（画像で確認・文字層・空欄を 0 とみなした・推定） */
 export interface ValueNoteEntry {
@@ -26,8 +26,8 @@ export function isNotableValueSource(src: ValueSource): boolean {
   return src !== 'text' && src !== 'ocr';
 }
 
-function whereOf(file: LocalBudgetFile, r: MokuRow) {
-  const acc = file.accounts.find(a => a.id === r.account)?.name ?? r.account;
+function whereOf(accountName: Map<string, string>, r: MokuRow) {
+  const acc = accountName.get(r.account) ?? r.account;
   return `${acc} ／ ${r.side === 'revenue' ? '歳入' : '歳出'} ／ ${r.kan.name} ／ ${r.kou.name} ／ ${r.moku.name}`;
 }
 
@@ -37,9 +37,10 @@ function whereOf(file: LocalBudgetFile, r: MokuRow) {
  */
 export function valueNotes(file: LocalBudgetFile): ValueNoteEntry[] {
   const out: ValueNoteEntry[] = [];
+  const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const push = (r: MokuRow, field: string, v: Value | undefined) => {
     if (v && isNotableValueSource(v.src)) {
-      out.push({ row: r.id, where: whereOf(file, r), field, value: v.v, src: v.src, note: v.note });
+      out.push({ row: r.id, where: whereOf(accountName, r), field, value: v.v, src: v.src, note: v.note });
     }
   };
   for (const r of file.rows) {
@@ -79,7 +80,8 @@ export function valueSourceCounts(file: LocalBudgetFile): Partial<Record<ValueSo
 export function nameSourceCounts(file: LocalBudgetFile): NameSourceCounts {
   const c: NameSourceCounts = { kan: {}, kou: {}, moku: {}, item: {}, setsu: {}, sub: {} };
   const add = (level: keyof NameSourceCounts, src: NameSource | undefined) => {
-    const k = src ?? 'ocr';
+    // 出典がない名前は読み取りのみ（ocr）として数える（図・詳細パネルの印と同じ isOcrName の決まり）
+    const k: NameSource = isOcrName(src) ? 'ocr' : src!;
     c[level][k] = (c[level][k] ?? 0) + 1;
   };
   for (const r of file.rows) {

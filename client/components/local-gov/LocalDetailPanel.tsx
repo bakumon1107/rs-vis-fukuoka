@@ -7,7 +7,7 @@
 import type { LocalGovIndex, MokuRow, NameSource, Value } from '@/types/local-gov';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import { isNotableValueSource, NAME_SRC_LABEL, VALUE_SRC_LABEL } from '@/client/lib/local-gov-labels';
-import { FUNDING_KINDS } from '@/app/lib/local-gov/graph';
+import { FUNDING_KINDS, isOcrName } from '@/app/lib/local-gov/graph';
 
 
 function yen(v: Value | undefined) {
@@ -22,7 +22,7 @@ function Mark({ v }: { v: Value | undefined }) {
 
 function NameMark({ src }: { src?: NameSource }) {
   // 名前の出典がない名前も裏付けがないので、ocr と同じに扱う（設計書 4.4。図の印・「データについて」の件数と同じ）
-  if (src !== undefined && src !== 'ocr') return null;
+  if (!isOcrName(src)) return null;
   return <span className="ml-1 text-[10px] text-amber-700" title={NAME_SRC_LABEL.ocr}>※名前は読み取り</span>;
 }
 
@@ -33,7 +33,12 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
   // 内訳にも見ておきたいものがある（議会費の「各種負担金等」の内訳の「議員連盟補助金」「政務活動費交付金」など）
   const items = row.items ?? [];
   const topItems = items.map((it, i) => ({ it, i })).filter(({ it }) => it.parent === undefined);
-  const childrenOf = (i: number) => items.map((it, j) => ({ it, j })).filter(({ it }) => it.parent === i);
+  // 親の事項ごとの内訳を一度だけまとめる（親ごとに全件をなめ直さない）
+  const children = new Map<number, { it: (typeof items)[number]; j: number }[]>();
+  items.forEach((it, j) => {
+    if (it.parent !== undefined) children.set(it.parent, [...(children.get(it.parent) ?? []), { it, j }]);
+  });
+  const childrenOf = (i: number) => children.get(i) ?? [];
 
   return (
     // パネルの枠（SidePanelChrome）は中身を切り取るだけなので、中身の側でスクロールする
@@ -47,7 +52,7 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
           {row.moku.name}
           <NameMark src={row.moku.name_src} />
         </h2>
-        <p className="text-[11px] text-mirai-text-muted">名前の出典: {NAME_SRC_LABEL[row.moku.name_src ?? 'ocr']}</p>
+        <p className="text-[11px] text-mirai-text-muted">名前の出典: {NAME_SRC_LABEL[isOcrName(row.moku.name_src) ? 'ocr' : row.moku.name_src!]}</p>
       </div>
 
       <table className="w-full text-sm">

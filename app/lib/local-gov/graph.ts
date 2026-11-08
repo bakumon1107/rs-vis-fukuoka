@@ -12,6 +12,7 @@ import {
   type LocalBudgetFile,
   type LocalGraph,
   type MokuRow,
+  type NameSource,
   type Side,
   type Yen,
 } from '@/types/local-gov';
@@ -115,10 +116,17 @@ function matches(row: MokuRow, f: LocalGraphFilter | undefined): boolean {
   return true;
 }
 
+/**
+ * 名前に裏付けがないか（読み取りのみ）。名前の出典がない名前（name_src は省略できる）も ocr と同じに扱う（設計書 4.4）。
+ * 図の印・詳細パネルの印・「データについて」の件数はすべてこの関数で決める
+ */
+export function isOcrName(src: NameSource | undefined): boolean {
+  return src === undefined || src === 'ocr';
+}
+
 /** 名前の確からしさの印（画面で「名前は読み取り」を付ける） */
-function nameFlags(src: string | undefined): string[] | undefined {
-  // 名前の出典がない名前（name_src は省略できる）も裏付けがないので、ocr と同じに扱う（設計書 4.4）
-  return src === undefined || src === 'ocr' ? ['name-ocr'] : undefined;
+function nameFlags(src: NameSource | undefined): string[] | undefined {
+  return isOcrName(src) ? ['name-ocr'] : undefined;
 }
 
 const amountOf = (row: MokuRow): Yen => row.amount.v ?? 0;
@@ -186,48 +194,34 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     const only = opts.filter?.funding;
     for (const r of rows) {
       if (r.account !== 'general' || r.side !== 'expense') continue;
+      // この目から流す財源の帯 [財源の箱の key, 額]。財源内訳のない目（R8 は 0件）は「財源の記載なし」（none）から目の本年度を流す
+      // （目を図から落とさず、財源の列の合計も歳出の総額のまま。設計書 3.2）
+      const flows: [FundingKey | 'none', Yen][] = r.funding
+        ? FUNDING_KINDS.map(f => [f.key, r.funding![f.key].v ?? 0])
+        : [['none', amountOf(r)]];
+      const picked = only ? flows.filter(([k]) => k === only) : flows;
+      // 款から先に流す額: 財源で絞り込んだらその財源の額（事項は作らない）、絞り込まなければ目の本年度
+      const v = only ? picked.reduce((s, [, x]) => s + x, 0) : amountOf(r);
       // 図に出ない行（0 円の目、財源で絞ったときにその財源が 0 円の目）は箱も作らない。箱を作ると、その行の名前の印が
       // ほかの行の箱に混ざる（設計書 3.2: 印は図に出る行だけから決める）
-      if (amountOf(r) === 0) continue;
-      if (only && only !== 'none' && r.funding && (r.funding[only].v ?? 0) === 0) continue;
-      if (only === 'none' && r.funding) continue;
-      if (!only) gross += amountOf(r);
-      const kan = cols.has('kan') ? b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) }) : null;
-      if (!r.funding) {
-        // 財源内訳のない目（R8 は 0件）は「財源の記載なし」の箱から流す。目を図から落とさず、財源の列の合計も歳出の総額のまま（設計書 3.2）。
-        // この箱を選んだとき（only === 'none'）は、ほかの財源と同じく目の本年度で目まで
-        if (only && only !== 'none') continue;
-        const none = b.node('funding:none', 'funding', '財源の記載なし');
-        if (kan) b.edge(none, kan, amountOf(r));
-        if (only) {
-          gross += amountOf(r);
-          addHierarchy(b, r, cols, null, amountOf(r));
-        } else {
-          addHierarchy(b, r, cols, null);
-        }
-        continue;
-      }
-      if (only === 'none') continue;
+      if (amountOf(r) === 0 || v === 0) continue;
+      gross += v;
       // 財源 → 款: その目の財源内訳（印字された数字）をそのまま款へ流す。款の財源は、含まれる目の財源の合計になる
-      for (const f of FUNDING_KINDS) {
-        if (only && f.key !== only) continue;
-        const fv = r.funding[f.key].v ?? 0;
-        const fund = b.node(`funding:${f.key}`, 'funding', f.label);
-        if (kan) b.edge(fund, kan, fv);
+      if (cols.has('kan')) {
+        const kan = b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) });
+        for (const [k, x] of picked) {
+          const label = k === 'none' ? '財源の記載なし' : FUNDING_KINDS.find(f => f.key === k)!.label;
+          b.edge(b.node(`funding:${k}`, 'funding', label), kan, x);
+        }
       }
-      // 款から先（款 → 項 → 目 → 事項）。款への入りは上の財源の帯。財源で絞り込んだら、その財源の額で目まで
-      if (only) {
-        const fv = r.funding[only].v ?? 0;
-        gross += fv;
-        addHierarchy(b, r, cols, null, fv);
-      } else {
-        addHierarchy(b, r, cols, null);
-      }
+      // 款から先（款 → 項 → 目 → 事項）。款への入りは上の財源の帯
+      addHierarchy(b, r, cols, null, only ? v : undefined);
     }
   } else {
     const dupKan = duplicatedExpenseKanNames(file);
+    const accountOf = new Map(file.accounts.map(a => [a.id, a]));
     for (const r of rows) {
-      const acc = file.accounts.find(a => a.id === r.account);
+      const acc = accountOf.get(r.account);
       // 公営企業会計は描かない（収益的・資本的収支に分かれ歳入と歳出が一致しない。設計書 3.2）
       if (acc?.kind === 'enterprise') continue;
       // 0 円の目は図に出ないので箱も作らない（名前でまとめる歳入の款に、図に出ない行の印を混ぜない）

@@ -269,6 +269,20 @@ test('表示: 元の色の箱は、選んだものに全部が含まれる箱だ
   assert.ok(k.highlightNodes.has('funding:bond'));
 });
 
+test('表示: 深い列で同じ名前の箱が並ぶときは、上の箱の名前を添える', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [
+      row('general/expense/2-1-1', { amount: v(100), funding: fund(0, 0, 0, 100), moku: { no: 1, name: '教職員費' } }),
+      row('general/expense/2-2-1', { amount: v(50), funding: fund(0, 0, 0, 50), kou: { no: 2, name: '項B' }, moku: { no: 1, name: '教職員費' } }),
+      row('general/expense/2-2-2', { amount: v(10), funding: fund(0, 0, 0, 10), kou: { no: 2, name: '項B' }, moku: { no: 2, name: '旅費' } }),
+    ],
+  };
+  const d = composeDisplay(f, 'general', 'kan:general:expense:2');
+  assert.deepEqual(d.graph.nodes.filter(n => n.col === 'moku').map(n => n.name).sort(),
+    ['教職員費（項2-1）', '教職員費（項B）', '旅費']);
+});
+
 test('補正（差分）のファイルからはグラフを組み立てない（当初 + 補正 は未実装。差分を補正後の額として描かない）', () => {
   assert.throws(() => buildLocalGraph({ ...FILE, basis: 'supplementary' }, { view: 'general' }), /補正/);
 });

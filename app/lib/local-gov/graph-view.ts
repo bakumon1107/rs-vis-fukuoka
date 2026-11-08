@@ -128,9 +128,22 @@ export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料�
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
 
 /**
- * 最初の画面のグラフ（左の3列の全体）は、データと見方が同じなら選択によらず同じなので覚えておく（選ぶたびに全目を組み立て直さない）。
- * 正規化データは読み込んだ後に変えない前提（同じオブジェクトなら同じ結果）
+ * 深い列で同じ列に同じ名前の箱が並ぶとき（款を選んだときの目「教職員費」2つ、項を選んだときの事項「職員費」など）は、
+ * 上の箱の名前（目なら項、事項なら目）を添えて見分けられるようにする（設計書 3.2。全会計の款に会計の名前を添えるのと同じ考え方）
  */
+function labelDuplicates(deep: LocalGraph['nodes'], all: LocalGraph['nodes'], edges: LocalGraph['edges']): LocalGraph['nodes'] {
+  const count = new Map<string, number>();
+  for (const n of deep) count.set(`${n.col}\u0000${n.name}`, (count.get(`${n.col}\u0000${n.name}`) ?? 0) + 1);
+  const nameOf = new Map(all.map(n => [n.id, n.name]));
+  const parentOf = new Map(edges.map(e => [e.target, e.source]));
+  return deep.map(n => {
+    if ((count.get(`${n.col}\u0000${n.name}`) ?? 0) < 2) return n;
+    const parent = nameOf.get(parentOf.get(n.id) ?? '');
+    return parent ? { ...n, name: `${n.name}（${parent}）` } : n;
+  });
+}
+
+/** fullGraph の覚え書き（データごとに、`見方:深さ` → グラフ） */
 const fullCache = new WeakMap<LocalBudgetFile, Map<string, LocalGraph>>();
 /**
  * 絞り込まない全体のグラフ（見方・深さごと）。最初の画面（depth = BASE_DEPTH）と、深い列の箱と帯の全体の額に使う。
@@ -234,7 +247,7 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   const graph: LocalGraph = {
     ...base,
     columns: focused.columns,
-    nodes: [...base.nodes, ...deepNodes],
+    nodes: [...base.nodes, ...labelDuplicates(deepNodes, [...base.nodes, ...deepNodes], deepEdges)],
     edges: [...base.edges, ...deepEdges],
   };
   const n = nodeOf(graph);
