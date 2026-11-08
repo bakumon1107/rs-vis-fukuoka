@@ -346,7 +346,12 @@ test('表示: 右端の深い列の箱が多ければ上位だけ残し、残り
     [['m0', 40], ['m4', 4], ['other:moku', 56]]);
   assert.equal(out.graph.edges.find(e => e.target === 'other:moku')?.value, 56);
   assert.equal(out.highlight.get(edgeKey('k', 'other:moku')), 6);
-  assert.ok(out.highlightNodes.has('other:moku') && !out.highlightNodes.has('m3'));
+  // 「その他」（56）のうち選んだ分は 6 だけなので、箱は灰色のまま（帯だけ色付け）。まとめた m3 は箱としては消える
+  assert.ok(!out.highlightNodes.has('other:moku') && !out.highlightNodes.has('m3'));
+  // まとめた箱がすべて選んだものに全部含まれるときは、「その他」も元の色
+  const allLit = new Map([40, 30, 20, 6, 4].map((v, i) => [edgeKey('k', `m${i}`), v]));
+  const whole = aggregateTail(g, allLit, new Set(['m0', 'm1', 'm2', 'm3', 'm4']), 1, new Set(), entry);
+  assert.ok(whole.highlightNodes.has('other:moku'));
   // 項の列（一般会計の最初の画面の右端）はまとめない
   const kouOnly = { ...g, columns: [{ key: 'kou', label: '項' }], nodes: g.nodes.map(n => ({ ...n, col: 'kou' })), edges: [] };
   assert.equal(aggregateTail(kouOnly, new Map(), new Set(), 2, new Set(), entry).graph.nodes.length, 6);

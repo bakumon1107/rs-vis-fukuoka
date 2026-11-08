@@ -84,7 +84,9 @@ export function aggregateTail(
     }
   }
   const hn = new Set([...highlightNodes].filter(id => !merged.has(id)));
-  if ([...highlightNodes].some(id => merged.has(id))) hn.add(otherId);
+  // 「その他」も、選んだものに全部が含まれるときだけ元の色（設計書 4.3。一部だけなら灰色のまま、帯だけ色付け）
+  const otherLit = [...hl].filter(([k]) => k.endsWith(`\u0000${otherId}`)).reduce((s, [, v]) => s + v, 0);
+  if (otherLit > 0 && otherLit >= otherValue) hn.add(otherId);
   return { graph: { ...graph, nodes, edges: [...edges.values()] }, highlight: hl, highlightNodes: hn };
 }
 
