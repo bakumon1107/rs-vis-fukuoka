@@ -27,6 +27,8 @@ export interface LocalGraphDisplay {
   row: string | null;
   /** 資料にない対応に色を付けなかったときの理由（図の上に出す）。なければ null */
   note: string | null;
+  /** 列を絞ったとき（windowColumns）に外した左の列の数。列の色を広い幅と同じにするため、描画は元の列の位置で色を決める */
+  colorOffset?: number;
 }
 
 // 帯のキーは graph.ts と同じもの（描画・テストからはここ経由でも使える）
@@ -179,6 +181,7 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   const ids = new Set(nodes.map(n => n.id));
   return {
     ...display,
+    colorOffset: graph.columns.findIndex(c => keep.has(c.key)),
     graph: {
       ...graph,
       columns: graph.columns.filter(c => keep.has(c.key)),

@@ -108,7 +108,8 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
     [graph, width, colIndex, margin]
   );
 
-  const colorOf = (col: number) => COLUMN_COLORS[col % COLUMN_COLORS.length];
+  // 列の色は元の列の位置で決める（スマートフォンの幅で左の列を外しても、同じ列は広い幅と同じ色。設計書 4.3）
+  const colorOf = (col: number) => COLUMN_COLORS[(col + (display.colorOffset ?? 0)) % COLUMN_COLORS.length];
   const height = Math.max(layout.height, layout.contentHeight);
   // ホバー中の箱が選択の解除などで図から消えると onMouseLeave が来ないので、図にない箱を指すホバーは無視する
   // （残ると全部の帯が薄いままになる）

@@ -290,6 +290,8 @@ test('スマートフォンの幅: 選んだ箱の列を真ん中にした3列�
   // 目を選ぶと 項 → 目 → 事項（目が真ん中）
   const m = windowColumns(composeDisplay(FILE, 'general', 'moku:general/expense/2-1-1'));
   assert.deepEqual(cols(m), ['kou', 'moku', 'item']);
+  // 色を広い幅と同じにするため、外した左の列の数（財源・款の2列）を渡す
+  assert.equal(m.colorOffset, 2);
   assert.ok(m.graph.edges.every(e => m.graph.nodes.some(n => n.id === e.source) && m.graph.nodes.some(n => n.id === e.target)));
   assert.equal(m.graph.nodes.find(n => n.id === 'kou:general:expense:2-1')?.value, 150);
   // 事項（右端）を選ぶと右端から3列
