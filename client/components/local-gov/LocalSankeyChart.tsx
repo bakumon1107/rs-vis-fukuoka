@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeMOFSankeyLayout, mofRibbonPath, type MOFLayoutLink } from '@/app/lib/mof-sankey-layout';
 import { edgeKey, type LocalGraphDisplay } from '@/app/lib/local-gov/graph-view';
+import { orderEdges } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import type { LocalGraph } from '@/types/local-gov';
 
@@ -74,7 +75,8 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
       computeMOFSankeyLayout<GraphNode>(
         {
           nodes: graph.nodes.map(n => ({ id: n.id, name: n.name, value: n.value, type: n.col, details: n })),
-          links: graph.edges,
+          // 帯を箱の並び順に並べ直す（配置計算は帯を並び順に積むので、ずれると帯が交差する）
+          links: orderEdges(graph),
         },
         {
           width,
@@ -92,6 +94,9 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
 
   const colorOf = (col: number) => COLUMN_COLORS[col % COLUMN_COLORS.length];
   const height = Math.max(layout.height, layout.contentHeight);
+  // ホバー中の箱が選択の解除などで図から消えると onMouseLeave が来ないので、図にない箱を指すホバーは無視する
+  // （残ると全部の帯が薄いままになる）
+  const hoveredShown = hovered !== null && layout.nodes.some(n => n.id === hovered) ? hovered : null;
 
   return (
     <div ref={ref} className="w-full">
@@ -112,7 +117,7 @@ export function LocalSankeyChart({ display, onSelect }: LocalSankeyChartProps) {
             const k = edgeKey(link.source.id, link.target.id);
             const color = colorOf(link.target.column);
             if (!selected) {
-              const dim = hovered !== null && hovered !== link.source.id && hovered !== link.target.id;
+              const dim = hoveredShown !== null && hoveredShown !== link.source.id && hoveredShown !== link.target.id;
               return <path key={k} d={mofRibbonPath(link)} fill={color} opacity={dim ? 0.08 : 0.3} />;
             }
             const part = highlight.get(k) ?? 0;

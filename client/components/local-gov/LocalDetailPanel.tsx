@@ -6,7 +6,8 @@
  */
 import type { LocalGovIndex, MokuRow, NameSource, Value } from '@/types/local-gov';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
-import { isNotableValueSource, NAME_SRC_LABEL, VALUE_SRC_LABEL } from '@/client/lib/local-gov-labels';
+import { NAME_SRC_LABEL } from '@/client/lib/local-gov-labels';
+import { ValueSourceMark } from './ValueSourceMark';
 import { FUNDING_KINDS, isOcrName } from '@/app/lib/local-gov/graph';
 
 
@@ -15,9 +16,7 @@ function yen(v: Value | undefined) {
 }
 
 function Mark({ v }: { v: Value | undefined }) {
-  return v && isNotableValueSource(v.src) ? (
-    <span className="ml-1 text-[10px] text-amber-700">（{VALUE_SRC_LABEL[v.src]}）</span>
-  ) : null;
+  return <ValueSourceMark src={v?.src} />;
 }
 
 function NameMark({ src }: { src?: NameSource }) {

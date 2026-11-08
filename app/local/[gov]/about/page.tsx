@@ -12,6 +12,7 @@ import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
+import { ValueSourceMark } from '@/client/components/local-gov/ValueSourceMark';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import {
   nameSourceCounts,
@@ -22,7 +23,6 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { ValueSource } from '@/types/local-gov';
 import {
-  isNotableValueSource,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -41,7 +41,7 @@ const NAME_LEVELS = [
 
 /** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
 function srcNote(src: ValueSource) {
-  return isNotableValueSource(src) ? <span className="text-amber-700">［{VALUE_SRC_LABEL[src]}］</span> : null;
+  return <ValueSourceMark src={src} className="text-amber-700" />;
 }
 
 export default function LocalGovAboutPage() {
@@ -195,7 +195,7 @@ function LocalGovAboutContent() {
                 <li key={i}>
                   <span className="text-mirai-text-muted">{x.where}</span> {x.field}:{' '}
                   <b>{x.value === null ? '—' : formatBudgetFromYen(x.value)}</b>
-                  <span className="text-amber-700">［{VALUE_SRC_LABEL[x.src]}］</span>
+                  <ValueSourceMark src={x.src} className="text-amber-700" />
                   {x.note && <span className="text-mirai-text-muted">（{x.note}）</span>}
                 </li>
               ))}

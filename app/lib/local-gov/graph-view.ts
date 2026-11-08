@@ -9,7 +9,7 @@
  *   （目を選んだときの 財源 → 款）は、その割合の太さで重ねる
  */
 import type { LocalBudgetFile, LocalGraph } from '@/types/local-gov';
-import { buildLocalGraph, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
+import { buildLocalGraph, edgeKey, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
 
 /** 最初に出す列の数（深い列は選んだときだけ開く） */
 export const BASE_DEPTH = 3;
@@ -29,7 +29,27 @@ export interface LocalGraphDisplay {
   note: string | null;
 }
 
-export const edgeKey = (source: string, target: string) => `${source}\u0000${target}`;
+// 帯のキーは graph.ts と同じもの（描画・テストからはここ経由でも使える）
+export { edgeKey };
+
+/** 箱ごとの、入る色付きの帯の合計（into）と出る色付きの帯の合計（out）。まとめの順位・元の色の判定で使う */
+function litTotals(graph: LocalGraph, highlight: Map<string, number>) {
+  const into = new Map<string, number>();
+  const out = new Map<string, number>();
+  for (const e of graph.edges) {
+    const h = highlight.get(edgeKey(e.source, e.target));
+    if (!h) continue;
+    into.set(e.target, (into.get(e.target) ?? 0) + h);
+    out.set(e.source, (out.get(e.source) ?? 0) + h);
+  }
+  return { into, out };
+}
+
+/** 箱が選んだものに全部含まれるか（入る、左端は出る色付きの帯の合計が箱の額以上） */
+function isWhole(id: string, value: number, lit: { into: Map<string, number>; out: Map<string, number> }) {
+  const v = lit.into.has(id) ? lit.into.get(id)! : lit.out.get(id) ?? 0;
+  return v > 0 && v >= value;
+}
 
 /** 右端の列の箱がこれより多ければ、上位だけを残して残りを「その他」にまとめる（設計書 4.3） */
 export const TOP_N = 25;
@@ -56,11 +76,7 @@ export function aggregateTail(
   if (tail.length <= n + 1) return { graph, highlight, highlightNodes };
   // 上位は重ねる帯の額（選んだものの分。財源を選んだときはその財源の額）で選び、同じなら箱の額。
   // 箱の額で選ぶと、選んだ財源が多く入っている目が「その他」に入ってしまう（設計書 4.3）
-  const litInto = new Map<string, number>();
-  for (const e of graph.edges) {
-    const h = highlight.get(edgeKey(e.source, e.target));
-    if (h) litInto.set(e.target, (litInto.get(e.target) ?? 0) + h);
-  }
+  const litInto = litTotals(graph, highlight).into;
   const ranked = [...tail].sort((a, b) => (litInto.get(b.id) ?? 0) - (litInto.get(a.id) ?? 0) || b.value - a.value);
   const merged = new Set(ranked.slice(n).filter(nd => !keep.has(nd.id)).map(nd => nd.id));
   if (merged.size <= 1) return { graph, highlight, highlightNodes };
@@ -84,10 +100,10 @@ export function aggregateTail(
     }
   }
   const hn = new Set([...highlightNodes].filter(id => !merged.has(id)));
+  const out = { ...graph, nodes, edges: [...edges.values()] };
   // 「その他」も、選んだものに全部が含まれるときだけ元の色（設計書 4.3。一部だけなら灰色のまま、帯だけ色付け）
-  const otherLit = [...hl].filter(([k]) => k.endsWith(`\u0000${otherId}`)).reduce((s, [, v]) => s + v, 0);
-  if (otherLit > 0 && otherLit >= otherValue) hn.add(otherId);
-  return { graph: { ...graph, nodes, edges: [...edges.values()] }, highlight: hl, highlightNodes: hn };
+  if (isWhole(otherId, otherValue, litTotals(out, hl))) hn.add(otherId);
+  return { graph: out, highlight: hl, highlightNodes: hn };
 }
 
 /**
@@ -165,21 +181,13 @@ function fullGraph(file: LocalBudgetFile, view: LocalGraphView, depth: number): 
  * （例: 全会計で会計を選んだとき、ほかの会計の分も含む歳入の款の箱は灰色。目を選んだときの項・款の箱も同じ）
  */
 function wholeNodesOnly(graph: LocalGraph, highlight: Map<string, number>, candidates: Set<string>, selectedId: string): Set<string> {
-  const into = new Map<string, number>();
-  const out = new Map<string, number>();
-  for (const e of graph.edges) {
-    const h = highlight.get(edgeKey(e.source, e.target));
-    if (!h) continue;
-    into.set(e.target, (into.get(e.target) ?? 0) + h);
-    out.set(e.source, (out.get(e.source) ?? 0) + h);
-  }
+  const lit = litTotals(graph, highlight);
   const valueOf = new Map(graph.nodes.map(n => [n.id, n.value]));
   return new Set(
     [...candidates].filter(id => {
       if (id === selectedId) return true;
       const v = valueOf.get(id);
-      const lit = into.has(id) ? into.get(id)! : out.get(id) ?? 0;
-      return v !== undefined && lit >= v;
+      return v !== undefined && isWhole(id, v, lit);
     })
   );
 }
@@ -247,15 +255,20 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   const graph: LocalGraph = {
     ...base,
     columns: focused.columns,
-    nodes: [...base.nodes, ...labelDuplicates(deepNodes, [...base.nodes, ...deepNodes], deepEdges)],
+    nodes: [...base.nodes, ...deepNodes],
     edges: [...base.edges, ...deepEdges],
   };
-  const n = nodeOf(graph);
-  const selected = n ? { id: n.id, name: n.name, col: n.col } : null;
   // 元の色で描く箱は、選んだものに全部が含まれる箱だけ（一部だけなら灰色のまま帯だけ色付け）
   const lit = wholeNodesOnly(graph, highlight, highlightNodes, selectedId);
   // 右端の深い列の箱が多ければ上位だけ残す（選んだ箱は残す）
   const agg = aggregateTail(graph, highlight, lit, TOP_N, new Set(selectedId ? [selectedId] : []), baseCols);
+  // 同じ名前の深い箱への上の箱の名前は、まとめた後に図に残る箱だけで決める（片方が「その他」に入れば添えない）
+  const isDeep = (nd: LocalGraph['nodes'][number]) => !baseCols.has(nd.col) && !nd.flags?.includes('aggregate');
+  const shownDeep = agg.graph.nodes.filter(isDeep);
+  const labeled = new Map(labelDuplicates(shownDeep, agg.graph.nodes, agg.graph.edges).map(nd => [nd.id, nd]));
+  const finalGraph = { ...agg.graph, nodes: agg.graph.nodes.map(nd => labeled.get(nd.id) ?? nd) };
+  const n = nodeOf(finalGraph);
+  const selected = n ? { id: n.id, name: n.name, col: n.col } : null;
   // 目・事項を選んだら、その目を詳細パネルに出す
-  return { ...agg, selected, row: n?.row ?? null, note };
+  return { ...agg, graph: finalGraph, selected, row: n?.row ?? null, note };
 }

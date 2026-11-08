@@ -78,6 +78,20 @@ const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
 
 type Node = LocalGraph['nodes'][number];
 
+/** 帯のキー（送り元 → 送り先）。グラフの組み立て・重ねる帯の値・描画で同じ形を使う */
+export const edgeKey = (source: string, target: string) => `${source}\u0000${target}`;
+
+/**
+ * 帯を、送り元の箱の並び順・送り先の箱の並び順に並べ直す（配置計算は帯を並び順に積むので、箱の並びとずれると帯が交差する）。
+ * 例: 款への財源の帯が目ごとに出てきた順だと、地方債の帯が一般財源の帯の下に入り交差していた
+ */
+export function orderEdges(graph: LocalGraph): LocalGraph['edges'] {
+  const pos = new Map(graph.nodes.map((n, i) => [n.id, i]));
+  return [...graph.edges].sort(
+    (a, b) => (pos.get(a.source) ?? 0) - (pos.get(b.source) ?? 0) || (pos.get(a.target) ?? 0) - (pos.get(b.target) ?? 0)
+  );
+}
+
 /** ノードと帯を足し込む入れ物（同じ ID の帯は値を足す。出てきた順を保つ）。ノードの値は最後に帯から求める */
 class GraphBuilder {
   nodes = new Map<string, Node>();
@@ -99,7 +113,7 @@ class GraphBuilder {
     // 0 円の帯は作らない。負の値（財源内訳の △・補正の減額）は想定していない: サンキー図は負の太さを描けないので、
     // 補正後（latest）を組み立てるときに扱い（減額は別の列にする など）を決める。実データのテストで負の帯がないことを確かめている
     if (value === 0) return;
-    const k = `${source}\u0000${target}`;
+    const k = edgeKey(source, target);
     const e = this.edges.get(k);
     if (e) e.value += value;
     else this.edges.set(k, { source, target, value });
