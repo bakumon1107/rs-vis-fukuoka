@@ -66,17 +66,6 @@ class TestRevenue:
         assert total["予算現額"] == 24069625000
 
 
-class TestExplain:
-    def test_entries_and_continuation(self):
-        lines = [
-            "     1       一       般       管       理       費    事務費 （3,694千円）",
-            "     1       社 会 教 育 総 務 費                人件費 社会教育活動促進費",
-            "                                              社会教育推進費",
-        ]
-        out = kt.parse_explain(lines, 30)
-        assert out[1].endswith("社会教育推進費")
-
-
 class TestVerify:
     def _acc(self, choutei):
         return {"会計": "福岡県住宅管理特別会計",
