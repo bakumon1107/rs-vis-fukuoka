@@ -162,9 +162,9 @@ function LocalGovContent() {
             {view === 'all' &&
               '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
-            {view === 'all' && fundingReclassNotes(gov, file) && (
+            {fundingReclassNotes(gov, file) && (
               <>
-                （確かめた内訳は
+                {view === 'all' ? '（確かめた内訳は' : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（確かめた内訳は'}
                 <Link href={`/local/${gov}/about?year=${file.year}#funding`} className="text-primary-accent underline">
                   データについて
                 </Link>

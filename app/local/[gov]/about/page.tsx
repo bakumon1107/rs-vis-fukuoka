@@ -75,7 +75,13 @@ function LocalGovAboutContent() {
   const ready = state.status === 'ready';
   useEffect(() => {
     if (!ready || !window.location.hash) return;
-    document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
+    let id: string;
+    try {
+      id = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return; // 壊れた「#…」（%E0 など）は無視する
+    }
+    document.getElementById(id)?.scrollIntoView();
   }, [ready]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
