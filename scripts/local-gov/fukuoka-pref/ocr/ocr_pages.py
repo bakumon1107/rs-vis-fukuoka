@@ -30,15 +30,16 @@ VALID_LINE_COUNTS = (8, 12)
 
 def union_vlines(tv, page_vlines, tol=45):
     """表ごとの線とページ共通の線がどちらも歳出の本数より1本少ないとき（それぞれ別の線を1本ずつ取りこぼした）、
-    表ごとの線に、ページ共通の線のうち表ごとの線から tol px 以上離れたものを足す。それ以外は表ごとの線をそのまま返す。
-    近い線は同じ線とみなし、表ごとの位置を使う（tol は二重線をまとめる間隔と同じ）。
+    ページ共通の線に、表ごとの線のうちページ共通の線から tol px 以上離れたものを足す。それ以外は表ごとの線をそのまま返す。
+    近い線は同じ線とみなし、ページ共通の位置を使う（tol は二重線をまとめる間隔と同じ）。表ごとの線は細節の区切りの短い線を
+    列の境界と取り違えることがある（R8 281298 p367）ので、ページの高さ全体で測った線を優先する。
     本数を絞るのは、様式の違う表（特別会計の総括の表は 9本・ページ共通 5本。R8 281299 p7）を、
     たまたま足して 12本になった線で切らないため。"""
     exp = VALID_LINE_COUNTS[1]
     if len(tv) != exp - 1 or len(page_vlines) != exp - 1:
         return list(tv)
-    extra = [x for x in page_vlines if all(abs(x - y) >= tol for y in tv)]
-    return sorted(list(tv) + extra)
+    extra = [x for x in tv if all(abs(x - y) >= tol for y in page_vlines)]
+    return sorted(list(page_vlines) + extra)
 
 
 def choose_vlines(tv, page_vlines, header_text, prev_cols):
@@ -67,8 +68,9 @@ def choose_vlines(tv, page_vlines, header_text, prev_cols):
         merged = union_vlines(tv, page_vlines)
         if len(merged) == exp:
             return merged
-    if header_text is None and len(tv) == len(page_vlines) >= 6:
-        # 見出しのない続きの表で本数が同じなら、ページ共通の線を使う。表ごとの線は、細節の行の区切りの短い縦線を
+    if header_text is None and prev_cols == exp - 1 and len(tv) == len(page_vlines) >= 6:
+        # 見出しのない歳出の続きの表で本数が同じなら、ページ共通の線を使う（歳入の続きや直前が分からない表は今までどおり。
+        # ページ共通の線が同じページの別の種類の表の線のことがある）。表ごとの線は、細節の行の区切りの短い縦線を
         # 列の境界と取り違えることがある（R8 281298 p367: 節の欄の左端がページ共通 2153 → 表ごと 2180。
         # 節の番号が欄の外に落ち、節と細節の字下げの差が消えて細節を節として数えた）。ページの高さ全体で測った線の方が確か
         return page_vlines
@@ -299,7 +301,7 @@ def main():
                     #   見出しがない（前のページから続く表）→ 直前の表（同じページの前の表、なければ前のページの最後の表）が
                     #     歳入で、表ごとの線が8本ならそれを使う（R8 281299 p51: 歳入の続きの表と歳出の表が同じページ）
                     #   表ごともページ共通も 11本（別の線を1本ずつ取りこぼした）で歳出の表 → 合わせて 12本（一般会計 p238）
-                    #   見出しのない続きの表で本数が同じ → ページ共通（表ごとは細節の区切りの線を拾うことがある。一般会計 p367）
+                    #   見出しのない歳出の続きの表で本数が同じ → ページ共通（表ごとは細節の区切りの線を拾うことがある。一般会計 p367）
                     #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
                     #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
                     is_header = bool(re.search(r"年度|区分|説明|说明|節|节|款名|[財财]源", htext)) and head - vtop <= 400

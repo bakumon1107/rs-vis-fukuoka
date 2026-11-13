@@ -831,23 +831,23 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
      "no": 1,
      "name": "証紙収入",
-     "name_src": "readings",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -1190,7 +1190,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -2547,12 +2547,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -8142,7 +8142,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 34237000,
@@ -8158,7 +8158,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -9597,12 +9597,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -9617,7 +9617,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -80217,12 +80217,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "correction",
-    "agree": 1,
+    "agree": 2,
     "note": "画像で確認（13款1項2目 利子割精算金。前年度「1」。OCR は空、文字層は 1）"
    },
    "funding": {
@@ -80271,7 +80271,7 @@
      "amount": {
       "v": 1000,
       "src": "correction",
-      "agree": 0,
+      "agree": 1,
       "note": "画像で確認（節「22 償還金利子及び割引料」1。OCR は読めず、文字層は節番号を 12 と誤読）"
      }
     }
@@ -81856,12 +81856,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -81872,7 +81872,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -82148,8 +82148,8 @@
     },
     {
      "no": 4,
-     "name": "子ども子育て支援納付金分",
-     "name_src": "ocr",
+     "name": "子ども・子育て支援納付金分",
+     "name_src": "correction",
      "no_src": "textlayer",
      "amount": {
       "v": 2864704000,
@@ -85744,12 +85744,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -85760,7 +85760,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -86459,12 +86459,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -86475,7 +86475,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -86576,7 +86576,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86587,7 +86587,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -87611,7 +87611,7 @@
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -87622,7 +87622,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -89280,12 +89280,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -89296,7 +89296,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -89329,12 +89329,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -89345,7 +89345,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -89378,12 +89378,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -89394,7 +89394,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -90463,12 +90463,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90479,7 +90479,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -90515,12 +90515,12 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90531,7 +90531,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -91244,8 +91244,8 @@
    "計の行": "一般会計 74/74・特別会計 23/23"
   },
   "readings": {
-   "agree_2plus": 0.9975,
-   "confirmed_by_image": 15
+   "agree_2plus": 0.9976,
+   "confirmed_by_image": 14
   },
   "corrections": 17
  }

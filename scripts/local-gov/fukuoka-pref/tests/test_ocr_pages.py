@@ -39,8 +39,11 @@ def test_continuation_same_count_prefers_page_lines():
     tv = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2180, 2515, 2759, 3329]
     page = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
     assert op.choose_vlines(tv, page, None, 11) == page
-    # 歳入の続き（直前が7列）で表ごとが8本なら、今までどおり表ごと（ページ共通は歳出の12本のことがある。p51）
-    assert op.choose_vlines(L8, L12, None, 7) == L8
+    # 歳入の続き（直前が7列）や直前が分からない表は、本数が同じでも今までどおり表ごと（ページ共通の線が同じページの
+    # 別の表の線のことがある）
+    rev_tv, rev_page = [0, 100, 200, 300, 400, 500, 600, 700], [0, 120, 240, 360, 480, 600, 650, 700]
+    assert op.choose_vlines(rev_tv, rev_page, None, 7) == rev_tv
+    assert op.choose_vlines(tv, page, None, None) == tv
 
 
 def test_union_only_when_each_misses_one_line():
@@ -71,7 +74,7 @@ def test_long_table_lines_broken():
 # 金額の間の線（2512）を取りこぼした。どちらか一方だと 10列になり「2扶助費30,999,209」が1つのセルにつながる
 P238_TV = [165, 681, 922, 1188, 1414, 1640, 1903, 2149, 2512, 2757, 3329]
 P238_PAGE = [165, 439, 679, 921, 1187, 1412, 1639, 1902, 2148, 2756, 3328]
-P238_WANT = [165, 439, 681, 922, 1188, 1414, 1640, 1903, 2149, 2512, 2757, 3329]  # 近い線は表ごとの位置
+P238_WANT = [165, 439, 679, 921, 1187, 1412, 1639, 1902, 2148, 2512, 2756, 3328]  # 近い線はページ共通の位置
 
 
 def test_expense_header_lines_missing_in_both():
@@ -84,8 +87,16 @@ def test_expense_header_lines_missing_in_both():
 def test_expense_continuation_lines_missing_in_both():
     # 見出しのない歳出の続きの表（直前が11列）でも合わせる
     assert op.choose_vlines(P238_TV, P238_PAGE, None, 11) == P238_WANT
-    # 直前の列数が分からないときは合わせない（本数が同じなのでページ共通）
-    assert op.choose_vlines(P238_TV, P238_PAGE, None, None) == P238_PAGE
+    # 直前の列数が分からないときは合わせない（今までどおり表ごと。前のページの結果がないときは ocr_pages.py が
+    # 未確定の印を付け、前のページの後に --redo-unknown で読み直す）
+    assert op.choose_vlines(P238_TV, P238_PAGE, None, None) == P238_TV
+
+
+def test_union_prefers_page_position_for_close_lines():
+    # 合わせるとき、近い線はページ共通の位置を使う。表ごとの線は細節の区切りの線（p367 の 2180）を拾うことがある
+    tv = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2180, 2515, 3329]          # 11本: 2759 を取りこぼし、2180 は取り違え
+    page = [169, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]        # 11本: 441 を取りこぼし
+    assert op.choose_vlines(tv, page, "財源", None) == [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
 
 
 def test_not_a_table():

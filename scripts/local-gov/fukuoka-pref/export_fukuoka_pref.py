@@ -501,8 +501,8 @@ def apply_name_corrections(rows, fixes, unresolved):
             targets = [s for r in rows if r["id"] == fid for s in r.get("setsu", [])
                        if s["amount"]["v"] == yen(fx["amount"]) and ("no" not in fx or s["no"] == fx["no"])]
         elif lv == "item":
-            # 説明欄の事項は目の中の金額（千円）で特定する。同じ金額の事項が目の中に2つあるときは、今の名前（"was"）も合わせる
-            # （行の名前は clean_name を通っているので、修正表の側もそろえて比べる）
+            # 説明欄の事項は目の中の金額（千円）で特定する。同じ金額の事項が目の中に2つあるとき（内訳の事項が親と同じ金額のときも）は、
+            # 今の名前（"was"。書き出したデータの name を写したもの）も合わせる。全角・半角の違いは clean_name でそろえて比べる
             targets = [it for r in rows if r["id"] == fid for it in r.get("items", [])
                        if it["amount"]["v"] == yen(fx["amount"])
                        and ("was" not in fx or it["name"] == clean_name(fx["was"]))]
