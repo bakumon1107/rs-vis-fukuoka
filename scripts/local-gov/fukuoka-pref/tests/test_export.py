@@ -117,6 +117,11 @@ def test_name_corrections_apply_to_items():
     assert ex.apply_name_corrections([row], fixes, []) == 2
     assert [(it["name"], it["name_src"]) for it in row["items"]] == [
         ("一時借入金利子", "readings"), ("公債管理特別会計への繰出金", "correction"), ("x", "ocr"), ("z", "correction")]
+    # 今の名前は画像のとおり全角で書いてもよい（行の名前と同じく clean_name でそろえて比べる）
+    row["items"][2]["name"] = "A1"
+    assert ex.apply_name_corrections([row], [{"id": "general/expense/12-1-2", "level": "item", "amount": 5,
+                                               "was": "Ａ１", "name": "v"}], []) == 1
+    assert row["items"][2]["name"] == "v"
     with pytest.raises(SystemExit):   # 同じ金額の事項が2つで今の名前の指定なし → 1件に絞れない
         ex.apply_name_corrections([row], [{"id": "general/expense/12-1-2", "level": "item", "amount": 5, "name": "w"}], [])
 

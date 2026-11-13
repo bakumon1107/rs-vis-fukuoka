@@ -502,8 +502,10 @@ def apply_name_corrections(rows, fixes, unresolved):
                        if s["amount"]["v"] == yen(fx["amount"]) and ("no" not in fx or s["no"] == fx["no"])]
         elif lv == "item":
             # 説明欄の事項は目の中の金額（千円）で特定する。同じ金額の事項が目の中に2つあるときは、今の名前（"was"）も合わせる
+            # （行の名前は clean_name を通っているので、修正表の側もそろえて比べる）
             targets = [it for r in rows if r["id"] == fid for it in r.get("items", [])
-                       if it["amount"]["v"] == yen(fx["amount"]) and ("was" not in fx or it["name"] == fx["was"])]
+                       if it["amount"]["v"] == yen(fx["amount"])
+                       and ("was" not in fx or it["name"] == clean_name(fx["was"]))]
         else:
             sys.exit(f"名前の修正表: level が不正（{lv}）")
         if not targets or (lv in ("moku", "setsu", "item") and len(targets) != 1):
