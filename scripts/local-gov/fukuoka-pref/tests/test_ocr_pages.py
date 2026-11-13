@@ -48,10 +48,27 @@ def test_continuation_same_count_prefers_page_lines():
 
 def test_union_rejects_line_too_close_to_neighbor():
     # 表ごとの線が本当の線（441）を取りこぼし、細節の区切りの線（2240）を拾った。合わせると12本になるが、
-    # 2153 と 2240 が列の幅の下限より近いので合わせない（本数の多い方。同じなら表ごと）
+    # 2153 と 2240 が列の幅の下限より近いので合わせない。表ごとの線が怪しいので、ページ共通の線で切る（余計な境界で切らない）
     tv = [169, 684, 926, 1190, 1418, 1643, 1907, 2153, 2240, 2515, 3329]
     page = [169, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
-    assert op.choose_vlines(tv, page, "財源", None) == tv
+    assert op.choose_vlines(tv, page, "財源", None) == page
+    assert op.choose_vlines(tv, page, None, 11) == page
+
+
+def test_union_close_check_only_around_added_line():
+    # ページ共通の線どうしが近くても（様式の狭い列）、足した線の両隣が十分離れていれば合わせる
+    tv = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 3329]
+    page = [169, 300, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 3329]   # 169 と 300 は 131px（下限より狭い）
+    tv2 = [169, 300, 684, 926, 1190, 1418, 1643, 1907, 2153, 2759, 3329]
+    merged, suspect = op.union_vlines(tv2, page)
+    assert merged == [169, 300, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329] and not suspect
+    assert op.union_vlines(tv, page) == (None, True)   # 441 は 300 から 141px（下限より近い）
+
+
+def test_thresholds_scale_with_dpi():
+    # 600dpi では線の位置が倍になる。p238 の線を倍にしても同じく合わせられる（基準の px も倍にする）
+    tv, page = [x * 2 for x in P238_TV], [x * 2 for x in P238_PAGE]
+    assert op.choose_vlines(tv, page, "財源", None, dpi=600) == [x * 2 for x in P238_WANT]
 
 
 def test_same_count_rule_needs_close_positions():

@@ -68,19 +68,23 @@ def main():
     cv2 = op.cv2
     a, b = (int(x) for x in rng.split("-"))
     changed = []
-    # ページごとの最後の表の列数（選び直した線で数える。表のないページは記録しない）。次のページの続きの表に伝える
-    last_cols: dict[int, int] = {}
+    # ページごとの最後の表の列数（選び直した線で数える）。次のページの続きの表に伝える。
+    # 選び直して表がなくなったページは None（ocr_pages.py と同じく、表のないページとしてとばしてさらに前を見る）
+    last_cols: dict[int, int | None] = {}
 
     def prev_cols_before(page):
         # ocr_pages.previous_table_cols と同じく3ページ前まで見る。選び直したページがあればその列数、なければ保存済み
         for p in range(page - 1, max(0, page - 4), -1):
             if p in last_cols:
+                if last_cols[p] is None:
+                    continue
                 return last_cols[p]
             path = os.path.join(ocrdir, f"p{p:04d}.json")
-            if os.path.exists(path) and load_page(path).get("tables"):
-                if p >= a:  # 範囲内で表のあるページは last_cols に入っているはず（線の検出に失敗したなど）。保存済みで代える
-                    print(f"WARN p{page}: p{p} の選び直した列数がない。保存済みの列数を使う", file=sys.stderr)
-                return len(load_page(path)["tables"][-1]["cols"])
+            if not os.path.exists(path):
+                continue
+            tables = load_page(path).get("tables")
+            if tables:
+                return len(tables[-1]["cols"])  # 範囲より前のページ（選び直していない）
         return None
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -90,7 +94,8 @@ def main():
                 print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
                 continue
             rec = load_page(path)
-            png = op.render(pdf, page, rec.get("dpi", 300), tmp)
+            dpi = rec.get("dpi", 300)
+            png = op.render(pdf, page, dpi, tmp)
             img = cv2.imread(png, cv2.IMREAD_GRAYSCALE)
             os.remove(png)  # 300dpi の画像は1枚数 MB。全ページ分を溜めない（ocr_pages.py と同じ）
             vlines, _hlines, spans, per_table = op.detect_lines(img)
@@ -100,16 +105,17 @@ def main():
             for (top, _bottom), tv in zip(spans, per_table):
                 if top not in saved:
                     # 保存済みの表にない範囲。今の規則で表になるなら（見出しなしとみなす）流し直す
-                    new = op.choose_vlines(tv, vlines, None, prev_cols)
+                    # 見出しの文字がないので見出しなしとして判定する。本数は見出しによって変わりうるので、後ろの表へは伝えない
+                    # （このページは流し直すので、流し直した後にもう一度洗い出す）
+                    new = op.choose_vlines(tv, vlines, None, prev_cols, dpi)
                     if new is not None:
                         changed.append(page)
-                        print(f"NEW p{page}: 上端 {top} の範囲が今の規則では表になる（{len(new)}本）")
-                        prev_cols = cols_here = len(new) - 1
+                        print(f"NEW p{page}: 上端 {top} の範囲が今の規則では表になりうる（見出しなしとみなして {len(new)}本）")
                     continue
                 i, t = saved.pop(top)
                 header = t["header"]  # ocr_pages.py は見出しと認めなかった表で [] を保存する
                 htext = "".join(d["text"] for d in header) if header else None
-                new = op.choose_vlines(tv, vlines, htext, prev_cols)
+                new = op.choose_vlines(tv, vlines, htext, prev_cols, dpi)
                 if new != t["vlines"]:
                     changed.append(page)
                     print(f"CHANGED p{page} table {i}: {len(t['vlines'])} -> {len(new) if new else None} lines "
@@ -119,8 +125,7 @@ def main():
             for top, (i, t) in saved.items():
                 print(f"WARN p{page} table {i}: 表の上端 {top} が線の検出をやり直した結果にない", file=sys.stderr)
                 changed.append(page)  # 確かめられない表は流し直す側に倒す
-            if cols_here is not None:
-                last_cols[page] = cols_here
+            last_cols[page] = cols_here  # 表がない（なくなった）ページは None
     print("changed pages:", sorted(set(changed)))
 
 
