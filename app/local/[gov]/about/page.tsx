@@ -6,7 +6,7 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2
  */
 import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
@@ -23,8 +23,7 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { ValueSource } from '@/types/local-gov';
 import {
-  FUNDING_RECLASS_NOTES,
-  fundingReclassKey,
+  fundingReclassNotes,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -71,6 +70,14 @@ function LocalGovAboutContent() {
     };
   }, [state]);
 
+  // データを読み終えるまで節がないので、ブラウザの「#…」へのスクロールが効かない。読み終えてから該当の節へ動かす
+  // （全会計の見方の「確かめた内訳はデータについて」は #funding へ案内する）
+  const ready = state.status === 'ready';
+  useEffect(() => {
+    if (!ready || !window.location.hash) return;
+    document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
+  }, [ready]);
+
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
     // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
@@ -85,7 +92,7 @@ function LocalGovAboutContent() {
   // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
-  const fundingNotes = FUNDING_RECLASS_NOTES[fundingReclassKey(gov, file.year, file.basis)];
+  const fundingNotes = fundingReclassNotes(gov, file);
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -121,12 +128,13 @@ function LocalGovAboutContent() {
         </section>
 
         {fundingNotes && (
-          <section id="funding" className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+          <section id="funding" className="scroll-mt-24 space-y-2 rounded-2xl bg-card p-4 shadow-soft">
             <h2 className="font-bold">財源内訳と歳入の款の違い</h2>
             <p>
-              一般会計の見方の左端（歳出の財源内訳）と、全会計の見方の左端（歳入の款）では、国庫支出金・地方債・その他の額が違います。
-              同じお金でも、歳入では国庫支出金・県債・繰入金などに入っているものを、歳出の財源内訳では一般財源として数えているためです。
-              説明書を読んで確かめたものは次のとおりです（{index.gov.name}の資料。なぜ一般財源に数えるのかは説明書に書かれていません）。
+              一般会計の見方の左端は歳出の財源内訳（国庫支出金・地方債・その他・一般財源）、全会計の見方の左端は歳入の款（県税・国庫支出金・県債・繰入金など）です。
+              国庫支出金や県債の額が2つの見方で違うのは、主に全会計の見方が特別会計の分も含むためです。
+              一般会計だけで比べても、歳入では国庫支出金・県債・繰入金などに入っているお金の一部を、歳出の財源内訳では一般財源として数えているため、額が合いません。
+              一般会計について説明書を読んで確かめたものは次のとおりです（{index.gov.name}の資料。なぜ一般財源に数えるのかは説明書に書かれていません）。
             </p>
             <ul className="list-disc space-y-0.5 pl-5">
               {fundingNotes.map(n => (

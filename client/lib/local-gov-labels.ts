@@ -32,18 +32,18 @@ export { isNotableValueSource } from '@/app/lib/local-gov/summary';
  * 根拠: docs/local-gov/fukuoka/20261114_0005_財源内訳と歳入の款の差の調査.md。
  * 自治体ごとの説明文なので、2件目の自治体を載せるときに index.json に移す（画面とグラフの設計 4.2）
  */
-export const FUNDING_RECLASS_NOTES: Record<string, string[]> = {
+const FUNDING_RECLASS_NOTES: Record<string, string[]> = {
   'fukuoka-pref/2026/initial': [
     '国の「物価高騰対応重点支援地方創生臨時交付金」約67億円は、歳入では国庫支出金ですが、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
     '県債のうち「調整債」約133億円は、歳入では県債ですが、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
-    '繰入金のうち財政調整基金繰入金・減債基金繰入金・特別会計繰入金（ほかの会計からの繰入金）の合わせて約325億円は、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
-    'このほか、諸収入・財産収入・寄附金・使用料及び手数料の一部（合わせて約168億円）も一般財源に数えられています。どの収入かは説明書に書かれていません。',
+    '繰入金のうち財政調整基金繰入金・減債基金繰入金・特別会計繰入金（ほかの会計からの繰入金。この図に描いていない公営企業会計からの分を含む）の合わせて約325億円は、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
+    'このほか、諸収入・財産収入・寄附金・使用料及び手数料の一部（合わせて約168億円）も一般財源に数えられています。この額は財源内訳の欄の読み取りから求めた概算で、どの収入かは説明書に書かれていません。',
   ],
 };
 
-/** FUNDING_RECLASS_NOTES を引く鍵 */
-export function fundingReclassKey(govId: string, year: number, basis: string): string {
-  return `${govId}/${year}/${basis}`;
+/** 財源内訳と歳入の款の違いのうち確かめたもの（なければ undefined） */
+export function fundingReclassNotes(govId: string, file: { year: number; basis: string }): string[] | undefined {
+  return FUNDING_RECLASS_NOTES[`${govId}/${file.year}/${file.basis}`];
 }
 
 /** 表に並べる順（型の一覧と同じ順） */
