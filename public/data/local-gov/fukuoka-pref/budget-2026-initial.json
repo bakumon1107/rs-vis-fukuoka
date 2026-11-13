@@ -831,7 +831,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "previous": {
     "v": 1000,
@@ -913,7 +913,7 @@
      "amount": {
       "v": 5000,
       "src": "ocr",
-      "agree": 3
+      "agree": 2
      }
     }
    ],
@@ -1556,7 +1556,7 @@
       "r6-kessan-gaiyou",
       "r6-kessansho"
      ],
-     "no_src": "ocr",
+     "no_src": "textlayer",
      "amount": {
       "v": 754790000,
       "src": "ocr",
@@ -2547,7 +2547,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "previous": {
     "v": 1000,
@@ -2562,7 +2562,7 @@
      "amount": {
       "v": 1000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -8142,7 +8142,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "previous": {
     "v": 34237000,
@@ -9471,7 +9471,7 @@
      "no": 2,
      "name": "埋蔵文化財発掘調査受託金",
      "name_src": "correction",
-     "no_src": "ocr",
+     "no_src": "textlayer",
      "amount": {
       "v": 76913000,
       "src": "ocr",
@@ -9597,7 +9597,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "previous": {
     "v": 1000,
@@ -79794,8 +79794,8 @@
    },
    "items": [
     {
-     "name": "公債管理特別会計~の繰出金",
-     "name_src": "ocr",
+     "name": "公債管理特別会計への繰出金",
+     "name_src": "correction",
      "amount": {
       "v": 228089882000,
       "src": "ocr"
@@ -79885,8 +79885,8 @@
      }
     },
     {
-     "name": "公債管理特別会計の繰出金",
-     "name_src": "ocr",
+     "name": "公債管理特別会計への繰出金",
+     "name_src": "correction",
      "amount": {
       "v": 31278351000,
       "src": "ocr",
@@ -79990,8 +79990,8 @@
      }
     },
     {
-     "name": "公債管理特別会計の繰出金",
-     "name_src": "ocr",
+     "name": "公債管理特別会計への繰出金",
+     "name_src": "correction",
      "amount": {
       "v": 781505000,
       "src": "ocr",
@@ -80217,7 +80217,7 @@
    "amount": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "previous": {
     "v": 1000,
@@ -81139,12 +81139,12 @@
    "amount": {
     "v": 451898000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 411141000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -81159,7 +81159,7 @@
      "amount": {
       "v": 451898000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -81192,33 +81192,33 @@
    "amount": {
     "v": 451898000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 411141000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 451898000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -81230,7 +81230,7 @@
      "amount": {
       "v": 451898000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -81452,12 +81452,12 @@
    "amount": {
     "v": 6629025000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 5312984000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -81472,7 +81472,7 @@
      "amount": {
       "v": 6629025000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -82149,7 +82149,7 @@
     {
      "no": 4,
      "name": "子ども子育て支援納付金分",
-     "name_src": "readings",
+     "name_src": "ocr",
      "no_src": "textlayer",
      "amount": {
       "v": 2864704000,
@@ -82923,12 +82923,12 @@
    "amount": {
     "v": 4695000000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1766749000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -82939,7 +82939,7 @@
      "amount": {
       "v": 4695000000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -83867,33 +83867,33 @@
    "amount": {
     "v": 65595997000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 66468151000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 28226478000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 37369519000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -83905,7 +83905,7 @@
      "amount": {
       "v": 65595997000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -83947,33 +83947,33 @@
    "amount": {
     "v": 3609000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 3749000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 3609000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -83985,7 +83985,7 @@
      "amount": {
       "v": 3609000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84027,33 +84027,33 @@
    "amount": {
     "v": 210705000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 155632000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 210705000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84065,7 +84065,7 @@
      "amount": {
       "v": 210705000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84107,33 +84107,33 @@
    "amount": {
     "v": 2869000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 2980000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 2869000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84145,7 +84145,7 @@
      "amount": {
       "v": 2869000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84178,34 +84178,34 @@
    "amount": {
     "v": 21554807000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 21707699000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 9373322000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 12181485000,
      "src": "correction",
-     "agree": 0,
+     "agree": 1,
      "note": "画像で確認（国民健康保険 5款。その他 = 分担金及び負担金等 10,241,552 + 繰入金 1,939,933）"
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84217,7 +84217,7 @@
      "amount": {
       "v": 21554807000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84256,33 +84256,33 @@
    "amount": {
     "v": 28000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 29000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 28000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84294,7 +84294,7 @@
      "amount": {
       "v": 28000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84327,33 +84327,33 @@
    "amount": {
     "v": 6130295000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 0,
     "src": "blank-as-zero",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 2713865000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 3416430000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84365,7 +84365,7 @@
      "amount": {
       "v": 6130295000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84408,33 +84408,33 @@
    "amount": {
     "v": 1393227000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1287269000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 244430000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 1148797000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84446,7 +84446,7 @@
      "amount": {
       "v": 1393227000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84485,33 +84485,33 @@
    "amount": {
     "v": 480000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 478000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 480000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84523,7 +84523,7 @@
      "amount": {
       "v": 480000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -84568,33 +84568,33 @@
    "amount": {
     "v": 201127000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 201120000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 201127000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -84606,7 +84606,7 @@
      "amount": {
       "v": 23000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -84617,7 +84617,7 @@
      "amount": {
       "v": 565000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -84641,7 +84641,7 @@
      "amount": {
       "v": 867000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -84673,7 +84673,7 @@
      "amount": {
       "v": 20000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -84697,7 +84697,7 @@
      "amount": {
       "v": 199652000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -85497,12 +85497,12 @@
    "amount": {
     "v": 14429000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 7510000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -85517,7 +85517,7 @@
      "amount": {
       "v": 14429000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -85560,33 +85560,33 @@
    "amount": {
     "v": 14429000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 7510000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 14429000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -85598,7 +85598,7 @@
      "amount": {
       "v": 14429000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -85793,12 +85793,12 @@
    "amount": {
     "v": 531000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 8679000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -85809,7 +85809,7 @@
      "amount": {
       "v": 198000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -85820,7 +85820,7 @@
      "amount": {
       "v": 333000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -86626,33 +86626,33 @@
    "amount": {
     "v": 275330000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 282206000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 275330000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "items": [
@@ -86662,7 +86662,7 @@
      "amount": {
       "v": 114245000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "headcount": 14
     },
@@ -86672,7 +86672,7 @@
      "amount": {
       "v": 161085000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -86685,7 +86685,7 @@
      "amount": {
       "v": 53936000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86696,7 +86696,7 @@
      "amount": {
       "v": 38804000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -86784,7 +86784,7 @@
      "amount": {
       "v": 21505000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -86808,7 +86808,7 @@
      "amount": {
       "v": 492000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -86832,7 +86832,7 @@
      "amount": {
       "v": 4656000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86843,7 +86843,7 @@
      "amount": {
       "v": 102000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86854,7 +86854,7 @@
      "amount": {
       "v": 1189000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86865,7 +86865,7 @@
      "amount": {
       "v": 154646000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -86908,33 +86908,33 @@
    "amount": {
     "v": 32795000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 26648000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 3000000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 29795000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -86946,7 +86946,7 @@
      "amount": {
       "v": 28000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86957,7 +86957,7 @@
      "amount": {
       "v": 423000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      },
      "sub": [
       {
@@ -86981,7 +86981,7 @@
      "amount": {
       "v": 11805000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -86992,7 +86992,7 @@
      "amount": {
       "v": 20187000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -87003,7 +87003,7 @@
      "amount": {
       "v": 309000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -87014,7 +87014,7 @@
      "amount": {
       "v": 43000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -87213,12 +87213,12 @@
    "amount": {
     "v": 6178000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 4978000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -87229,7 +87229,7 @@
      "amount": {
       "v": 6177000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -87501,12 +87501,12 @@
    "amount": {
     "v": 1126000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1413000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -87521,7 +87521,7 @@
      "amount": {
       "v": 1126000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -87557,12 +87557,12 @@
    "amount": {
     "v": 53534000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 79384000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -87573,7 +87573,7 @@
      "amount": {
       "v": 53534000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -87655,12 +87655,12 @@
    "amount": {
     "v": 17468000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 17618000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -87671,7 +87671,7 @@
      "amount": {
       "v": 17467000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     },
     {
@@ -88129,12 +88129,12 @@
    "amount": {
     "v": 10073000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 6378000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -88145,7 +88145,7 @@
      "amount": {
       "v": 10073000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -88788,12 +88788,12 @@
    "amount": {
     "v": 5415000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 2721000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -88808,7 +88808,7 @@
      "amount": {
       "v": 5415000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -88841,33 +88841,33 @@
    "amount": {
     "v": 5415000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 2721000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "funding": {
     "national": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "bond": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "other": {
      "v": 5415000,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     },
     "general": {
      "v": 0,
      "src": "ocr",
-     "agree": 2
+     "agree": 3
     }
    },
    "setsu": [
@@ -88879,7 +88879,7 @@
      "amount": {
       "v": 5415000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -89383,7 +89383,7 @@
    "previous": {
     "v": 1000,
     "src": "ocr",
-    "agree": 3
+    "agree": 2
    },
    "setsu": [
     {
@@ -90250,12 +90250,12 @@
    "amount": {
     "v": 6646792000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 6680383000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90265,7 +90265,7 @@
      "amount": {
       "v": 6646792000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -90301,12 +90301,12 @@
    "amount": {
     "v": 90160000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 95963000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90317,7 +90317,7 @@
      "amount": {
       "v": 90160000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -90353,12 +90353,12 @@
    "amount": {
     "v": 1029000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1356000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90369,7 +90369,7 @@
      "amount": {
       "v": 1029000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],
@@ -90405,12 +90405,12 @@
    "amount": {
     "v": 28179000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "previous": {
     "v": 1000000,
     "src": "ocr",
-    "agree": 2
+    "agree": 3
    },
    "setsu": [
     {
@@ -90421,7 +90421,7 @@
      "amount": {
       "v": 28179000,
       "src": "ocr",
-      "agree": 2
+      "agree": 3
      }
     }
    ],

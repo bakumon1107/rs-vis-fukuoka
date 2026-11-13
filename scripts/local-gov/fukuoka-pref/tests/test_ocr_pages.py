@@ -34,6 +34,27 @@ def test_expense_table_with_broken_lines():
     assert op.choose_vlines(L8, L12, "本年度の財源内訳節(細節)本年度前年度", None) == L12
 
 
+def test_continuation_same_count_prefers_page_lines():
+    # R8 281298 p367 の実際の線。表ごとの線は節の欄の左端を細節の区切りの線（2180）と取り違えた。本数が同じならページ共通
+    tv = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2180, 2515, 2759, 3329]
+    page = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
+    assert op.choose_vlines(tv, page, None, 11) == page
+    # 歳入の続き（直前が7列）で表ごとが8本なら、今までどおり表ごと（ページ共通は歳出の12本のことがある。p51）
+    assert op.choose_vlines(L8, L12, None, 7) == L8
+
+
+def test_union_only_when_each_misses_one_line():
+    # 様式の違う表（R8 281299 p7 の総括の表の実際の線: 表ごと 9本・ページ共通 5本）は、足すと 12本になっても合わせない
+    tv = [169, 831, 1211, 1594, 1976, 2297, 2621, 2942, 3331]
+    page = [169, 1034, 1796, 2561, 3331]
+    assert op.choose_vlines(tv, page, "本年度の財源内訳", None) == tv
+
+
+def test_expense_header_in_simplified_chinese():
+    # 旧 OCR（中国語モデル）は財源の見出しを簡体字で読む（R8 281298 p138 の実際の見出し）。歳出の表として 12本を選ぶ
+    assert op.choose_vlines(L8, L12, "本年度の财源内節（細節）明比定财本年度前年度源目特一般财源金额分区地方价の他国支出金", None) == L12
+
+
 def test_revenue_continuation_without_header():
     # 見出しのない続きの表で、直前の表が歳入（7列）なら表ごとの8本（p51）
     assert op.choose_vlines(L8, L12, None, 7) == L8
@@ -44,6 +65,27 @@ def test_revenue_continuation_without_header():
 def test_long_table_lines_broken():
     # 長い表は行の区切りで縦線が途切れ、表ごとだと本数が減る（281298 p131 で 12→10）→ ページ共通
     assert op.choose_vlines(L10, L12, None, 11) == L12
+
+
+# R8 281298 p238 の上の表（財源の見出しあり）の実際の線。表ごとは左端の区分の線（439）、ページ共通は節の区分と
+# 金額の間の線（2512）を取りこぼした。どちらか一方だと 10列になり「2扶助費30,999,209」が1つのセルにつながる
+P238_TV = [165, 681, 922, 1188, 1414, 1640, 1903, 2149, 2512, 2757, 3329]
+P238_PAGE = [165, 439, 679, 921, 1187, 1412, 1639, 1902, 2148, 2756, 3328]
+P238_WANT = [165, 439, 681, 922, 1188, 1414, 1640, 1903, 2149, 2512, 2757, 3329]  # 近い線は表ごとの位置
+
+
+def test_expense_header_lines_missing_in_both():
+    assert op.choose_vlines(P238_TV, P238_PAGE, "本年度の財源内訳節(細節)本年度前年度", None) == P238_WANT
+    # 合わせても 12本にならなければ今までどおり（本数の多い方。同じなら表ごと）
+    page_without_439 = [165, 679, 921, 1187, 1412, 1639, 1902, 2148, 2756, 3328]
+    assert op.choose_vlines(P238_TV, page_without_439, "財源", None) == P238_TV
+
+
+def test_expense_continuation_lines_missing_in_both():
+    # 見出しのない歳出の続きの表（直前が11列）でも合わせる
+    assert op.choose_vlines(P238_TV, P238_PAGE, None, 11) == P238_WANT
+    # 直前の列数が分からないときは合わせない（本数が同じなのでページ共通）
+    assert op.choose_vlines(P238_TV, P238_PAGE, None, None) == P238_PAGE
 
 
 def test_not_a_table():

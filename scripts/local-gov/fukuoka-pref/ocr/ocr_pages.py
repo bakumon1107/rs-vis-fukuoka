@@ -28,19 +28,50 @@ import numpy as np  # noqa: E402
 VALID_LINE_COUNTS = (8, 12)
 
 
+def union_vlines(tv, page_vlines, tol=45):
+    """表ごとの線とページ共通の線がどちらも歳出の本数より1本少ないとき（それぞれ別の線を1本ずつ取りこぼした）、
+    表ごとの線に、ページ共通の線のうち表ごとの線から tol px 以上離れたものを足す。それ以外は表ごとの線をそのまま返す。
+    近い線は同じ線とみなし、表ごとの位置を使う（tol は二重線をまとめる間隔と同じ）。
+    本数を絞るのは、様式の違う表（特別会計の総括の表は 9本・ページ共通 5本。R8 281299 p7）を、
+    たまたま足して 12本になった線で切らないため。"""
+    exp = VALID_LINE_COUNTS[1]
+    if len(tv) != exp - 1 or len(page_vlines) != exp - 1:
+        return list(tv)
+    extra = [x for x in page_vlines if all(abs(x - y) >= tol for y in tv)]
+    return sorted(list(tv) + extra)
+
+
 def choose_vlines(tv, page_vlines, header_text, prev_cols):
     """表の縦線を、表ごとの線（tv）とページ共通の線（page_vlines）から選ぶ。表でなければ None。
     header_text: 列見出しの文字（見出しのない続きの表は None）。prev_cols: 直前の表の列数（なければ None）。
     規則と実例は main のコメント（R8 281299 p9・p45・p51、281298 p131）。"""
     rev, exp = VALID_LINE_COUNTS
-    if header_text is not None and re.search(r"財源|国庫|一般財", header_text):
+    # 旧 OCR（中国語モデル）は簡体字で読む（「财源」「国支出金」）。財源の語を見落とすと歳出の表を歳入（8本）で切り、
+    # 歳入・歳出の取り違えが後ろの表まで続く（R8 281298 p138 ほか 9表。2026-11-13 に取り直して分かった）
+    if header_text is not None and re.search(r"[財财]源|国[庫库]|一般[財财]", header_text):
         if len(tv) == exp:
             return tv
-        return page_vlines if len(page_vlines) == exp else max(tv, page_vlines, key=len)
+        if len(page_vlines) == exp:
+            return page_vlines
+        # どちらも 12本でない: 表ごとの線とページ共通の線が1本ずつ別の線を取りこぼした（R8 281298 p238: 表ごとは左端の
+        # 区分の線、ページ共通は節の区分と金額の間の線がない）。どちらか一方では列がつながる（「2扶助費30,999,209」）ので、
+        # 両方を合わせて 12本になればそれを使う
+        merged = union_vlines(tv, page_vlines)
+        return merged if len(merged) == exp else max(tv, page_vlines, key=len)
     if header_text is not None and len(tv) == rev:
         return tv
     if header_text is None and prev_cols == rev - 1 and len(tv) == rev:
         return tv
+    if header_text is None and prev_cols == exp - 1 and len(tv) != exp and len(page_vlines) != exp:
+        # 見出しのない歳出の続きの表でも同じ取りこぼし方があれば、財源の見出しのある表（上）と同じく合わせる
+        merged = union_vlines(tv, page_vlines)
+        if len(merged) == exp:
+            return merged
+    if header_text is None and len(tv) == len(page_vlines) >= 6:
+        # 見出しのない続きの表で本数が同じなら、ページ共通の線を使う。表ごとの線は、細節の行の区切りの短い縦線を
+        # 列の境界と取り違えることがある（R8 281298 p367: 節の欄の左端がページ共通 2153 → 表ごと 2180。
+        # 節の番号が欄の外に落ち、節と細節の字下げの差が消えて細節を節として数えた）。ページの高さ全体で測った線の方が確か
+        return page_vlines
     if len(tv) < max(6, len(page_vlines)):
         return page_vlines if len(page_vlines) >= 6 else None
     return tv if len(tv) >= 6 else None
@@ -267,9 +298,11 @@ def main():
                     #   見出しがあり財源の語がない → 歳入: 8本の線（表ごと）
                     #   見出しがない（前のページから続く表）→ 直前の表（同じページの前の表、なければ前のページの最後の表）が
                     #     歳入で、表ごとの線が8本ならそれを使う（R8 281299 p51: 歳入の続きの表と歳出の表が同じページ）
+                    #   表ごともページ共通も 11本（別の線を1本ずつ取りこぼした）で歳出の表 → 合わせて 12本（一般会計 p238）
+                    #   見出しのない続きの表で本数が同じ → ページ共通（表ごとは細節の区切りの線を拾うことがある。一般会計 p367）
                     #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
                     #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
-                    is_header = bool(re.search(r"年度|区分|説明|節|款名|財源", htext)) and head - vtop <= 400
+                    is_header = bool(re.search(r"年度|区分|説明|说明|節|节|款名|[財财]源", htext)) and head - vtop <= 400
                     if rec["tables"]:
                         prev_cols = len(rec["tables"][-1]["cols"])
                         prev_unknown = bool(rec["tables"][-1].get("prev_cols_unknown"))

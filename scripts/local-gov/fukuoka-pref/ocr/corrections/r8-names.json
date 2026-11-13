@@ -1,5 +1,5 @@
 {
- "説明": "R8 予算に関する説明書（281298 一般会計・281299 特別会計）の名前の修正表。読み取り・テキスト資料・全文検索のどれでも裏付けが取れなかった名前を、画像（300dpi の切り抜き）で確かめて記録する（名前の補正の設計 3章4）。export_fukuoka_pref.py が当て、出典は correction になる。id は目の行の id（款は <会計>/<歳入出>/<款>、項は …/<款>-<項>）。節は目の中の金額（千円）で特定する。字は画像のとおり（全角の数字・英字は書き出しで半角にそろう）。確認日 2026-11-06",
+ "説明": "R8 予算に関する説明書（281298 一般会計・281299 特別会計）の名前の修正表。読み取り・テキスト資料・全文検索のどれでも裏付けが取れなかった名前を、画像（300dpi の切り抜き）で確かめて記録する（名前の補正の設計 3章4）。export_fukuoka_pref.py が当て、出典は correction になる。id は目の行の id（款は <会計>/<歳入出>/<款>、項は …/<款>-<項>）。節は目の中の金額（千円）で特定する。説明欄の事項（level: item）も目の中の金額で特定する（同じ金額が2つあれば was に今の名前）。字は画像のとおり（全角の数字・英字は書き出しで半角にそろう）。確認日 2026-11-06（事項の3件は 2026-11-13。411 ページの画像。県の PDF を取り直し SHA256 が index.json と一致することを確かめた）",
  "修正": [
   {"id": "general/revenue/8-1-3", "level": "setsu", "amount": 836, "name": "農林業総合試験場使用料", "page": 51},
   {"id": "general/revenue/8-1-4", "level": "setsu", "amount": 7, "name": "県土整備事務所使用料", "page": 52},
@@ -103,6 +103,9 @@
   {"id": "special:kenei-futo-shisetsu/revenue/3-1-1", "level": "setsu", "amount": 815500, "name": "三池港荷役機械等整備事業債", "page": 97},
   {"id": "special:kenei-futo-shisetsu/revenue/5-1-1", "level": "setsu", "amount": 1, "name": "延滞金", "page": 98},
   {"id": "special:kenei-futo-shisetsu/revenue/5-2-1", "level": "setsu", "amount": 1, "name": "雑入", "page": 98},
-  {"id": "special:kenei-futo-shisetsu/expense/2-1-1", "level": "moku", "name": "元金", "page": 101}
+  {"id": "special:kenei-futo-shisetsu/expense/2-1-1", "level": "moku", "name": "元金", "page": 101},
+  {"id": "general/expense/12-1-1", "level": "item", "amount": 228089882, "name": "公債管理特別会計への繰出金", "page": 411},
+  {"id": "general/expense/12-1-2", "level": "item", "amount": 31278351, "name": "公債管理特別会計への繰出金", "page": 411},
+  {"id": "general/expense/12-1-3", "level": "item", "amount": 781505, "name": "公債管理特別会計への繰出金", "page": 411}
  ]
 }
