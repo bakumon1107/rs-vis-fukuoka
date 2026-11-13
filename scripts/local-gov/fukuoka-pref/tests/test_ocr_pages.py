@@ -46,6 +46,26 @@ def test_continuation_same_count_prefers_page_lines():
     assert op.choose_vlines(tv, page, None, None) == tv
 
 
+def test_union_rejects_line_too_close_to_neighbor():
+    # 表ごとの線が本当の線（441）を取りこぼし、細節の区切りの線（2240）を拾った。合わせると12本になるが、
+    # 2153 と 2240 が列の幅の下限より近いので合わせない（本数の多い方。同じなら表ごと）
+    tv = [169, 684, 926, 1190, 1418, 1643, 1907, 2153, 2240, 2515, 3329]
+    page = [169, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
+    assert op.choose_vlines(tv, page, "財源", None) == tv
+
+
+def test_same_count_rule_needs_close_positions():
+    # 本数が同じでも、位置の離れた線がある（ページ共通が同じページの別の様式の表の線）なら今までどおり表ごと
+    tv = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2759, 3329]
+    page = [169, 441, 684, 926, 1190, 1418, 1643, 1907, 2153, 2515, 2900, 3329]
+    assert op.choose_vlines(tv, page, None, 11) == tv
+
+
+def test_normalize_header_simplified():
+    assert op.normalize_header("本年度の财源内訳节说明国支出金") == "本年度の財源内訳節説明国支出金"
+    assert op.HEADER_RE.search(op.normalize_header("说明"))
+
+
 def test_union_only_when_each_misses_one_line():
     # 様式の違う表（R8 281299 p7 の総括の表の実際の線: 表ごと 9本・ページ共通 5本）は、足すと 12本になっても合わせない
     tv = [169, 831, 1211, 1594, 1976, 2297, 2621, 2942, 3331]

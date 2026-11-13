@@ -4,14 +4,20 @@
 今の choose_vlines で選ぶ線が、保存済みの表の線と変わる表を出す。変わったページだけを退避して ocr_pages.py で流し直せば、
 OCR を全ページ取り直さずに済む（ocr_pages.py は既にあるページを飛ばす）。
 
-見出しの文字・直前の表の列数は保存済みの OCR 結果のものを使う（見出しを読み直さない）。そのため、見出しの判定（ocr_pages.py の
-is_header の語）を変えたときの影響は拾えない（見出しと認めなかった表は見出しの文字を保存していない）。そのときは --same-as で
-新旧の OCR の線を比べるか、そのページを流し直す。線の検出をやり直した結果に表が見つからないページも「変わる」に数える。
+- 見出しのない続きの表は直前の表の列数で線を選ぶので、前の表の切り方が変わると後ろの表（次のページの表も）が変わることがある。
+  直前の表の列数は、このスクリプトが選び直した線の列数を使って伝える（ページの順に流す）
+- 線の検出をやり直した結果に、保存済みの表と対応しない範囲があり、今の規則ではそれが表になる（見出しなしとみなして判定）なら、
+  そのページも「変わる」に数える。保存済みの表が線の検出をやり直した結果に見つからないときも同じ（確かめられないので流し直す側）
+- 見出しの文字は保存済みの OCR 結果のものを使う（見出しを読み直さない）。そのため、見出しの判定（ocr_pages.py の HEADER_RE・
+  見出しの位置の条件）を変えたときの影響は拾えない（見出しと認めなかった表は見出しの文字を保存していない）。そのときは --same-as で
+  新旧の OCR の線を比べるか、そのページを流し直す。線を選ぶ入力の組み立ては ocr_pages.py の main と同じにすること（変えたら両方）
+- 線の検出の設定（環境変数 OCR_LINE_CLOSE・OCR_LINE_COVERAGE）は、OCR を流したときと同じにして実行する（OCR の結果には残らない。
+  R8 は既定のまま）
 
 使い方:
     PYLIB=<pylib> python3 -P scripts/local-gov/fukuoka-pref/ocr/check_vlines.py <説明書.pdf> <OCR出力ディレクトリ> <PDFページ範囲 例 9-420>
     python3 -P scripts/local-gov/fukuoka-pref/ocr/check_vlines.py --same-as <新OCRのディレクトリ> <旧OCRのディレクトリ> <PDFページ範囲>
-出力: 変わる表ごとに「CHANGED p<ページ> table <番号>: <本数> -> <本数> lines old=[...] new=[...]」、最後に「changed pages: [...]」
+出力: 変わる表ごとに「CHANGED p<ページ> table <番号>: ...」「NEW p<ページ>: ...」、最後に「changed pages: [...]」
 --same-as: 2つの OCR 結果で、保存済みの表の線が違うページと、片方にしかないページを「differs: [...]」で出す（線の検出はしない）。
   旧 OCR（中国語モデル）は見出しを簡体字で読むので、見出しで選ぶ線が新 OCR と違うことがある（R8 281298 p138 ほか）
 """
@@ -62,6 +68,21 @@ def main():
     cv2 = op.cv2
     a, b = (int(x) for x in rng.split("-"))
     changed = []
+    # ページごとの最後の表の列数（選び直した線で数える。表のないページは記録しない）。次のページの続きの表に伝える
+    last_cols: dict[int, int] = {}
+
+    def prev_cols_before(page):
+        # ocr_pages.previous_table_cols と同じく3ページ前まで見る。選び直したページがあればその列数、なければ保存済み
+        for p in range(page - 1, max(0, page - 4), -1):
+            if p in last_cols:
+                return last_cols[p]
+            path = os.path.join(ocrdir, f"p{p:04d}.json")
+            if os.path.exists(path) and load_page(path).get("tables"):
+                if p >= a:  # 範囲内で表のあるページは last_cols に入っているはず（線の検出に失敗したなど）。保存済みで代える
+                    print(f"WARN p{page}: p{p} の選び直した列数がない。保存済みの列数を使う", file=sys.stderr)
+                return len(load_page(path)["tables"][-1]["cols"])
+        return None
+
     with tempfile.TemporaryDirectory() as tmp:
         for page in range(a, b + 1):
             path = os.path.join(ocrdir, f"p{page:04d}.json")
@@ -69,27 +90,37 @@ def main():
                 print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
                 continue
             rec = load_page(path)
-            if not rec["tables"]:
-                continue
             png = op.render(pdf, page, rec.get("dpi", 300), tmp)
             img = cv2.imread(png, cv2.IMREAD_GRAYSCALE)
             os.remove(png)  # 300dpi の画像は1枚数 MB。全ページ分を溜めない（ocr_pages.py と同じ）
             vlines, _hlines, spans, per_table = op.detect_lines(img)
-            for i, t in enumerate(rec["tables"]):
-                # 表は縦線の上端（box の2つ目）で、線の検出をやり直した結果の表と対応づける
-                tv = next((tv for (top, _), tv in zip(spans, per_table) if top == t["box"][1]), None)
-                if tv is None:
-                    print(f"WARN p{page} table {i}: 表の上端 {t['box'][1]} が線の検出をやり直した結果にない", file=sys.stderr)
-                    changed.append(page)  # 確かめられない表は流し直す側に倒す
+            saved = {t["box"][1]: (i, t) for i, t in enumerate(rec["tables"])}
+            prev_cols = prev_cols_before(page)
+            cols_here = None
+            for (top, _bottom), tv in zip(spans, per_table):
+                if top not in saved:
+                    # 保存済みの表にない範囲。今の規則で表になるなら（見出しなしとみなす）流し直す
+                    new = op.choose_vlines(tv, vlines, None, prev_cols)
+                    if new is not None:
+                        changed.append(page)
+                        print(f"NEW p{page}: 上端 {top} の範囲が今の規則では表になる（{len(new)}本）")
+                        prev_cols = cols_here = len(new) - 1
                     continue
+                i, t = saved.pop(top)
                 header = t["header"]  # ocr_pages.py は見出しと認めなかった表で [] を保存する
                 htext = "".join(d["text"] for d in header) if header else None
-                prev_cols = len(rec["tables"][i - 1]["cols"]) if i > 0 else op.previous_table_cols(ocrdir, page)[0]
                 new = op.choose_vlines(tv, vlines, htext, prev_cols)
                 if new != t["vlines"]:
                     changed.append(page)
                     print(f"CHANGED p{page} table {i}: {len(t['vlines'])} -> {len(new) if new else None} lines "
                           f"old={t['vlines']} new={new}")
+                if new is not None:
+                    prev_cols = cols_here = len(new) - 1
+            for top, (i, t) in saved.items():
+                print(f"WARN p{page} table {i}: 表の上端 {top} が線の検出をやり直した結果にない", file=sys.stderr)
+                changed.append(page)  # 確かめられない表は流し直す側に倒す
+            if cols_here is not None:
+                last_cols[page] = cols_here
     print("changed pages:", sorted(set(changed)))
 
 

@@ -26,20 +26,44 @@ import numpy as np  # noqa: E402
 
 # 予算に関する説明書の表の縦線の本数（福岡県。歳入 7列＝8本、歳出 11列＝12本）
 VALID_LINE_COUNTS = (8, 12)
+# 同じ線とみなす間隔（二重線をまとめる間隔と同じ）と、列の幅の下限（300dpi。R8 の説明書でいちばん狭い列は約 225px）
+SAME_LINE_PX = 45
+MIN_COL_PX = 150
+
+# 列見出しの語。旧 OCR（中国語モデル）は簡体字で読む（「财源」「国支出金」）ので、見分ける前に繁体字（日本の字形）へ寄せる。
+# 財源の語を見落とすと歳出の表を歳入（8本）で切り、歳入・歳出の取り違えが後ろの表まで続く
+# （R8 281298 p138 ほか 9表。2026-11-13 に取り直して分かった）
+_SIMPLIFIED = str.maketrans({"财": "財", "库": "庫", "节": "節", "说": "説", "细": "細", "额": "額"})
+HEADER_RE = re.compile(r"年度|区分|説明|節|款名|財源")    # 列見出しの行（これがなければ見出しのない続きの表）
+EXPENSE_HEADER_RE = re.compile(r"財源|国庫|一般財")        # 歳出の表の見出し（財源内訳の欄）
 
 
-def union_vlines(tv, page_vlines, tol=45):
+def normalize_header(text: str) -> str:
+    """列見出しの文字を、見出しの語の判定のために繁体字（日本の字形）へ寄せる。"""
+    return text.translate(_SIMPLIFIED)
+
+
+def union_vlines(tv, page_vlines, tol=SAME_LINE_PX):
     """表ごとの線とページ共通の線がどちらも歳出の本数より1本少ないとき（それぞれ別の線を1本ずつ取りこぼした）、
     ページ共通の線に、表ごとの線のうちページ共通の線から tol px 以上離れたものを足す。それ以外は表ごとの線をそのまま返す。
-    近い線は同じ線とみなし、ページ共通の位置を使う（tol は二重線をまとめる間隔と同じ）。表ごとの線は細節の区切りの短い線を
+    近い線は同じ線とみなし、ページ共通の位置を使う。表ごとの線は細節の区切りの短い線を
     列の境界と取り違えることがある（R8 281298 p367）ので、ページの高さ全体で測った線を優先する。
     本数を絞るのは、様式の違う表（特別会計の総括の表は 9本・ページ共通 5本。R8 281299 p7）を、
-    たまたま足して 12本になった線で切らないため。"""
+    たまたま足して 12本になった線で切らないため。足した線が隣の線と列の幅の下限より近ければ（細節の区切りの線を
+    足した疑い）、合わせない。"""
     exp = VALID_LINE_COUNTS[1]
     if len(tv) != exp - 1 or len(page_vlines) != exp - 1:
         return list(tv)
     extra = [x for x in tv if all(abs(x - y) >= tol for y in page_vlines)]
-    return sorted(list(page_vlines) + extra)
+    merged = sorted(list(page_vlines) + extra)
+    if any(b - a < MIN_COL_PX for a, b in zip(merged, merged[1:])):
+        return list(tv)
+    return merged
+
+
+def same_positions(a, b, tol=SAME_LINE_PX):
+    """本数が同じ2組の線が、1本ずつ同じ位置（tol px 以内）にあるか。"""
+    return len(a) == len(b) and all(abs(x - y) < tol for x, y in zip(a, b))
 
 
 def choose_vlines(tv, page_vlines, header_text, prev_cols):
@@ -47,9 +71,7 @@ def choose_vlines(tv, page_vlines, header_text, prev_cols):
     header_text: 列見出しの文字（見出しのない続きの表は None）。prev_cols: 直前の表の列数（なければ None）。
     規則と実例は main のコメント（R8 281299 p9・p45・p51、281298 p131）。"""
     rev, exp = VALID_LINE_COUNTS
-    # 旧 OCR（中国語モデル）は簡体字で読む（「财源」「国支出金」）。財源の語を見落とすと歳出の表を歳入（8本）で切り、
-    # 歳入・歳出の取り違えが後ろの表まで続く（R8 281298 p138 ほか 9表。2026-11-13 に取り直して分かった）
-    if header_text is not None and re.search(r"[財财]源|国[庫库]|一般[財财]", header_text):
+    if header_text is not None and EXPENSE_HEADER_RE.search(normalize_header(header_text)):
         if len(tv) == exp:
             return tv
         if len(page_vlines) == exp:
@@ -68,9 +90,10 @@ def choose_vlines(tv, page_vlines, header_text, prev_cols):
         merged = union_vlines(tv, page_vlines)
         if len(merged) == exp:
             return merged
-    if header_text is None and prev_cols == exp - 1 and len(tv) == len(page_vlines) >= 6:
-        # 見出しのない歳出の続きの表で本数が同じなら、ページ共通の線を使う（歳入の続きや直前が分からない表は今までどおり。
-        # ページ共通の線が同じページの別の種類の表の線のことがある）。表ごとの線は、細節の行の区切りの短い縦線を
+    if header_text is None and prev_cols == exp - 1 and len(tv) >= 6 and same_positions(tv, page_vlines):
+        # 見出しのない歳出の続きの表で、本数が同じで1本ずつ近い位置にあるなら、ページ共通の線を使う（歳入の続きや直前が
+        # 分からない表、位置の離れた線がある表は今までどおり。ページ共通の線が同じページの別の様式の表の線のことがある）。
+        # 表ごとの線は、細節の行の区切りの短い縦線を
         # 列の境界と取り違えることがある（R8 281298 p367: 節の欄の左端がページ共通 2153 → 表ごと 2180。
         # 節の番号が欄の外に落ち、節と細節の字下げの差が消えて細節を節として数えた）。ページの高さ全体で測った線の方が確か
         return page_vlines
@@ -304,7 +327,7 @@ def main():
                     #   見出しのない歳出の続きの表で本数が同じ → ページ共通（表ごとは細節の区切りの線を拾うことがある。一般会計 p367）
                     #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
                     #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
-                    is_header = bool(re.search(r"年度|区分|説明|说明|節|节|款名|[財财]源", htext)) and head - vtop <= 400
+                    is_header = bool(HEADER_RE.search(normalize_header(htext))) and head - vtop <= 400
                     if rec["tables"]:
                         prev_cols = len(rec["tables"][-1]["cols"])
                         prev_unknown = bool(rec["tables"][-1].get("prev_cols_unknown"))
