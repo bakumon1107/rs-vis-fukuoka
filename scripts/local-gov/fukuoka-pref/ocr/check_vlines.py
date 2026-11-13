@@ -75,11 +75,11 @@ def parse_args(argv):
 
 
 def main():
-    a_ = parse_args(sys.argv[1:])
-    if a_.same_as:
-        same_as(a_.same_as[0], a_.same_as[1], a_.args[0])
+    opts = parse_args(sys.argv[1:])
+    if opts.same_as:
+        same_as(opts.same_as[0], opts.same_as[1], opts.args[0])
         return
-    pdf, ocrdir, rng = a_.args
+    pdf, ocrdir, rng = opts.args
     op = load_ocr_pages()
     cv2 = op.cv2
     a, b = (int(x) for x in rng.split("-"))
