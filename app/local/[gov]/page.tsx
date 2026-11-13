@@ -164,7 +164,7 @@ function LocalGovContent() {
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
             {fundingReclassNotes(gov, file) && (
               <>
-                {view === 'all' ? '（確かめた内訳は' : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（確かめた内訳は'}
+                {view === 'all' ? '（調べた内訳は' : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（調べた内訳は'}
                 <Link href={`/local/${gov}/about?year=${file.year}#funding`} className="text-primary-accent underline">
                   データについて
                 </Link>
