@@ -6,6 +6,8 @@ OCR は時間がかかるので、この段階では「どの列の、どの高�
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/ocr/ocr_pages.py <説明書.pdf> <出力ディレクトリ> <PDFページ範囲 例 121-420> [--dpi 300] [--redo-unknown]
     既にあるページは飛ばす。--redo-unknown は、見出しのない続きの表を前のページの結果なしで判定したページ（WARN が出る）だけ読み直す
+    --dpi は 300 で検証した。罫線の検出（detect_lines）の間隔の値（二重線をまとめる 45px など）は 300dpi の値のままで、
+    線の選び方（choose_vlines）の基準だけを解像度の比で直している。300 以外で流すなら、検出の値も合わせて確かめること
 
 必要なパッケージ: rapidocr（3.x。OCR_ENGINE=v4ch なら rapidocr-onnxruntime）, onnxruntime, opencv-python-headless, numpy（PYLIB 環境変数のディレクトリを sys.path に足す）
 出力: <出力ディレクトリ>/p0123.json  … {page, dpi, size, vlines, hlines, title:[...], cols:[[{y,x,text,score}...], ...]}
