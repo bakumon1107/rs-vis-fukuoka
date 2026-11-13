@@ -25,7 +25,21 @@ function NameMark({ src }: { src?: NameSource }) {
   return <span className="ml-1 text-[10px] text-amber-700" title={NAME_SRC_LABEL.ocr}>※名前は読み取り</span>;
 }
 
-export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; index: LocalGovIndex; accountName: string }) {
+/**
+ * layout: side = 縦に1列（スマートフォンの下からのシート）。below = 図の下に横長で置く（広い画面。左に名前・金額・財源内訳・出典、
+ * 中に説明欄の事項、右に節の3列）。横に置くと図が縮んで名前が重なったので、広い画面は図の下に出す（2026-11-14 ユーザー決定）
+ */
+export function LocalDetailPanel({
+  row,
+  index,
+  accountName,
+  layout = 'side',
+}: {
+  row: MokuRow;
+  index: LocalGovIndex;
+  accountName: string;
+  layout?: 'side' | 'below';
+}) {
   const diff = row.amount.v !== null && row.previous?.v != null ? row.amount.v - row.previous.v : null;
   const sources = new Map(index.sources.map(s => [s.id, s]));
   // 説明欄の事項は、親の事項の下に内訳（入れ子の事項）を字下げして並べる。
@@ -39,9 +53,7 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
   });
   const childrenOf = (i: number) => children.get(i) ?? [];
 
-  return (
-    // パネルの枠（SidePanelChrome）は中身を切り取るだけなので、中身の側でスクロールする
-    <div className="h-full space-y-4 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
+  const head = (
       <div>
         <p className="text-xs text-mirai-text-muted">
           {/* 全会計の見方では同じ名前の款（公債費・予備費など）が複数の会計にあるので、会計の名前も出す */}
@@ -53,7 +65,9 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
         </h2>
         <p className="text-[11px] text-mirai-text-muted">名前の出典: {NAME_SRC_LABEL[isOcrName(row.moku.name_src) ? 'ocr' : row.moku.name_src!]}</p>
       </div>
+  );
 
+  const amounts = (
       <table className="w-full text-sm">
         <tbody>
           <tr>
@@ -72,8 +86,9 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
           )}
         </tbody>
       </table>
+  );
 
-      {row.funding && (
+  const funding = row.funding && (
         <section>
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">財源内訳</h3>
           <table className="w-full">
@@ -87,9 +102,9 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
             </tbody>
           </table>
         </section>
-      )}
+  );
 
-      {topItems.length > 0 && (
+  const itemList = topItems.length > 0 && (
         <section>
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">説明欄の事項</h3>
           <ul className="space-y-0.5">
@@ -126,9 +141,9 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
             ))}
           </ul>
         </section>
-      )}
+  );
 
-      {row.setsu && row.setsu.length > 0 && (
+  const setsuList = row.setsu && row.setsu.length > 0 && (
         <section>
           <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">節（{row.side === 'expense' ? '性質' : '内訳'}）</h3>
           <ul className="space-y-0.5">
@@ -160,8 +175,9 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
             ))}
           </ul>
         </section>
-      )}
+  );
 
+  const sourceList = (
       <section>
         <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">出典</h3>
         <ul className="space-y-0.5 text-xs">
@@ -181,6 +197,32 @@ export function LocalDetailPanel({ row, index, accountName }: { row: MokuRow; in
           })}
         </ul>
       </section>
+  );
+
+  if (layout === 'below') {
+    // 図の下に横長で置く。左に名前・金額・財源内訳・出典、中に説明欄の事項、右に節（それぞれ縦に伸びる）
+    return (
+      <div className="grid gap-x-8 gap-y-4 p-4 text-sm text-mirai-text md:grid-cols-3">
+        <div className="space-y-4">
+          {head}
+          {amounts}
+          {funding}
+          {sourceList}
+        </div>
+        <div>{itemList}</div>
+        <div>{setsuList}</div>
+      </div>
+    );
+  }
+  return (
+    // パネルの枠（SidePanelChrome）は中身を切り取るだけなので、中身の側でスクロールする
+    <div className="h-full space-y-4 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
+      {head}
+      {amounts}
+      {funding}
+      {itemList}
+      {setsuList}
+      {sourceList}
     </div>
   );
 }

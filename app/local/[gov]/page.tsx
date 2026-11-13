@@ -8,7 +8,7 @@
  * グラフの組み立ては app/lib/local-gov（純粋関数）、描画は client/components/local-gov。
  */
 import Link from 'next/link';
-import { Suspense, useCallback, useMemo } from 'react';
+import { Suspense, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
@@ -87,6 +87,10 @@ function LocalGovContent() {
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
   );
+  // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
+  // 「選択中」の行のボタンを押したときだけ詳細まで動かす
+  const detailRef = useRef<HTMLElement>(null);
+  const scrollToDetail = useCallback(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
   // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
   // （パネルの幅を変えている間はページが描き直され続ける）
   const sourceTitles = useMemo(() => {
@@ -112,12 +116,9 @@ function LocalGovContent() {
   return (
     <div className="min-h-screen bg-mirai-surface">
       <AppHeader current="/" />
-      {/* 横のパネルの分だけ右を空ける。狭い幅ではパネルは画面の下から出るので空けない（空けると本文の幅がなくなり、見出しが縦に1字ずつになる） */}
+      {/* 広い幅では詳細を図の下に置くので、図の幅は選んでも変わらない（横のパネルで図が縮み名前が重なった。2026-11-14 ユーザー決定） */}
       {/* 狭い幅で詳細パネル（画面の下から 45dvh）が出ているときは、図の下端と出典の行がパネルの裏に隠れないよう下に余白を足す */}
-      <main
-        className="px-4 pb-16 pt-4"
-        style={{ marginRight: row && !isNarrow ? panel.effectiveWidth + 24 : 0, paddingBottom: row && isNarrow ? '50dvh' : undefined }}
-      >
+      <main className="px-4 pb-16 pt-4" style={{ paddingBottom: row && isNarrow ? '50dvh' : undefined }}>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}
@@ -190,6 +191,15 @@ function LocalGovContent() {
               >
                 全部の流れを見る
               </button>
+              {row && !isNarrow && (
+                <button
+                  type="button"
+                  className="rounded-full border border-primary-accent bg-mirai-surface-teal px-3 py-0.5 text-sm font-bold"
+                  onClick={scrollToDetail}
+                >
+                  詳細を見る（図の下）↓
+                </button>
+              )}
               {display.note && <span className="text-xs text-mirai-text-muted">{display.note}</span>}
             </>
           ) : (
@@ -206,6 +216,17 @@ function LocalGovContent() {
           )}
         </div>
 
+        {row && !isNarrow && (
+          <section ref={detailRef} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft">
+            <LocalDetailPanel
+              row={row}
+              index={index}
+              accountName={file.accounts.find(a => a.id === row.account)?.name ?? row.account}
+              layout="below"
+            />
+          </section>
+        )}
+
         <p className="mt-3 text-xs text-mirai-text-muted">
           出典: {sourceTitles}（{index.gov.name}）。
           {file.unit_source === '千円' ? '金額は資料に印字された数字（千円単位）を円に直したもの。' : '金額は資料に印字された数字（円単位）。'}帯は推計せず、印字された数字の合計で描いています。{' '}
@@ -215,7 +236,7 @@ function LocalGovContent() {
         </p>
       </main>
 
-      {row && (
+      {row && isNarrow && (
         <SidePanelChrome
           side="right"
           width={panel.effectiveWidth}
