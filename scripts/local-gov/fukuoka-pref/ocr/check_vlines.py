@@ -21,6 +21,7 @@ OCR を全ページ取り直さずに済む（ocr_pages.py は既にあるペー
 --same-as: 2つの OCR 結果で、保存済みの表の線が違うページと、片方にしかないページを「differs: [...]」で出す（線の検出はしない）。
   旧 OCR（中国語モデル）は見出しを簡体字で読むので、見出しで選ぶ線が新 OCR と違うことがある（R8 281298 p138 ほか）
 """
+import argparse
 import importlib.util
 import json
 import os
@@ -59,11 +60,26 @@ def same_as(dir_a, dir_b, rng):
     print("differs:", differs)
 
 
+def parse_args(argv):
+    p = argparse.ArgumentParser(description="縦線の選び方を変えたときに、切り方が変わる表を洗い出す（詳しくはファイルの先頭の説明）")
+    p.add_argument("--same-as", nargs=2, metavar=("新OCRのディレクトリ", "旧OCRのディレクトリ"),
+                   help="2つの OCR 結果で、保存済みの表の線が違うページを出す（線の検出はしない）")
+    p.add_argument("args", nargs="+", metavar="引数",
+                   help="通常: <説明書.pdf> <OCR出力ディレクトリ> <PDFページ範囲>。--same-as のとき: <PDFページ範囲>")
+    a = p.parse_args(argv)
+    want = 1 if a.same_as else 3
+    if len(a.args) != want:
+        p.error("--same-as のときは <PDFページ範囲> だけを渡す" if a.same_as
+                else "<説明書.pdf> <OCR出力ディレクトリ> <PDFページ範囲> の3つを渡す")
+    return a
+
+
 def main():
-    if sys.argv[1] == "--same-as":
-        same_as(sys.argv[2], sys.argv[3], sys.argv[4])
+    a_ = parse_args(sys.argv[1:])
+    if a_.same_as:
+        same_as(a_.same_as[0], a_.same_as[1], a_.args[0])
         return
-    pdf, ocrdir, rng = sys.argv[1], sys.argv[2], sys.argv[3]
+    pdf, ocrdir, rng = a_.args
     op = load_ocr_pages()
     cv2 = op.cv2
     a, b = (int(x) for x in rng.split("-"))
