@@ -24,7 +24,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from kessan_common import assemble_rows, flat, pdftext, printed_page, to_int  # noqa: E402
+from kessan_common import ExplainReader, assemble_rows, attach_explain, flat, pdftext, printed_page, to_int  # noqa: E402
 
 COLS = ["予算現額", "支出済額", "翌年度繰越額", "不用額"]
 REV_COLS = ["予算現額", "調定額", "収入済額", "不納欠損額", "収入未済額", "増減額"]
@@ -140,21 +140,6 @@ def parse_summary(blocks: list[list[str]], split: int, fails: list[str], label: 
     return out, total
 
 
-def parse_explain(lines: list[str], split: int | None):
-    """「決算の内容」「不用額の内容」の表。目の番号の行から次の番号の行までを1つの目とし、内容の欄（split より右）をつなぐ。"""
-    out, cur = {}, None
-    for ln in lines:
-        m = re.match(r"^\s*(\d+)\s", ln)
-        if m and (split is None or m.start(1) < split):
-            cur = int(m.group(1))
-            out.setdefault(cur, "")
-        if cur is None:
-            continue
-        right = ln[split:] if split else ln
-        out[cur] = (out[cur] + " " + re.sub(r"\s+", " ", right).strip()).strip()
-    return out
-
-
 def parse(pdf: str):
     items, end, ichiran = toc(pdf)
     pmap = page_map(pdf, end)
@@ -166,14 +151,7 @@ def parse(pdf: str):
             lines.extend(pdftext(pdf, pno).splitlines())
         acc = {"会計": name, "印字ページ": [pstart, pnext - 1], "歳入": [], "歳入の計": None, "款項": [], "款項の計": None, "項": []}
         mode, rev_lines, sum_blocks, blk, split = None, [], [], [], None
-        kou, exp_kind, exp_lines, exp_split = None, None, [], None
-
-        def flush_explain():
-            nonlocal exp_lines, exp_kind
-            if kou is not None and exp_kind:
-                kou[exp_kind] = parse_explain(exp_lines, exp_split)
-            exp_lines, exp_kind = [], None
-
+        kou = None
         for ln in lines:
             f = flat(ln)
             if f.startswith("【歳入】"):
@@ -187,9 +165,8 @@ def parse(pdf: str):
                 if mode == "summary" and blk:
                     sum_blocks.append(blk)
                     blk = []
-                flush_explain()
                 kou = {"款": int(mk.group(1).translate(Z2H)), "項": int(mk.group(2).translate(Z2H)), "項名": mk.group(3),
-                       "目": [], "計": None, "_lines": [], "_pages": []}
+                       "目": [], "計": None, "_lines": [], "_explain": ExplainReader()}
                 acc["項"].append(kou)
                 mode = "kou"
                 continue
@@ -218,26 +195,9 @@ def parse(pdf: str):
                 if ln.strip() and not is_header(ln):
                     kou["_lines"].append(ln)
             elif mode == "explain":
-                if re.match(r"^（\d）決算の内容", f):
-                    flush_explain()
-                    exp_kind = "決算の内容"
-                    continue
-                if re.match(r"^（\d）不用額の内容", f):
-                    flush_explain()
-                    exp_kind = "不用額の内容"
-                    continue
-                if f.startswith("目目の名称"):
-                    # 内容の欄は目の名前の欄（見出しの「名称」の「称」まで）の右。見出しの「主」は欄の中ほどにあるので使わない
-                    exp_split = ln.index("称") + 2 if "称" in ln else None
-                    continue
-                if re.match(r"^（\d）", f):
-                    flush_explain()
-                    continue
-                if exp_kind and ln.strip() and not is_header(ln):
-                    exp_lines.append(ln)
+                kou["_explain"].feed(ln, is_header)
         if blk:
             sum_blocks.append(blk)
-        flush_explain()
         acc["歳入"], acc["歳入の計"] = parse_revenue(rev_lines, fails, name)
         if split is None:
             fails.append(f"{name}: 歳出の款・項の表の見出しが見つからない")
@@ -253,17 +213,7 @@ def parse(pdf: str):
                     k["目"].append({"no": r.no, "name": r.name, **dict(zip(COLS, r.nums)), **r.extra})
                 else:
                     fails.append(f"{name} {k['款']}款{k['項']}項: 番号のない行 {r.name} {r.nums}")
-            k.pop("_pages")
-            for m in k["目"]:
-                for kind in ("決算の内容", "不用額の内容"):
-                    if kind in k and m["no"] in k[kind]:
-                        text = k[kind][m["no"]]
-                        # 字間を空けた目の名前（「積 立 金」）の最後の字が内容の欄にはみ出る。名前の最後の字と同じ1字が先頭にあれば除く
-                        if len(text) >= 2 and text[1] == " " and m["name"].endswith(text[0]):
-                            text = text[2:]
-                        m[kind] = text
-            k.pop("決算の内容", None)
-            k.pop("不用額の内容", None)
+            attach_explain(k["目"], k.pop("_explain").result())
         accounts.append(acc)
     return accounts, fails, ichiran, pmap
 

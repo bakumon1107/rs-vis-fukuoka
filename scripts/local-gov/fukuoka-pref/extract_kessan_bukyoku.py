@@ -19,7 +19,7 @@ import sys
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from kessan_common import assemble_rows, flat, pdftext, printed_page  # noqa: E402
+from kessan_common import ExplainReader, assemble_rows, attach_explain, flat, pdftext, printed_page  # noqa: E402
 
 COLS = ["予算現額", "支出済額", "翌年度繰越額", "不用額"]
 Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
@@ -113,10 +113,15 @@ def parse(pdf: str):
                     mode = "expense"
                     kou = {"no": int(mq.group(1).translate(Z2H)), "name": mq.group(2), "目": [], "計": None}
                     cur_kan["項"].append(kou)
-                    segs.append({"kind": "kou", "kan": cur_kan, "kou": kou, "lines": [], "pages": []})
+                    segs.append({"kind": "kou", "kan": cur_kan, "kou": kou, "lines": [], "pages": [],
+                                 "explain": ExplainReader()})
                     continue
                 if f.startswith("説明"):
                     mode = "explain"
+                    continue
+                if mode == "explain" and segs and segs[-1]["kind"] == "kou":
+                    # 項の目の表の下の「（1）決算の内容」「（2）不用額の内容」（目ごとの主な内容の文）
+                    segs[-1]["explain"].feed(ln, is_header)
                     continue
                 if mode == "expense" and segs and not is_header(ln):
                     segs[-1]["lines"].append(ln)
@@ -151,6 +156,7 @@ def parse(pdf: str):
                     kou["目"].append({"no": r.no, "name": r.name, "pdf_page": pages[r.line_index], **conv(r.nums), **r.extra})
                 else:
                     skipped.append(f"{bname} p{pages[r.line_index]}: 番号のない行 {r.name} {r.nums}")
+            attach_explain(kou["目"], seg["explain"].result())
         result.append(dept)
     return result, skipped
 
