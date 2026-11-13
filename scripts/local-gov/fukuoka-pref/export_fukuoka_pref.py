@@ -15,6 +15,7 @@
 
 書き出すもの:
     budget-2026-initial.json … R8 当初予算（一般会計・特別会計14会計）。金額は円（千円 ×1000）
+    settlement-2024.json     … R6 決算（一般会計・特別会計14会計の歳出の目と、歳入の款）。export_settlement.py が組み立てる
     index.json               … 自治体の情報・データの一覧・資料の一覧（URL・SHA256）
 公営企業会計は名前の文字層が崩れているので、名前を直してから足す（未対応）。
 
@@ -42,6 +43,7 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import export_settlement  # noqa: E402
 import name_evidence  # noqa: E402
 
 GOV_ID = "fukuoka-pref"
@@ -650,13 +652,22 @@ def main():
         json.dump(budget, f, ensure_ascii=False, indent=1)
         f.write("\n")
 
+    # R6 決算（export_settlement.py）。index.json をここ1か所で書くため、同じ main で組み立てる
+    settlement, settlement_ok, settlement_lines = export_settlement.build(a.work, SPECIAL_SLUGS)
+    settlement_file = f"settlement-{export_settlement.YEAR}.json"
+    with open(os.path.join(a.out, settlement_file), "w", encoding="utf-8") as f:
+        json.dump(settlement, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+
     sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
         "gov": {"id": GOV_ID, "name": "福岡県", "kind": "prefecture"},
         "datasets": [{"year": YEAR, "label": YEAR_LABEL, "basis": "initial", "file": f"budget-{YEAR}-initial.json",
                       # verified は、目の全検算と外部の資料との突き合わせがすべて一致したときだけ
-                      "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"}],
+                      "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"},
+                     {"year": export_settlement.YEAR, "label": export_settlement.YEAR_LABEL, "basis": "settlement",
+                      "file": settlement_file, "status": "verified" if settlement_ok else "partial"}],
         "sources": sources,
     }
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
@@ -671,6 +682,8 @@ def main():
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
+    for line in settlement_lines:
+        print(line, file=sys.stderr)
     for level, o, n in ex.replaced:
         print(f"名前の置き換え（{level}）: {o} → {n}", file=sys.stderr)
     # 裏付けのない名前の一覧（款・項・目・節。画像で確かめて修正表に記録する）。作業ディレクトリに置く（リポジトリに入れない）

@@ -149,7 +149,8 @@ def parse(pdf: str):
         lines = []
         for pno in range(pmap[pstart], pmap[pnext]):
             lines.extend(pdftext(pdf, pno).splitlines())
-        acc = {"会計": name, "印字ページ": [pstart, pnext - 1], "歳入": [], "歳入の計": None, "款項": [], "款項の計": None, "項": []}
+        acc = {"会計": name, "印字ページ": [pstart, pnext - 1], "pdf_page": pmap[pstart],
+               "歳入": [], "歳入の計": None, "款項": [], "款項の計": None, "項": []}
         mode, rev_lines, sum_blocks, blk, split = None, [], [], [], None
         kou = None
         for ln in lines:

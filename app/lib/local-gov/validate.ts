@@ -153,15 +153,44 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       if (b === null || a === null) err(`${where}: 補正前の額・計がない`);
       else if (amount !== null && b + amount !== a) err(`${where}: 補正前 ${b} + 補正額 ${amount} ≠ 計 ${a}`);
     }
-    if (file.basis === 'settlement') {
+    // 予算現額 = 支出済額 + 翌年度繰越額 + 不用額 は歳出だけ（歳入は収入済額と予算現額の差が増減額で、繰越・不用額がない）
+    if (file.basis === 'settlement' && row.side === 'expense') {
       const s = sumKnown([row.amount, row.carried_over, row.unused]);
       const bc = vOf(row.budget_current);
       if (s !== null && bc !== null && s !== bc) err(`${where}: 支出済 + 繰越 + 不用 ${s} ≠ 予算現額 ${bc}`);
+    }
+    if (row.by_department && row.by_department.length > 0) {
+      row.by_department.forEach((d, i) => {
+        if (!d.name) err(`${where} by_department[${i}]: 部局の名前がない`);
+        for (const k of ['amount', 'budget_current', 'carried_over', 'unused'] as const) {
+          checkValue(`${where} by_department[${i}].${k}`, d[k], true);
+        }
+      });
+      for (const k of ['amount', 'budget_current', 'carried_over', 'unused'] as const) {
+        const s = sumKnown(row.by_department.map(d => d[k]));
+        const want = vOf(row[k]);
+        if (s !== null && want !== null && s !== want) err(`${where}: 部局の内訳の ${k} の合計 ${s} ≠ 目の値 ${want}`);
+      }
     }
     if (row.transfer?.to_account && !accountIds.has(row.transfer.to_account)) {
       err(`${where}: 繰出し先の会計 ${row.transfer.to_account} が accounts にない`);
     }
   }
+
+  (file.revenue_by_kan ?? []).forEach((r, i) => {
+    const where = `revenue_by_kan[${i}] ${r.account} ${r.kan?.no}款`;
+    if (!accountIds.has(r.account)) err(`${where}: 会計 ${r.account} が accounts にない`);
+    checkName(`${where} kan`, r.kan, true);
+    for (const k of ['amount', 'budget_current', 'assessed', 'deficit_loss', 'uncollected'] as const) checkValue(`${where} ${k}`, r[k], true);
+    checkValue(`${where} overpaid`, r.overpaid, false);
+    // 調定額 = 収入済額 − 過誤納金 + 不納欠損額 + 収入未済額
+    const a = vOf(r.amount), d = vOf(r.deficit_loss), u = vOf(r.uncollected), s = vOf(r.assessed);
+    const o = r.overpaid ? vOf(r.overpaid) : 0;
+    if (a !== null && d !== null && u !== null && s !== null && o !== null && a - o + d + u !== s) {
+      err(`${where}: 収入済 − 過誤納 + 不納欠損 + 収入未済 ${a - o + d + u} ≠ 調定額 ${s}`);
+    }
+  });
+  if (file.revenue_by_kan && file.basis !== 'settlement') err('revenue_by_kan は決算のファイルだけ');
 
   if (file.checks.rows !== file.rows.length) err(`checks.rows ${file.checks.rows} ≠ 目の行数 ${file.rows.length}`);
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);
