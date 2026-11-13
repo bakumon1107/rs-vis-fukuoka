@@ -23,6 +23,7 @@ import { composeDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
 import { sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
+import { FUNDING_RECLASS_NOTES, fundingReclassKey } from '@/client/lib/local-gov-labels';
 
 // opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3）
 const VIEWS: { key: LocalGraphView; label: string; note: string; opens: string }[] = [
@@ -161,6 +162,15 @@ function LocalGovContent() {
             {view === 'all' &&
               '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
+            {view === 'all' && FUNDING_RECLASS_NOTES[fundingReclassKey(gov, file.year, file.basis)] && (
+              <>
+                （確かめた内訳は
+                <Link href={`/local/${gov}/about?year=${file.year}#funding`} className="text-primary-accent underline">
+                  データについて
+                </Link>
+                ）
+              </>
+            )}
           </span>
         </div>
 

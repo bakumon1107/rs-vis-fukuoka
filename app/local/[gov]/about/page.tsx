@@ -23,6 +23,8 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { ValueSource } from '@/types/local-gov';
 import {
+  FUNDING_RECLASS_NOTES,
+  fundingReclassKey,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -83,6 +85,7 @@ function LocalGovAboutContent() {
   // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
+  const fundingNotes = FUNDING_RECLASS_NOTES[fundingReclassKey(gov, file.year, file.basis)];
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -116,6 +119,22 @@ function LocalGovAboutContent() {
             <li>複数の読み取り（OCR 2種類と PDF の文字情報）で同じ値になるかを数える</li>
           </ul>
         </section>
+
+        {fundingNotes && (
+          <section id="funding" className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+            <h2 className="font-bold">財源内訳と歳入の款の違い</h2>
+            <p>
+              一般会計の見方の左端（歳出の財源内訳）と、全会計の見方の左端（歳入の款）では、国庫支出金・地方債・その他の額が違います。
+              同じお金でも、歳入では国庫支出金・県債・繰入金などに入っているものを、歳出の財源内訳では一般財源として数えているためです。
+              説明書を読んで確かめたものは次のとおりです（{index.gov.name}の資料。なぜ一般財源に数えるのかは説明書に書かれていません）。
+            </p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {fundingNotes.map(n => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">検算の結果</h2>

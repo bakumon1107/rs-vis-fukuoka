@@ -27,6 +27,25 @@ export const VALUE_SRC_LABEL: Record<ValueSource, string> = {
 /** 値に印を付ける出典か（判定はドメイン側の summary.ts。表示名と一緒に使うのでここからも出す） */
 export { isNotableValueSource } from '@/app/lib/local-gov/summary';
 
+/**
+ * 歳出の財源内訳と歳入の款の区分の違いのうち、説明書を読んで確かめたもの（自治体・年度・予算の種類ごと。「データについて」に出す）。
+ * 根拠: docs/local-gov/fukuoka/20261114_0005_財源内訳と歳入の款の差の調査.md。
+ * 自治体ごとの説明文なので、2件目の自治体を載せるときに index.json に移す（画面とグラフの設計 4.2）
+ */
+export const FUNDING_RECLASS_NOTES: Record<string, string[]> = {
+  'fukuoka-pref/2026/initial': [
+    '国の「物価高騰対応重点支援地方創生臨時交付金」約67億円は、歳入では国庫支出金ですが、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
+    '県債のうち「調整債」約133億円は、歳入では県債ですが、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
+    '繰入金のうち財政調整基金繰入金・減債基金繰入金・特別会計繰入金（ほかの会計からの繰入金）の合わせて約325億円は、歳出の財源内訳では一般財源に数えられています（差の額が千円の位まで一致）。',
+    'このほか、諸収入・財産収入・寄附金・使用料及び手数料の一部（合わせて約168億円）も一般財源に数えられています。どの収入かは説明書に書かれていません。',
+  ],
+};
+
+/** FUNDING_RECLASS_NOTES を引く鍵 */
+export function fundingReclassKey(govId: string, year: number, basis: string): string {
+  return `${govId}/${year}/${basis}`;
+}
+
 /** 表に並べる順（型の一覧と同じ順） */
 export const NAME_SOURCE_ORDER: readonly NameSource[] = NAME_SOURCES;
 export const VALUE_SOURCE_ORDER: readonly ValueSource[] = VALUE_SOURCES;
