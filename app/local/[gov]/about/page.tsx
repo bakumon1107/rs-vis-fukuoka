@@ -21,7 +21,7 @@ import {
   valueSourceCounts,
   zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
-import type { ValueSource } from '@/types/local-gov';
+import type { Basis, ValueSource } from '@/types/local-gov';
 import {
   fundingReclassNotes,
   NAME_SOURCE_ORDER,
@@ -55,12 +55,13 @@ export default function LocalGovAboutPage() {
 
 function LocalGovAboutContent() {
   const { gov } = useParams<{ gov: string }>();
-  // 年度はサンキー図のページと同じクエリ（year）で受け取る。なければ最新の年度
-  const searchParams = useSearchParams();
-  const year = yearFromQuery(searchParams.get('year'));
+  // 予算か決算か（basis）と年度はサンキー図のページと同じクエリで受け取る。なければ当初予算の最新の年度
+  const params = useSearchParams();
+  const basis: Basis = params.get('basis') === 'settlement' ? 'settlement' : 'initial';
+  const year = yearFromQuery(params.get('year'));
   // 来たときのサンキー図のクエリ（見方・選択）。クエリとして解釈し直してから使う（パスや「#」は付けさせない）
-  const back = searchParams.get('back');
-  const state = useLocalBudget(gov, year);
+  const back = params.get('back');
+  const state = useLocalBudget(gov, year, basis);
   const summary = useMemo(() => {
     if (state.status !== 'ready') return null;
     const f = state.file;
@@ -108,6 +109,8 @@ function LocalGovAboutContent() {
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
   const fundingNotes = fundingReclassNotes(gov, file);
+  const isSettlement = file.basis === 'settlement';
+  const basisQuery = isSettlement ? '&basis=settlement' : '';
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -115,18 +118,37 @@ function LocalGovAboutContent() {
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-sm text-mirai-text">
         <div>
           <Link
-            href={back ? `/local/${gov}?${new URLSearchParams(back).toString()}` : `/local/${gov}?year=${file.year}`}
+            href={back ? `/local/${gov}?${new URLSearchParams(back).toString()}` : `/local/${gov}?year=${file.year}${basisQuery}`}
             className="text-xs text-primary-accent underline"
           >
             ← サンキー図に戻る
           </Link>
           <h1 className="mt-1 text-xl font-bold">
-            {index.gov.name} {dataset.label} データについて
+            {index.gov.name} {dataset.label}
+            {isSettlement ? '決算' : '当初予算'} データについて
           </h1>
         </div>
 
-        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} linkToAbout={false} />}
+        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} basis={file.basis} linkToAbout={false} />}
 
+        {isSettlement ? (
+          <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+            <h2 className="font-bold">数字の作り方</h2>
+            {/* 決算の資料の説明は福岡県の資料に合わせたもの。2件目の自治体を載せるときに、資料の説明を index.json に移す */}
+            <p>
+              {index.gov.name}が公開している「歳入歳出決算概要説明書」と「歳入歳出決算事項別明細書」（どちらも文字の入った PDF）から、
+              目（もく）ごとの予算現額・支出済額・翌年度繰越額・不用額、部局ごとの内訳、節（報酬・給料・委託料などの性質）、
+              「決算の内容」「不用額の内容」を取り出しています。金額は資料に印字された円単位の数字そのままで、推計や按分はしていません。
+              図の帯は支出済額（実際に使った額）です。
+            </p>
+            <p>取り出した数字は、次の検算で確かめています（1円でも違えば止める）。</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              <li>目ごとに: 予算現額 = 支出済額 + 翌年度繰越額 + 不用額、節の支出済額の合計 = 目の支出済額、部局ごとの内訳の合計 = 目</li>
+              <li>目の合計 = 項 = 款（款項目別明細表）。部局別の表の合計 = 款項目別明細表の目</li>
+              <li>特別会計は会計ごとの合計を「特別会計歳入歳出決算一覧表」と突き合わせる</li>
+            </ul>
+          </section>
+        ) : (
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">数字の作り方</h2>
           {/* 説明書・予算書の本体・計上額調などの説明は福岡県の資料に合わせたもの。2件目の自治体を載せるときに、資料の説明を index.json に移す */}
@@ -144,6 +166,46 @@ function LocalGovAboutContent() {
             <li>複数の読み取り（OCR 2種類と PDF の文字情報）で同じ値になるかを数える</li>
           </ul>
         </section>
+        )}
+
+        {file.revenue_by_kan && file.revenue_by_kan.length > 0 && (
+          <section id="revenue" className="scroll-mt-24 space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+            <h2 className="font-bold">歳入（会計・款ごと）</h2>
+            <p className="text-xs text-mirai-text-muted">
+              決算の図には歳入を描いていません（どの収入をどの歳出に使ったかは資料にないため）。歳入は款ごとの額をここに載せます。
+              調定額 = 収入済額 − 過誤納金 + 不納欠損額 + 収入未済額。
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-xs">
+                <thead>
+                  <tr className="text-mirai-text-muted">
+                    <th className="py-1 text-left font-normal">会計・款</th>
+                    <th className="py-1 text-right font-normal">収入済額</th>
+                    <th className="py-1 text-right font-normal">予算現額</th>
+                    <th className="py-1 text-right font-normal">調定額</th>
+                    <th className="py-1 text-right font-normal">不納欠損額</th>
+                    <th className="py-1 text-right font-normal">収入未済額</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {file.revenue_by_kan.map(r => (
+                    <tr key={`${r.account}-${r.kan.no}`} className="border-t border-mirai-border">
+                      <td className="py-1">
+                        <span className="text-mirai-text-muted">{accountName.get(r.account) ?? r.account} ／ </span>
+                        {r.kan.name}
+                      </td>
+                      <td className="py-1 text-right font-bold">{formatBudgetFromYen(r.amount.v ?? 0)}</td>
+                      <td className="py-1 text-right">{formatBudgetFromYen(r.budget_current.v ?? 0)}</td>
+                      <td className="py-1 text-right">{formatBudgetFromYen(r.assessed.v ?? 0)}</td>
+                      <td className="py-1 text-right">{formatBudgetFromYen(r.deficit_loss.v ?? 0)}</td>
+                      <td className="py-1 text-right">{formatBudgetFromYen(r.uncollected.v ?? 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {fundingNotes && (
           <section
@@ -254,17 +316,32 @@ function LocalGovAboutContent() {
 
         {summary && summary.zero.length > 0 && (
           <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
-            <h2 className="font-bold">本年度の計上がない目（{summary.zero.length} 件）</h2>
-            <p>本年度が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。前年度の額とあわせて、ここに並べます。</p>
+            <h2 className="font-bold">
+              {isSettlement ? '支出のなかった目' : '本年度の計上がない目'}（{summary.zero.length} 件）
+            </h2>
+            <p>
+              {isSettlement
+                ? '支出済額が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。予算現額・不用額とあわせて、ここに並べます。'
+                : '本年度が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。前年度の額とあわせて、ここに並べます。'}
+            </p>
             <ul className="space-y-1 text-xs">
               {summary.zero.map(r => (
                 <li key={r.id}>
                   <span className="text-mirai-text-muted">
                     {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
                   </span>{' '}
-                  {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}
-                  {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}
-                  {r.previous && srcNote(r.previous.src)}）
+                  {isSettlement ? (
+                    <>
+                      {r.moku.name}（支出済額 {formatBudgetFromYen(r.amount.v ?? 0)}・予算現額 {r.budget_current?.v != null ? formatBudgetFromYen(r.budget_current.v) : '—'}
+                      ・不用額 {r.unused?.v != null ? formatBudgetFromYen(r.unused.v) : '—'}）
+                    </>
+                  ) : (
+                    <>
+                      {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}
+                      {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}
+                      {r.previous && srcNote(r.previous.src)}）
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
