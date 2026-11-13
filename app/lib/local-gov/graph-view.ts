@@ -114,7 +114,12 @@ export function aggregateTail(
  * 全会計の歳入の款は絞り込まない（どの歳出に使われたかは資料にない）ので null を返し、その箱から出る帯だけを重ねる。
  * 「その他」（other:）も絞り込まない（選べない箱）。設計書 3.3・4.3
  */
-export function selectionToFilter(view: LocalGraphView, id: string): { filter: LocalGraphFilter; depth: number } | null {
+export function selectionToFilter(
+  view: LocalGraphView,
+  id: string,
+  basis: LocalBudgetFile['basis'] = 'initial'
+): { filter: LocalGraphFilter; depth: number } | null {
+  if (basis === 'settlement') return settlementSelection(view, id);
   // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）
   // （none は財源内訳のない目の「財源の記載なし」）
   let m = /^funding:(national|bond|other|general|none)$/.exec(id);
@@ -140,10 +145,37 @@ export function selectionToFilter(view: LocalGraphView, id: string): { filter: L
   return null;
 }
 
+/**
+ * 決算の選択（R6 決算の設計 4章）。列は 一般会計: 部局 → 款 → 項 → 目 → 節 / 全会計: 会計 → 款 → 項 → 目 → 節。
+ * 一般会計: 部局・款を選ぶと目まで、項・目・節を選ぶと節まで。全会計: 会計・款・項を選ぶと目まで、目・節を選ぶと節まで
+ * （全会計の項から節まで開くと、項によっては節が数百になる）。部局はその部局の額で目まで追う（節は部局ごとにない）
+ */
+function settlementSelection(view: LocalGraphView, id: string): { filter: LocalGraphFilter; depth: number } | null {
+  const toMoku = BASE_DEPTH + 1;
+  const toSetsu = BASE_DEPTH + 2;
+  let m = /^department:(.+)$/.exec(id);
+  if (m && view === 'general') return { filter: { department: m[1] }, depth: toMoku };
+  m = /^account:(.+)$/.exec(id);
+  if (m && view === 'all') return { filter: { account: m[1] }, depth: toMoku };
+  m = /^kan:(.+):expense:(\d+)$/.exec(id);
+  if (m) return { filter: { account: m[1], side: 'expense', kan: Number(m[2]) }, depth: toMoku };
+  m = /^kou:(.+):expense:(\d+)-(\d+)$/.exec(id);
+  if (m) {
+    return { filter: { account: m[1], side: 'expense', kan: Number(m[2]), kou: Number(m[3]) },
+      depth: view === 'general' ? toSetsu : toMoku };
+  }
+  m = /^(?:moku|setsu):(.+)\/expense\/(\d+)-(\d+)-(\d+)(?::\d+)?$/.exec(id);
+  if (m) {
+    return { filter: { account: m[1], side: 'expense', kan: Number(m[2]), kou: Number(m[3]), moku: Number(m[4]) }, depth: toSetsu };
+  }
+  return null;
+}
+
 /** 資料にない対応に色を付けないときに、図の上に出す理由（設計書 3.3 の表） */
 export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため、財源の帯は色を付けていません';
 export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
+export const NOTE_SETSU_DEPARTMENT = '部局ごとの節は資料にないため、部局の帯は色を付けていません';
 
 /**
  * 深い列で同じ列に同じ名前の箱が並ぶとき（款を選んだときの目「教職員費」2つ、項を選んだときの事項「職員費」など）は、
@@ -230,7 +262,7 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   const highlightNodes = new Set<string>();
   if (!selectedId) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
 
-  const sel = selectionToFilter(view, selectedId);
+  const sel = selectionToFilter(view, selectedId, file.basis);
   const nodeOf = (g: LocalGraph) => g.nodes.find(n => n.id === selectedId);
   if (!sel) {
     // 絞り込まない左端の箱（全会計の歳入の款）: その箱から出る帯だけを重ねる
@@ -266,21 +298,23 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   for (const n of focused.nodes) highlightNodes.add(n.id);
 
   let note: string | null = null;
-  const item = /^item:/.test(selectedId) ? focused.nodes.find(n => n.id === selectedId) : undefined;
-  if (item) {
-    // 事項を選んだら、款 → 項 → 目 → 事項 に事項の金額だけを重ねる（事項は目に含まれるので按分にならない）。
-    // 財源 → 款 は色を付けない（事項ごとの財源内訳は資料にない）。同じ目のほかの事項は灰色
+  // 事項（予算）・節（決算）を選んだら、款 → 項 → 目 → 事項／節 にその金額だけを重ねる（目に含まれるので按分にならない）。
+  // 左端の財源・部局 → 款 は色を付けない（事項ごとの財源内訳・部局ごとの節は資料にない）。同じ目のほかの事項・節は灰色
+  const leaf = /^(item|setsu):/.exec(selectedId)?.[1];
+  const leafNode = leaf ? focused.nodes.find(n => n.id === selectedId) : undefined;
+  if (leaf && leafNode) {
     highlight.clear();
     highlightNodes.clear();
     for (const e of focused.edges) {
-      if (e.source.startsWith('funding:')) continue;
-      if (e.target.startsWith('item:') && e.target !== item.id) continue;
-      highlight.set(edgeKey(e.source, e.target), item.value);
+      if (e.source.startsWith('funding:') || e.source.startsWith('department:')) continue;
+      if (e.target.startsWith(`${leaf}:`) && e.target !== leafNode.id) continue;
+      highlight.set(edgeKey(e.source, e.target), leafNode.value);
       highlightNodes.add(e.source);
       highlightNodes.add(e.target);
     }
-    note = NOTE_ITEM_FUNDING;
-  } else if (view === 'all' && sel.filter.side === 'expense') {
+    note = leaf === 'item' ? NOTE_ITEM_FUNDING : view === 'general' ? NOTE_SETSU_DEPARTMENT : null;
+  } else if (view === 'all' && sel.filter.side === 'expense' && baseCols.has('revenue')) {
+    // 予算の全会計の見方（左端が歳入の款）だけ。決算の全会計は歳入を描かないので、断り書きはいらない
     note = NOTE_REVENUE_UNKNOWN;
   }
 

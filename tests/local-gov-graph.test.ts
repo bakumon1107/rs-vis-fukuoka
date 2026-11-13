@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import {
-  aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, selectionToFilter, windowColumns,
+  aggregateTail, composeDisplay, edgeKey, NOTE_EXPENSE_UNKNOWN, NOTE_ITEM_FUNDING, NOTE_REVENUE_UNKNOWN, NOTE_SETSU_DEPARTMENT,
+  selectionToFilter, windowColumns,
 } from '../app/lib/local-gov/graph-view';
 import {
   nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueNotes, valueSourceCounts, zeroAmountRows,
@@ -559,4 +560,74 @@ test('全会計: 同じ名前の歳出の款が複数の会計にあれば、ラ
   assert.equal(g.nodes.find(n => n.id === 'kan:general:expense:3')?.name, '款3');
   const focused = buildLocalGraph(f, { view: 'all', filter: { account: 'general', side: 'expense', kan: 2 } });
   assert.equal(focused.nodes.find(n => n.id === 'kan:general:expense:2')?.name, '款2（一般会計）');
+});
+
+// ---- 決算（R6 決算の設計 4章・8章）----
+const t = (n: number): Value => ({ v: n, src: 'text' });
+const dep = (name: string, amount: number) => ({ name, amount: t(amount), budget_current: t(amount), carried_over: t(0), unused: t(0) });
+const sRow = (id: string, amount: number, over: Partial<MokuRow> = {}) =>
+  row(id, { amount: t(amount), budget_current: t(amount), carried_over: t(0), unused: t(0), ...over });
+// 款2 の目1 は2つの部局にまたがる（R6 の一般管理費 = 総務部 + 会計管理局 の形）。節は目ごと
+const SFILE: LocalBudgetFile = {
+  schema_version: 1, gov_id: 'test', year: 2024, year_label: '令和6年度', basis: 'settlement', unit_source: '円',
+  accounts: [{ id: 'general', kind: 'general', name: '一般会計' }, { id: 'special:a', kind: 'special', name: 'A特別会計' }],
+  rows: [
+    sRow('general/expense/2-1-1', 100, { by_department: [dep('総務部', 70), dep('会計管理局', 30)],
+      setsu: [{ no: 1, name: '報酬', amount: t(40), name_src: 'reference' }, { no: 2, name: '給料', amount: t(60), name_src: 'reference' }] }),
+    sRow('general/expense/3-1-1', 50, { by_department: [dep('教育庁', 50)], setsu: [{ no: 12, name: '委託料', amount: t(50), name_src: 'reference' }] }),
+    sRow('special:a/expense/1-1-1', 40, { setsu: [{ no: 27, name: '繰出金', amount: t(40), name_src: 'reference' }] }),
+  ],
+  revenue_by_kan: [],
+  checks: { rows: 3, all_ok: 3, rules: {} },
+};
+
+test('決算 一般会計: 部局 → 款 → 項 → 目 → 節。部局 → 款 は部局の内訳そのまま（按分しない）、どの列も合計は支出済額', () => {
+  const g = buildLocalGraph(SFILE, { view: 'general' });
+  assert.deepEqual(g.columns.map(c => c.key), ['department', 'kan', 'kou', 'moku', 'setsu']);
+  for (const col of ['department', 'kan', 'kou', 'moku', 'setsu']) assert.equal(colTotal(g, col), 150, col);
+  assert.deepEqual(edgesInto(g, 'kan:general:expense:2'), { 'department:総務部': 70, 'department:会計管理局': 30 });
+  // 特別会計は一般会計の見方に出ない
+  assert.ok(!g.nodes.some(n => n.id.includes('special:a')));
+});
+
+test('決算 全会計: 会計 → 款 → 項 → 目 → 節（歳入は描かない）', () => {
+  const g = buildLocalGraph(SFILE, { view: 'all' });
+  assert.deepEqual(g.columns.map(c => c.key), ['account', 'kan', 'kou', 'moku', 'setsu']);
+  assert.equal(colTotal(g, 'account'), 190);
+  assert.equal(g.totals.gross, 190);
+});
+
+test('決算 表示: 部局を選ぶとその部局の額で目まで重ね、節は開かない', () => {
+  const d = composeDisplay(SFILE, 'general', 'department:会計管理局');
+  assert.deepEqual([...new Set(d.graph.nodes.map(n => n.col))], ['department', 'kan', 'kou', 'moku']);
+  assert.equal(d.highlight.get(edgeKey('department:会計管理局', 'kan:general:expense:2')), 30);
+  assert.equal(d.highlight.get(edgeKey('kou:general:expense:2-1', 'moku:general/expense/2-1-1')), 30);
+  // 目の箱は全体の額（支出済額 100）で描き、選んだ部局の分は重ねる帯で示す
+  assert.equal(d.graph.nodes.find(n => n.id === 'moku:general/expense/2-1-1')?.value, 100);
+});
+
+test('決算 表示: 選ぶ箱ごとの開く深さ', () => {
+  const cols = (view: 'general' | 'all', id: string) => [...new Set(composeDisplay(SFILE, view, id).graph.nodes.map(n => n.col))].at(-1);
+  assert.equal(cols('general', 'kan:general:expense:2'), 'moku');
+  assert.equal(cols('general', 'kou:general:expense:2-1'), 'setsu');
+  assert.equal(cols('general', 'moku:general/expense/2-1-1'), 'setsu');
+  assert.equal(cols('all', 'account:general'), 'moku');
+  assert.equal(cols('all', 'kou:general:expense:2-1'), 'moku');
+  assert.equal(cols('all', 'moku:special:a/expense/1-1-1'), 'setsu');
+  assert.equal(selectionToFilter('general', 'department:総務部', 'settlement')?.filter.department, '総務部');
+  // 予算の ID の形（財源）は決算では選べない
+  assert.equal(selectionToFilter('general', 'funding:general', 'settlement'), null);
+});
+
+test('決算 表示: 節を選ぶと 款 → 項 → 目 → 節 にその節の額だけを重ね、部局の帯には色を付けない', () => {
+  const d = composeDisplay(SFILE, 'general', 'setsu:general/expense/2-1-1:1');
+  assert.equal(d.selected?.name, '給料');
+  assert.equal(d.row, 'general/expense/2-1-1');
+  assert.equal(d.highlight.get(edgeKey('moku:general/expense/2-1-1', 'setsu:general/expense/2-1-1:1')), 60);
+  assert.equal(d.highlight.get(edgeKey('kan:general:expense:2', 'kou:general:expense:2-1')), 60);
+  assert.ok(![...d.highlight.keys()].some(k => k.startsWith('department:')));
+  assert.equal(d.note, NOTE_SETSU_DEPARTMENT);
+  // 全会計の見方では断り書きなし（部局の列がない・歳入を描かない）
+  assert.equal(composeDisplay(SFILE, 'all', 'setsu:general/expense/2-1-1:1').note, null);
+  assert.equal(composeDisplay(SFILE, 'all', 'kan:general:expense:2').note, null);
 });
