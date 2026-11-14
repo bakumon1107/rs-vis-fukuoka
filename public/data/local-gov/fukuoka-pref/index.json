@@ -12,6 +12,13 @@
    "basis": "initial",
    "file": "budget-2026-initial.json",
    "status": "verified"
+  },
+  {
+   "year": 2024,
+   "label": "令和6年度",
+   "basis": "settlement",
+   "file": "settlement-2024.json",
+   "status": "verified"
   }
  ],
  "sources": [
@@ -66,14 +73,14 @@
   },
   {
    "id": "r6-kessan-gaiyou",
-   "title": "令和6年度歳入歳出決算概要説明書（名前の照合に使用）",
+   "title": "令和6年度歳入歳出決算概要説明書",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272595.pdf",
    "sha256": "0bfa60a10dabdb14ac75a01c8a0b24e6a7b57b9ad3fe5ab0b0478e6056efbec7",
    "retrieved": "2026-11-06"
   },
   {
    "id": "r6-kessan-jikou",
-   "title": "令和6年度歳入歳出決算事項別明細書（名前の検索に使用）",
+   "title": "令和6年度歳入歳出決算事項別明細書",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272615.pdf",
    "sha256": "50cbdd27dbccbfbcb6525c0f8dff224f154fd74e431108f0b6bf8bfe3245a417",
    "retrieved": "2026-11-06"
