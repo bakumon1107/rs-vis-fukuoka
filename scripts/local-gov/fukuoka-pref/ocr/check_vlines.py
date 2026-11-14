@@ -43,6 +43,11 @@ def load_page(path):
         return json.load(f)
 
 
+def table_vlines(t, rec):
+    """表の縦線。表ごとの線を持たない古い形式の OCR 結果は、ページ共通の線で切られていたので、それを使う（読み取り側と同じ）。"""
+    return t.get("vlines") or rec["vlines"]
+
+
 def same_as(dir_a, dir_b, rng):
     a, b = (int(x) for x in rng.split("-"))
     differs = []
@@ -54,8 +59,8 @@ def same_as(dir_a, dir_b, rng):
                 print(f"WARN p{page}: 片方の OCR 結果がない（{pb if ea else pa}）", file=sys.stderr)
                 differs.append(page)
             continue
-        ta, tb = load_page(pa)["tables"], load_page(pb)["tables"]
-        if [t["vlines"] for t in ta] != [t["vlines"] for t in tb]:
+        ra, rb = load_page(pa), load_page(pb)
+        if [table_vlines(t, ra) for t in ra["tables"]] != [table_vlines(t, rb) for t in rb["tables"]]:
             differs.append(page)
     print("differs:", differs)
 
@@ -132,10 +137,11 @@ def main():
                 header = t["header"]  # ocr_pages.py は見出しと認めなかった表で [] を保存する
                 htext = "".join(d["text"] for d in header) if header else None
                 new = op.choose_vlines(tv, vlines, htext, prev_cols, dpi)
-                if new != t["vlines"]:
+                old = table_vlines(t, rec)
+                if new != old:
                     changed.append(page)
-                    print(f"CHANGED p{page} table {i}: {len(t['vlines'])} -> {len(new) if new else None} lines "
-                          f"old={t['vlines']} new={new}")
+                    print(f"CHANGED p{page} table {i}: {len(old)} -> {len(new) if new else None} lines "
+                          f"old={old} new={new}")
                 if new is not None:
                     prev_cols = cols_here = len(new) - 1
             for top, (i, t) in saved.items():
