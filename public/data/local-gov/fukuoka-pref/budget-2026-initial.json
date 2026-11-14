@@ -10143,8 +10143,8 @@
     },
     {
      "no": 33,
-     "name": "士地改良計画策定等事業収入",
-     "name_src": "readings",
+     "name": "土地改良計画策定等事業収入",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 71930000,
@@ -11929,7 +11929,7 @@
    "items": [
     {
      "name": "議員報酬等",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1416932000,
       "src": "ocr",
@@ -12317,7 +12317,7 @@
     },
     {
      "name": "協議会負担金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 116000,
       "src": "ocr",
@@ -12781,7 +12781,7 @@
     },
     {
      "name": "自動車管理費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 35527000,
       "src": "ocr",
@@ -12802,7 +12802,7 @@
     },
     {
      "name": "単独庁舎管理費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1871524000,
       "src": "ocr",
@@ -13320,7 +13320,7 @@
    "items": [
     {
      "name": "職員住宅管理費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 113843000,
       "src": "ocr",
@@ -13422,7 +13422,7 @@
     },
     {
      "name": "赴任旅費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 33000000,
       "src": "ocr",
@@ -14146,8 +14146,8 @@
        }
       },
       {
-       "name": "耕翻訳料",
-       "name_src": "ocr",
+       "name": "筆耕翻訳料",
+       "name_src": "correction",
        "amount": {
         "v": 1178000,
         "src": "ocr"
@@ -14677,8 +14677,8 @@
      }
     },
     {
-     "name": "士地開発基金関係事務費",
-     "name_src": "readings",
+     "name": "土地開発基金関係事務費",
+     "name_src": "correction",
      "amount": {
       "v": 6000,
       "src": "ocr",
@@ -15373,7 +15373,7 @@
     },
     {
      "name": "広域行政連絡会議費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 17419000,
       "src": "ocr",
@@ -15634,8 +15634,8 @@
        }
       },
       {
-       "name": "の他需用費",
-       "name_src": "ocr",
+       "name": "その他需用費",
+       "name_src": "correction",
        "amount": {
         "v": 11585000,
         "src": "ocr"
@@ -16615,7 +16615,7 @@
     },
     {
      "name": "海外移住振興費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 145000,
       "src": "ocr",
@@ -17800,8 +17800,8 @@
      }
     },
     {
-     "name": "石油貯藏施設立地対策事業費",
-     "name_src": "ocr",
+     "name": "石油貯蔵施設立地対策事業費",
+     "name_src": "correction",
      "amount": {
       "v": 169065000,
       "src": "ocr",
@@ -18799,7 +18799,7 @@
     },
     {
      "name": "新・県立美術館設置対策費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 6522703000,
       "src": "ocr",
@@ -19402,7 +19402,7 @@
    "items": [
     {
      "name": "土地取引届出勧告事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 3744000,
       "src": "ocr",
@@ -19623,8 +19623,8 @@
      }
     },
     {
-     "name": "消費生活センタ一運営費",
-     "name_src": "ocr",
+     "name": "消費生活センター運営費",
+     "name_src": "correction",
      "amount": {
       "v": 55204000,
       "src": "ocr",
@@ -19660,7 +19660,7 @@
     },
     {
      "name": "消費者団体育成指導費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 600000,
       "src": "ocr",
@@ -20390,7 +20390,7 @@
    "items": [
     {
      "name": "選挙常時啓発費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 7543000,
       "src": "ocr"
@@ -21020,8 +21020,8 @@
      }
     },
     {
-     "name": "涉外費",
-     "name_src": "ocr",
+     "name": "渉外費",
+     "name_src": "correction",
      "amount": {
       "v": 214000,
       "src": "ocr",
@@ -21132,7 +21132,7 @@
       },
       {
        "name": "宿日直手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1170000,
         "src": "ocr"
@@ -22262,7 +22262,7 @@
       },
       {
        "name": "管理職手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1077000,
         "src": "ocr"
@@ -22377,7 +22377,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 77000,
         "src": "ocr"
@@ -22600,7 +22600,7 @@
       },
       {
        "name": "通勤手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1038000,
         "src": "ocr"
@@ -23252,8 +23252,8 @@
      }
     },
     {
-     "name": "職員探用試驗費",
-     "name_src": "ocr",
+     "name": "職員採用試験費",
+     "name_src": "correction",
      "amount": {
       "v": 84744000,
       "src": "ocr",
@@ -23887,7 +23887,7 @@
      "sub": [
       {
        "name": "筆耕翻訳料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 8000,
         "src": "ocr"
@@ -23982,7 +23982,7 @@
     },
     {
      "name": "運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 17622000,
       "src": "ocr",
@@ -24396,7 +24396,7 @@
     },
     {
      "name": "保健医療介護事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1688000,
       "src": "ocr",
@@ -25238,7 +25238,7 @@
    "items": [
     {
      "name": "病院事業会計への負担金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 590406000,
       "src": "ocr"
@@ -25330,7 +25330,7 @@
     },
     {
      "name": "原爆障がい対策費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1847191000,
       "src": "ocr",
@@ -25404,7 +25404,7 @@
       },
       {
        "name": "初任給調整手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 11789000,
         "src": "ocr"
@@ -25561,8 +25561,8 @@
        }
       },
       {
-       "name": "肇耕翻訳料",
-       "name_src": "ocr",
+       "name": "筆耕翻訳料",
+       "name_src": "correction",
        "amount": {
         "v": 686000,
         "src": "ocr"
@@ -26405,8 +26405,8 @@
      }
     },
     {
-     "name": "精神保健福祉セン夕一費",
-     "name_src": "ocr",
+     "name": "精神保健福祉センター費",
+     "name_src": "correction",
      "amount": {
       "v": 17039000,
       "src": "ocr",
@@ -27513,7 +27513,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 67000,
         "src": "ocr"
@@ -27563,8 +27563,8 @@
        }
       },
       {
-       "name": "の他役務費",
-       "name_src": "ocr",
+       "name": "その他役務費",
+       "name_src": "correction",
        "amount": {
         "v": 1507000,
         "src": "ocr"
@@ -28086,7 +28086,7 @@
     },
     {
      "name": "結核・感染症発生動向調査事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 72829000,
       "src": "ocr",
@@ -28202,7 +28202,7 @@
      "sub": [
       {
        "name": "社会保険料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 5000,
         "src": "ocr"
@@ -29474,7 +29474,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 114000,
         "src": "ocr"
@@ -29710,7 +29710,7 @@
     },
     {
      "name": "家庭用品取締費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 75000,
       "src": "ocr",
@@ -30284,7 +30284,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 9000,
         "src": "ocr"
@@ -30292,7 +30292,7 @@
       },
       {
        "name": "その他需用費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 406000,
         "src": "ocr"
@@ -30559,7 +30559,7 @@
       },
       {
        "name": "社会保険料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1037000,
         "src": "ocr"
@@ -30799,8 +30799,8 @@
      }
     },
     {
-     "name": "福祉サービス苦情解决事業費",
-     "name_src": "ocr",
+     "name": "福祉サービス苦情解決事業費",
+     "name_src": "correction",
      "amount": {
       "v": 9232000,
       "src": "ocr",
@@ -30973,7 +30973,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 103000,
         "src": "ocr"
@@ -31830,7 +31830,7 @@
    "items": [
     {
      "name": "職員費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1006792000,
       "src": "ocr",
@@ -32144,7 +32144,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 396000,
         "src": "ocr"
@@ -32424,7 +32424,7 @@
     },
     {
      "name": "悪臭防止対策費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 247000,
       "src": "ocr",
@@ -32880,7 +32880,7 @@
       },
       {
        "name": "勤勉手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 12113000,
         "src": "ocr"
@@ -33911,7 +33911,7 @@
     },
     {
      "name": "ねんりんスポーツ大会開催事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 48163000,
       "src": "ocr",
@@ -34413,7 +34413,7 @@
      "sub": [
       {
        "name": "扶養手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 3408000,
         "src": "ocr"
@@ -34624,8 +34624,8 @@
        }
       },
       {
-       "name": "肇耕翻訳料",
-       "name_src": "ocr",
+       "name": "筆耕翻訳料",
+       "name_src": "correction",
        "amount": {
         "v": 84000,
         "src": "ocr"
@@ -34781,7 +34781,7 @@
     },
     {
      "name": "災害救助法施行事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 621000,
       "src": "ocr",
@@ -35047,7 +35047,7 @@
     },
     {
      "name": "産休代替職員費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 20409000,
       "src": "ocr",
@@ -35294,8 +35294,8 @@
        }
       },
       {
-       "name": "休勤務手当",
-       "name_src": "ocr",
+       "name": "休日勤務手当",
+       "name_src": "correction",
        "amount": {
         "v": 5132000,
         "src": "ocr"
@@ -36458,7 +36458,7 @@
     },
     {
      "name": "母子保健事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 123000,
       "src": "ocr",
@@ -36925,8 +36925,8 @@
        }
       },
       {
-       "name": "休勤務手当",
-       "name_src": "ocr",
+       "name": "休日勤務手当",
+       "name_src": "correction",
        "amount": {
         "v": 15000,
         "src": "ocr"
@@ -37684,8 +37684,8 @@
        }
       },
       {
-       "name": "勤手当",
-       "name_src": "ocr",
+       "name": "勤勉手当",
+       "name_src": "correction",
        "amount": {
         "v": 1662000,
         "src": "ocr"
@@ -38020,7 +38020,7 @@
     },
     {
      "name": "指導職員設置事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1013000,
       "src": "ocr",
@@ -38028,8 +38028,8 @@
      }
     },
     {
-     "name": "行旅死亡人取極費",
-     "name_src": "ocr",
+     "name": "行旅死亡人取扱費",
+     "name_src": "correction",
      "amount": {
       "v": 91000,
       "src": "ocr",
@@ -38270,8 +38270,8 @@
        }
       },
       {
-       "name": "費用弁",
-       "name_src": "ocr",
+       "name": "費用弁償",
+       "name_src": "correction",
        "amount": {
         "v": 2964000,
         "src": "ocr"
@@ -39785,7 +39785,7 @@
    "items": [
     {
      "name": "労働事務運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 160000,
       "src": "ocr",
@@ -40960,7 +40960,7 @@
    "items": [
     {
      "name": "高等技術専門校費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 38592000,
       "src": "ocr",
@@ -41381,7 +41381,7 @@
     },
     {
      "name": "障がい者雇用促進費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 198002000,
       "src": "ocr",
@@ -43300,7 +43300,7 @@
     },
     {
      "name": "農林漁業資金融通事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 675000,
       "src": "ocr",
@@ -43317,8 +43317,8 @@
      }
     },
     {
-     "name": "農家負担怪減支援特別資金融通対策費",
-     "name_src": "ocr",
+     "name": "農家負担軽減支援特別資金融通対策費",
+     "name_src": "correction",
      "amount": {
       "v": 208000,
       "src": "ocr",
@@ -43463,7 +43463,7 @@
       },
       {
        "name": "筆耕翻訳料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 9000,
         "src": "ocr"
@@ -43471,7 +43471,7 @@
       },
       {
        "name": "その他役務費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 62000,
         "src": "ocr"
@@ -43642,8 +43642,8 @@
      }
     },
     {
-     "name": "農林業総合試驗場本場運営費",
-     "name_src": "ocr",
+     "name": "農林業総合試験場本場運営費",
+     "name_src": "correction",
      "amount": {
       "v": 279859000,
       "src": "ocr",
@@ -43651,8 +43651,8 @@
      }
     },
     {
-     "name": "農林業総合試驗場本場研究費",
-     "name_src": "ocr",
+     "name": "農林業総合試験場本場研究費",
+     "name_src": "correction",
      "amount": {
       "v": 269843000,
       "src": "ocr",
@@ -43660,8 +43660,8 @@
      }
     },
     {
-     "name": "資源活用研究セン夕一運営費",
-     "name_src": "ocr",
+     "name": "資源活用研究センター運営費",
+     "name_src": "correction",
      "amount": {
       "v": 54367000,
       "src": "ocr",
@@ -43669,8 +43669,8 @@
      }
     },
     {
-     "name": "資源活用研究セン夕一研究費",
-     "name_src": "ocr",
+     "name": "資源活用研究センター研究費",
+     "name_src": "correction",
      "amount": {
       "v": 66744000,
       "src": "ocr",
@@ -43696,8 +43696,8 @@
      }
     },
     {
-     "name": "築後分場費",
-     "name_src": "readings",
+     "name": "筑後分場費",
+     "name_src": "correction",
      "amount": {
       "v": 37462000,
       "src": "ocr",
@@ -43875,7 +43875,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 495000,
         "src": "ocr"
@@ -44464,7 +44464,7 @@
    "items": [
     {
      "name": "特用作物振興費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 394000,
       "src": "ocr",
@@ -44482,7 +44482,7 @@
     },
     {
      "name": "野菜振興対策費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 245424000,
       "src": "ocr",
@@ -44830,7 +44830,7 @@
     },
     {
      "name": "米消費拡大対策事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 11107000,
       "src": "ocr",
@@ -44839,7 +44839,7 @@
     },
     {
      "name": "地域農政推進対策事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 297851000,
       "src": "ocr",
@@ -44902,7 +44902,7 @@
      "sub": [
       {
        "name": "社会保険料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 9000,
         "src": "ocr"
@@ -45229,7 +45229,7 @@
       },
       {
        "name": "光熱水費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1424000,
         "src": "ocr"
@@ -45534,7 +45534,7 @@
       },
       {
        "name": "児童手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 10320000,
         "src": "ocr"
@@ -45984,7 +45984,7 @@
       },
       {
        "name": "光熱水費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 348000,
         "src": "ocr"
@@ -46190,8 +46190,8 @@
      "headcount": 199
     },
     {
-     "name": "築後川水系農地防災センター費",
-     "name_src": "readings",
+     "name": "筑後川水系農地防災センター費",
+     "name_src": "correction",
      "amount": {
       "v": 6887000,
       "src": "ocr",
@@ -46461,8 +46461,8 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員49人土地改良事業推進費",
-     "name_src": "readings",
+     "name": "土地改良事業推進費",
+     "name_src": "correction",
      "amount": {
       "v": 102984000,
       "src": "ocr",
@@ -46491,8 +46491,8 @@
      }
     },
     {
-     "name": "土地改良事業换地費",
-     "name_src": "ocr",
+     "name": "土地改良事業換地費",
+     "name_src": "correction",
      "amount": {
       "v": 1500000,
       "src": "ocr",
@@ -46500,8 +46500,8 @@
      }
     },
     {
-     "name": "合所ダ管理事業費",
-     "name_src": "ocr",
+     "name": "合所ダム管理事業費",
+     "name_src": "correction",
      "amount": {
       "v": 118619000,
       "src": "ocr",
@@ -46518,8 +46518,8 @@
      }
     },
     {
-     "name": "両築平野用水管理費負担金",
-     "name_src": "readings",
+     "name": "両筑平野用水管理費負担金",
+     "name_src": "correction",
      "amount": {
       "v": 45527000,
       "src": "ocr",
@@ -46527,8 +46527,8 @@
      }
     },
     {
-     "name": "水資源機構営両築平野用水事業負担金",
-     "name_src": "ocr",
+     "name": "水資源機構営両筑平野用水事業負担金",
+     "name_src": "correction",
      "amount": {
       "v": 245236000,
       "src": "ocr",
@@ -46536,8 +46536,8 @@
      }
     },
     {
-     "name": "国営築後川下流かんがい排水事業負担金",
-     "name_src": "readings",
+     "name": "国営筑後川下流かんがい排水事業負担金",
+     "name_src": "correction",
      "amount": {
       "v": 579507000,
       "src": "ocr",
@@ -46545,8 +46545,8 @@
      }
     },
     {
-     "name": "国営築後川中流かんがい排水事業負担金",
-     "name_src": "readings",
+     "name": "国営筑後川中流かんがい排水事業負担金",
+     "name_src": "correction",
      "amount": {
       "v": 107572000,
       "src": "ocr",
@@ -46673,7 +46673,7 @@
     },
     {
      "name": "湛水防除事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 798903000,
       "src": "ocr",
@@ -47079,6 +47079,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員49人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -47193,8 +47196,8 @@
      }
     },
     {
-     "name": "森林保険取極費",
-     "name_src": "ocr",
+     "name": "森林保険取扱費",
+     "name_src": "correction",
      "amount": {
       "v": 450000,
       "src": "ocr",
@@ -47602,7 +47605,7 @@
     },
     {
      "name": "林業種子採取費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 2324000,
       "src": "ocr",
@@ -47620,7 +47623,7 @@
     },
     {
      "name": "林木品種改良事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 347000,
       "src": "ocr",
@@ -47682,7 +47685,7 @@
     },
     {
      "name": "林業担い手対策費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 2325000,
       "src": "ocr",
@@ -47760,7 +47763,7 @@
      "sub": [
       {
        "name": "社会保険料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 4000,
         "src": "ocr"
@@ -48035,7 +48038,7 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員7人松くい虫防除特別対策推進費",
+     "name": "松くい虫防除特別対策推進費",
      "name_src": "readings",
      "amount": {
       "v": 6211000,
@@ -48471,6 +48474,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員7人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -48535,7 +48541,7 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員27人保安林整備費",
+     "name": "保安林整備費",
      "name_src": "readings",
      "amount": {
       "v": 12323000,
@@ -48930,6 +48936,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員27人"
    ],
    "pages": [
     {
@@ -49608,7 +49617,7 @@
    "items": [
     {
      "name": "狩猟費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 31606000,
       "src": "ocr"
@@ -49708,7 +49717,7 @@
      "sub": [
       {
        "name": "光熱水費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 38000,
         "src": "ocr"
@@ -49851,8 +49860,8 @@
      }
     },
     {
-     "name": "船舶登錄事務費",
-     "name_src": "ocr",
+     "name": "船舶登録事務費",
+     "name_src": "correction",
      "amount": {
       "v": 3213000,
       "src": "ocr",
@@ -50222,7 +50231,7 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員6人水産業改良普及事業費",
+     "name": "水産業改良普及事業費",
      "name_src": "readings",
      "amount": {
       "v": 701000,
@@ -50338,7 +50347,7 @@
     },
     {
      "name": "近隣県共同事業推進費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 167000,
       "src": "ocr",
@@ -50661,6 +50670,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員6人"
    ],
    "pages": [
     {
@@ -51304,7 +51316,7 @@
    "items": [
     {
      "name": "沿岸漁業取締費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1986000,
       "src": "ocr",
@@ -51526,7 +51538,7 @@
     },
     {
      "name": "漁業調査取締船検査費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 115289000,
       "src": "ocr",
@@ -51982,7 +51994,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 25000,
         "src": "ocr"
@@ -52460,7 +52472,7 @@
     },
     {
      "name": "中小企業対策審議会費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 610000,
       "src": "ocr",
@@ -52496,7 +52508,7 @@
     },
     {
      "name": "中小企業振興対策事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 791000,
       "src": "ocr",
@@ -53192,7 +53204,7 @@
     },
     {
      "name": "中小企業団体指導事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 528000,
       "src": "ocr",
@@ -53218,8 +53230,8 @@
      }
     },
     {
-     "name": "大規模小売店舖立地対策費",
-     "name_src": "ocr",
+     "name": "大規模小売店舗立地対策費",
+     "name_src": "correction",
      "amount": {
       "v": 1983000,
       "src": "ocr",
@@ -53950,7 +53962,7 @@
     },
     {
      "name": "工鉱業振興事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1204000,
       "src": "ocr",
@@ -54468,7 +54480,7 @@
    "items": [
     {
      "name": "検定検査費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 66877000,
       "src": "ocr"
@@ -54729,7 +54741,7 @@
     },
     {
      "name": "依頼分析試験費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 8141000,
       "src": "ocr",
@@ -55128,7 +55140,7 @@
      "sub": [
       {
        "name": "社会保険料",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 5000,
         "src": "ocr"
@@ -55718,7 +55730,7 @@
     },
     {
      "name": "九州各県等宣伝事業参加費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 401000,
       "src": "ocr",
@@ -56150,7 +56162,7 @@
     },
     {
      "name": "県土整備企画調整費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 437000,
       "src": "ocr",
@@ -56218,8 +56230,8 @@
      }
     },
     {
-     "name": "建設技術情報セン夕一運営費",
-     "name_src": "ocr",
+     "name": "建設技術情報センター運営費",
+     "name_src": "correction",
      "amount": {
       "v": 190227000,
       "src": "ocr",
@@ -56605,7 +56617,7 @@
    "items": [
     {
      "name": "県土整備事務所等運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 133287000,
       "src": "ocr"
@@ -57518,7 +57530,7 @@
     },
     {
      "name": "公庫住宅指導費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 51000,
       "src": "ocr",
@@ -57831,7 +57843,7 @@
    "items": [
     {
      "name": "職員費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 581037000,
       "src": "ocr",
@@ -57840,8 +57852,8 @@
      "headcount": 81
     },
     {
-     "name": "事業費支弁職員379人道路橋りよう事業事務費",
-     "name_src": "ocr",
+     "name": "道路橋りょう事業事務費",
+     "name_src": "correction",
      "amount": {
       "v": 3600542000,
       "src": "ocr",
@@ -58151,8 +58163,8 @@
        }
       },
       {
-       "name": "筆翻訳料",
-       "name_src": "ocr",
+       "name": "筆耕翻訳料",
+       "name_src": "correction",
        "amount": {
         "v": 3000,
         "src": "ocr"
@@ -58248,6 +58260,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員379人"
    ],
    "pages": [
     {
@@ -58618,8 +58633,8 @@
      }
     },
     {
-     "name": "舖装道補修費",
-     "name_src": "ocr",
+     "name": "舗装道補修費",
+     "name_src": "correction",
      "amount": {
       "v": 1832962000,
       "src": "ocr",
@@ -59045,8 +59060,8 @@
      }
     },
     {
-     "name": "橋りよう震災対策費",
-     "name_src": "ocr",
+     "name": "橋りょう震災対策費",
+     "name_src": "correction",
      "amount": {
       "v": 76880000,
       "src": "ocr",
@@ -59172,8 +59187,8 @@
      }
     },
     {
-     "name": "橋りよう関連整備費",
-     "name_src": "ocr",
+     "name": "橋りょう関連整備費",
+     "name_src": "correction",
      "amount": {
       "v": 48050000,
       "src": "ocr",
@@ -59296,8 +59311,8 @@
      },
      "sub": [
       {
-       "name": "光热水費",
-       "name_src": "ocr",
+       "name": "光熱水費",
+       "name_src": "correction",
        "amount": {
         "v": 30000,
         "src": "ocr"
@@ -59502,8 +59517,8 @@
      "headcount": 53
     },
     {
-     "name": "事業費支弁職員234人河川砂防海岸事業事務費",
-     "name_src": "ocr",
+     "name": "河川砂防海岸事業事務費",
+     "name_src": "correction",
      "amount": {
       "v": 2236119000,
       "src": "ocr",
@@ -59826,7 +59841,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 186000,
         "src": "ocr"
@@ -59876,8 +59891,8 @@
        }
       },
       {
-       "name": "肇耕翻訳料",
-       "name_src": "ocr",
+       "name": "筆耕翻訳料",
+       "name_src": "correction",
        "amount": {
         "v": 2000,
         "src": "ocr"
@@ -59973,6 +59988,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員234人"
    ],
    "pages": [
     {
@@ -60416,7 +60434,7 @@
     },
     {
      "name": "砂防修繕費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1173000,
       "src": "ocr",
@@ -60893,7 +60911,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 5000,
         "src": "ocr"
@@ -60933,7 +60951,7 @@
      "sub": [
       {
        "name": "通信運搬費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 6050000,
         "src": "ocr"
@@ -61060,7 +61078,7 @@
      "headcount": 5
     },
     {
-     "name": "事業費支弁職員5人港湾事業事務費",
+     "name": "港湾事業事務費",
      "name_src": "readings",
      "amount": {
       "v": 78010000,
@@ -61147,7 +61165,7 @@
      "sub": [
       {
        "name": "扶養手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1223000,
         "src": "ocr"
@@ -61442,6 +61460,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員5人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -61568,7 +61589,7 @@
     },
     {
      "name": "港湾整備事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 190529000,
       "src": "ocr",
@@ -61696,8 +61717,8 @@
      "headcount": 40
     },
     {
-     "name": "事業費支弁職員84人都市計画事業事務費",
-     "name_src": "readings",
+     "name": "都市計画事業事務費",
+     "name_src": "correction",
      "amount": {
       "v": 760529000,
       "src": "ocr",
@@ -61724,7 +61745,7 @@
     },
     {
      "name": "各種協議会負担金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 10040000,
       "src": "ocr",
@@ -61769,7 +61790,7 @@
     },
     {
      "name": "街路調査費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 80000000,
       "src": "ocr",
@@ -61837,7 +61858,7 @@
     },
     {
      "name": "盛土等工事許可指導費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 2984000,
       "src": "ocr",
@@ -62200,6 +62221,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員84人"
    ],
    "pages": [
     {
@@ -62699,7 +62723,7 @@
    "items": [
     {
      "name": "都市公園施設費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1716106000,
       "src": "ocr",
@@ -62973,7 +62997,7 @@
    "items": [
     {
      "name": "流域下水道事業会計への補助金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 2236424000,
       "src": "ocr"
@@ -63055,7 +63079,7 @@
    "items": [
     {
      "name": "水道施設等連絡調整費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 323000,
       "src": "ocr",
@@ -63452,8 +63476,8 @@
      "headcount": 10
     },
     {
-     "name": "事業費支弁職員10人住宅管理事務費",
-     "name_src": "ocr",
+     "name": "住宅管理事務費",
+     "name_src": "correction",
      "amount": {
       "v": 2073000,
       "src": "ocr",
@@ -63758,6 +63782,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員10人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -63822,8 +63849,8 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員62人公営住宅建設費",
-     "name_src": "readings",
+     "name": "公営住宅建設費",
+     "name_src": "correction",
      "amount": {
       "v": 5440107000,
       "src": "ocr",
@@ -63918,7 +63945,7 @@
       },
       {
        "name": "地域手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 14141000,
         "src": "ocr"
@@ -64208,6 +64235,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員62人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -64277,7 +64307,7 @@
    "items": [
     {
      "name": "県営埠頭施設整備運営事業特別会計への繰出金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 2805137000,
       "src": "ocr"
@@ -64901,7 +64931,7 @@
     },
     {
      "name": "運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 5258447000,
       "src": "ocr",
@@ -65412,7 +65442,7 @@
     },
     {
      "name": "車両維持費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 771768000,
       "src": "ocr",
@@ -65854,7 +65884,7 @@
    "items": [
     {
      "name": "自動車運転免許費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1124242000,
       "src": "ocr",
@@ -66253,7 +66283,7 @@
     },
     {
      "name": "警察職員教養費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 42269000,
       "src": "ocr",
@@ -66513,8 +66543,8 @@
    },
    "items": [
     {
-     "name": "一般犯罪搜査活動費",
-     "name_src": "ocr",
+     "name": "一般犯罪捜査活動費",
+     "name_src": "correction",
      "amount": {
       "v": 517210000,
       "src": "ocr",
@@ -66522,8 +66552,8 @@
      }
     },
     {
-     "name": "暴力犯罪搜査活動費",
-     "name_src": "ocr",
+     "name": "暴力犯罪捜査活動費",
+     "name_src": "correction",
      "amount": {
       "v": 540478000,
       "src": "ocr",
@@ -67147,7 +67177,7 @@
     },
     {
      "name": "特別職",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 18521000,
       "src": "ocr",
@@ -67169,7 +67199,7 @@
     },
     {
      "name": "運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 127745000,
       "src": "ocr",
@@ -67300,7 +67330,7 @@
       },
       {
        "name": "住居手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 31611000,
         "src": "ocr"
@@ -67434,7 +67464,7 @@
       },
       {
        "name": "赴任旅費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 1049000,
         "src": "ocr"
@@ -68045,8 +68075,8 @@
      }
     },
     {
-     "name": "教育研究獎励費",
-     "name_src": "ocr",
+     "name": "教育研究奨励費",
+     "name_src": "correction",
      "amount": {
       "v": 1190000,
       "src": "ocr",
@@ -68686,7 +68716,7 @@
     },
     {
      "name": "教職員身体検査審議会費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1956000,
       "src": "ocr",
@@ -68903,7 +68933,7 @@
    "items": [
     {
      "name": "運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 240376000,
       "src": "ocr"
@@ -69005,8 +69035,8 @@
        }
       },
       {
-       "name": "社会保料",
-       "name_src": "ocr",
+       "name": "社会保険料",
+       "name_src": "correction",
        "amount": {
         "v": 534000,
         "src": "ocr"
@@ -69260,7 +69290,7 @@
    "items": [
     {
      "name": "職員費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 89465950000,
       "src": "ocr"
@@ -69363,8 +69393,8 @@
        }
       },
       {
-       "name": "き地手当",
-       "name_src": "ocr",
+       "name": "へき地手当",
+       "name_src": "correction",
        "amount": {
         "v": 28995000,
         "src": "ocr"
@@ -69537,7 +69567,7 @@
    "items": [
     {
      "name": "職員費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 52239606000,
       "src": "ocr"
@@ -69640,8 +69670,8 @@
        }
       },
       {
-       "name": "き地手当",
-       "name_src": "ocr",
+       "name": "へき地手当",
+       "name_src": "correction",
        "amount": {
         "v": 24453000,
         "src": "ocr"
@@ -69845,7 +69875,7 @@
    "items": [
     {
      "name": "中高一貫教育校入学者選考費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 4721000,
       "src": "ocr",
@@ -69920,7 +69950,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 30000,
         "src": "ocr"
@@ -70495,7 +70525,7 @@
    "items": [
     {
      "name": "運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 3721802000,
       "src": "ocr",
@@ -70503,8 +70533,8 @@
      }
     },
     {
-     "name": "実驗実習費",
-     "name_src": "ocr",
+     "name": "実験実習費",
+     "name_src": "correction",
      "amount": {
       "v": 2585000,
       "src": "ocr",
@@ -70534,7 +70564,7 @@
     },
     {
      "name": "維持修繕費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 277173000,
       "src": "ocr",
@@ -70705,8 +70735,8 @@
        }
       },
       {
-       "name": "その他需用月費",
-       "name_src": "ocr",
+       "name": "その他需用費",
+       "name_src": "correction",
        "amount": {
         "v": 861307000,
         "src": "ocr"
@@ -70904,8 +70934,8 @@
      }
     },
     {
-     "name": "実驗実習費",
-     "name_src": "ocr",
+     "name": "実験実習費",
+     "name_src": "correction",
      "amount": {
       "v": 7896000,
       "src": "ocr",
@@ -70935,7 +70965,7 @@
     },
     {
      "name": "部活動推進費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 3242000,
       "src": "ocr",
@@ -71091,7 +71121,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 30000,
         "src": "ocr"
@@ -71274,7 +71304,7 @@
    "items": [
     {
      "name": "定時制及び通信制高等学校修学奨励費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 5115000,
       "src": "ocr",
@@ -71690,7 +71720,7 @@
     },
     {
      "name": "実験実習費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1018000,
       "src": "ocr",
@@ -71864,7 +71894,7 @@
    "items": [
     {
      "name": "実習船実習費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 505113000,
       "src": "ocr",
@@ -71956,8 +71986,8 @@
        }
       },
       {
-       "name": "贿材料費",
-       "name_src": "ocr",
+       "name": "賄材料費",
+       "name_src": "correction",
        "amount": {
         "v": 28496000,
         "src": "ocr"
@@ -72121,7 +72151,7 @@
    "items": [
     {
      "name": "農場実習費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 82264000,
       "src": "ocr"
@@ -72201,8 +72231,8 @@
      },
      "sub": [
       {
-       "name": "普通通旅費",
-       "name_src": "ocr",
+       "name": "普通旅費",
+       "name_src": "correction",
        "amount": {
         "v": 1639000,
         "src": "ocr"
@@ -72438,7 +72468,7 @@
     },
     {
      "name": "教材費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 18571000,
       "src": "ocr",
@@ -72725,7 +72755,7 @@
       },
       {
        "name": "光熱水費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 343003000,
         "src": "ocr"
@@ -73500,7 +73530,7 @@
       },
       {
        "name": "住居手当",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 22134000,
         "src": "ocr"
@@ -73827,8 +73857,8 @@
      }
     },
     {
-     "name": "社会教育総合センタ一運営費",
-     "name_src": "ocr",
+     "name": "社会教育総合センター運営費",
+     "name_src": "correction",
      "amount": {
       "v": 153756000,
       "src": "ocr",
@@ -74379,7 +74409,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 26000,
         "src": "ocr"
@@ -75628,8 +75658,8 @@
        }
       },
       {
-       "name": "光热水費",
-       "name_src": "ocr",
+       "name": "光熱水費",
+       "name_src": "correction",
        "amount": {
         "v": 34758000,
         "src": "ocr"
@@ -75814,7 +75844,7 @@
     },
     {
      "name": "保健体育運営費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 174000,
       "src": "ocr",
@@ -75874,7 +75904,7 @@
     },
     {
      "name": "県立学校安全管理事業費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 25935000,
       "src": "ocr",
@@ -76068,7 +76098,7 @@
      "sub": [
       {
        "name": "食糧費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 9000,
         "src": "ocr"
@@ -76076,15 +76106,15 @@
       },
       {
        "name": "その他需用費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 3524000,
         "src": "ocr"
        }
       },
       {
-       "name": "贿材料費",
-       "name_src": "ocr",
+       "name": "賄材料費",
+       "name_src": "correction",
        "amount": {
         "v": 3399000,
         "src": "ocr"
@@ -76837,7 +76867,7 @@
    "items": [
     {
      "name": "指導連絡費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 26411000,
       "src": "ocr",
@@ -77488,7 +77518,7 @@
     },
     {
      "name": "指導調査費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 7052000,
       "src": "ocr",
@@ -78123,7 +78153,7 @@
    "items": [
     {
      "name": "青少年健全育成費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 435810000,
       "src": "ocr"
@@ -78347,8 +78377,8 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員11人団体営事業費",
-     "name_src": "ocr",
+     "name": "団体営事業費",
+     "name_src": "correction",
      "amount": {
       "v": 3910526000,
       "src": "ocr",
@@ -78567,6 +78597,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員11人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -78631,8 +78664,8 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員2人令和4年災工事費補助金",
-     "name_src": "ocr",
+     "name": "令和4年災工事費補助金",
+     "name_src": "correction",
      "amount": {
       "v": 82389000,
       "src": "ocr",
@@ -78768,8 +78801,8 @@
        }
       },
       {
-       "name": "児童当",
-       "name_src": "ocr",
+       "name": "児童手当",
+       "name_src": "correction",
        "amount": {
         "v": 90000,
         "src": "ocr"
@@ -78882,6 +78915,9 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員2人"
    ],
    "pages": [
     {
@@ -79086,8 +79122,8 @@
    },
    "items": [
     {
-     "name": "事業費支弁職員63人土木施設災害復旧事務費",
-     "name_src": "ocr",
+     "name": "土木施設災害復旧事務費",
+     "name_src": "correction",
      "amount": {
       "v": 548466000,
       "src": "ocr",
@@ -79241,8 +79277,8 @@
      },
      "sub": [
       {
-       "name": "通旅",
-       "name_src": "ocr",
+       "name": "普通旅費",
+       "name_src": "correction",
        "amount": {
         "v": 796000,
         "src": "ocr"
@@ -79329,6 +79365,9 @@
      }
     }
    ],
+   "notes": [
+    "事業費支弁職員63人"
+   ],
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -79406,8 +79445,8 @@
      }
     },
     {
-     "name": "合和8年災害土木施設費",
-     "name_src": "ocr",
+     "name": "令和8年災害土木施設費",
+     "name_src": "correction",
      "amount": {
       "v": 3070000000,
       "src": "ocr",
@@ -79428,7 +79467,7 @@
     },
     {
      "name": "令和7年単独災害土木施設費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 110000000,
       "src": "ocr",
@@ -80677,7 +80716,7 @@
    "items": [
     {
      "name": "都道府県清算金",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 293138176000,
       "src": "ocr"
@@ -81638,8 +81677,8 @@
    },
    "items": [
     {
-     "name": "県債利子價還金",
-     "name_src": "ocr",
+     "name": "県債利子償還金",
+     "name_src": "correction",
      "amount": {
       "v": 37907376000,
       "src": "ocr",
@@ -81741,7 +81780,7 @@
    "items": [
     {
      "name": "県債元金及び利子支払等手数料",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 781505000,
       "src": "ocr"
@@ -83020,7 +83059,7 @@
     },
     {
      "name": "事務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 15297000,
       "src": "ocr",
@@ -85888,7 +85927,7 @@
    "items": [
     {
      "name": "農業改良資金貸付業務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 5317000,
       "src": "ocr"
@@ -87315,7 +87354,7 @@
    "items": [
     {
      "name": "林業改善資金貸付業務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 779000,
       "src": "ocr"
@@ -87758,7 +87797,7 @@
    "items": [
     {
      "name": "沿岸漁業改善資金貸付業務費",
-     "name_src": "ocr",
+     "name_src": "correction",
      "amount": {
       "v": 1129000,
       "src": "ocr"
@@ -89732,7 +89771,7 @@
      }
     },
     {
-     "name": "苅田港新松山地区埠頭用地造成事業費事業費支弁職員24人工事費",
+     "name": "苅田港新松山地区埠頭用地造成事業費工事費",
      "name_src": "readings",
      "amount": {
       "v": 5920000000,
@@ -89750,7 +89789,7 @@
      }
     },
     {
-     "name": "苅田港新松山地区都市再開発用地造成事業費事業費支弁職員6人工事費",
+     "name": "苅田港新松山地区都市再開発用地造成事業費工事費",
      "name_src": "readings",
      "amount": {
       "v": 1485000000,
@@ -89947,7 +89986,7 @@
       },
       {
        "name": "光熱水費",
-       "name_src": "ocr",
+       "name_src": "correction",
        "amount": {
         "v": 2079000,
         "src": "ocr"
@@ -90067,6 +90106,10 @@
       "agree": 3
      }
     }
+   ],
+   "notes": [
+    "事業費支弁職員24人",
+    "事業費支弁職員6人"
    ],
    "pages": [
     {
