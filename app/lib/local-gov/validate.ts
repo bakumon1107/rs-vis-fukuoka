@@ -203,6 +203,7 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
   const gf = file.general_fund;
   if (gf) {
     if (file.basis !== 'initial') err('general_fund は当初予算のファイルだけ');
+    if (!Array.isArray(gf.notes) || gf.notes.some(n => typeof n !== 'string')) err('general_fund.notes が文字列の配列でない');
     gf.rows.forEach((r, i) => {
       if (!GENERAL_FUND_BASES.includes(r.basis)) err(`general_fund.rows[${i}]: basis が不正（${r.basis}）`);
       if (!Number.isInteger(r.amount) || r.amount < 0) err(`general_fund.rows[${i}] ${r.label}: 額が 0 以上の整数でない（${r.amount}）`);

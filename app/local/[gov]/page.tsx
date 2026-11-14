@@ -22,7 +22,7 @@ import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
-import { sourcesUsed } from '@/app/lib/local-gov/summary';
+import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
@@ -254,7 +254,7 @@ function LocalGovContent() {
               '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
             {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
-            {((file.general_fund?.notes.length ?? 0) > 0 || (file.composed?.funding_notes?.length ?? 0) > 0) && (
+            {(fundingNotes(file).length > 0 || file.general_fund) && (
               <>
                 {view === 'all'
                   ? '（調べた内訳は'

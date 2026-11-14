@@ -209,7 +209,7 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
     composed: {
       through: last ? last.supplementary!.round : '当初予算',
       rounds: supplements.map(s => ({ round: s.supplementary!.round, kind: s.supplementary!.kind })),
-      ...(initial.general_fund ? { funding_notes: initial.general_fund.notes } : {}),
+      ...(initial.general_fund?.notes?.length ? { funding_notes: initial.general_fund.notes } : {}),
     },
   };
 }

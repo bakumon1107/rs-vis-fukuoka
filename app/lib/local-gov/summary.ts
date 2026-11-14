@@ -119,3 +119,12 @@ export function sourcesUsed(file: LocalBudgetFile): string[] {
 export function noAmountPrintedCount(file: LocalBudgetFile): number {
   return file.rows.filter(r => r.items?.some(it => it.no_amount_printed)).length;
 }
+
+/**
+ * 財源内訳と歳入の款の違いの説明文（当初は general_fund.notes、補正後は composed.funding_notes）。なければ空の配列。
+ * 画面（案内のリンク）と「データについて」（#funding の節）が同じ決まりで出すかを決める
+ */
+export function fundingNotes(file: LocalBudgetFile): string[] {
+  const notes = file.general_fund?.notes ?? file.composed?.funding_notes;
+  return Array.isArray(notes) ? notes : [];
+}
