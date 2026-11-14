@@ -91298,7 +91298,13 @@
   },
   "readings": {
    "agree_2plus": 0.9976,
-   "confirmed_by_image": 14
+   "confirmed_by_image": 14,
+   "name_engines": [
+    "PP-OCRv6",
+    "PP-OCRv4",
+    "文字層",
+    "NDLOCR-Lite"
+   ]
   },
   "corrections": 17
  },

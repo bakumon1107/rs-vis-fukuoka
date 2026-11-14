@@ -12,7 +12,10 @@
   ocr/r8-ippan-v4  … R8 一般会計。中国語モデル（OCR_ENGINE=v4ch）。突き合わせの3つ目の読み取り
   ocr/r8-toku      … R8 特別会計。PP-OCRv6 ＋ 読み直し済み
   ocr/r8-toku-v4   … R8 特別会計。中国語モデル（突き合わせの3つ目の読み取り）
+  ocr/r8-ippan-ndl・ocr/r8-toku-ndl … 名前の欄を NDLOCR-Lite で読み直したもの（名前の3つ目の系統。ocr/ndl_pages.py）
 OCR 自体は時間がかかる（1ページ約10秒）ので回帰テストでは流さず、保存した OCR 結果を入力にする。
+名前の3つ目の系統（NDLOCR-Lite。ocr/ndl_pages.py で読み直した ocr/r8-ippan-ndl・ocr/r8-toku-ndl）も OCR と同じく保存した結果を入力にする
+（1ページ約3秒なので回帰テストでは流さない）。ない環境では NDLOCR-Lite の解釈と書き出し・補正の照合を飛ばす。
 期待値（expected/regression.json）は「各ステップの要約行」。ロジックを直して数字が変わったら、
 差分を確かめてから --update で書き換え、コミットの説明に理由を書く（良くなったのか、悪くなったのか）。
 """
@@ -52,6 +55,10 @@ STEPS = [
     ("説明書 一般会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
      ["{tmp:tl}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"], "setsumeisho-tl.json",
      [r"^\[", r"^計の行", r"^項 \d"]),
+    # 名前の3つ目の系統（NDLOCR-Lite で名前の欄だけを読み直した保存済みの結果 ocr/r8-ippan-ndl。金額は OCR のまま）。書き出しで名前の候補に足す
+    ("説明書 一般会計（NDLOCR-Lite の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-ippan-ndl}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-ndl.json", [r"^\[", r"^計の行", r"^項 \d"]),
     # 3つ目の読み取り（旧 OCR = 中国語モデル）。突き合わせで「2つの OCR が同じ値を読んだ箇所」を固定するのに使う
     ("説明書 一般会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-ippan-v4}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"],
@@ -71,6 +78,9 @@ STEPS = [
     ("説明書 特別会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
      ["{tmp:tl-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
      "setsumeisho-toku-tl.json", [r"^\[", r"^計の行", r"^項 \d"]),
+    ("説明書 特別会計（NDLOCR-Lite の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-toku-ndl}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-toku-ndl.json", [r"^\[", r"^計の行", r"^項 \d"]),
     ("説明書 特別会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-toku-v4}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
      "setsumeisho-toku-v4.json", [r"^\[", r"^計の行", r"^項 \d"]),
@@ -121,8 +131,8 @@ def _export_deps():
     # 決算の書き出し（export_settlement.build）が読む kessan-bukyoku・kessan-toku・kessan-setsu も入れる
     outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
             "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
-            "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json",
-            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json"]
+            "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json", "setsumeisho-ndl.json",
+            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json"]
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
         pdfs = [s["file"] for s in json.load(f)["sources"]]
     return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
@@ -130,7 +140,8 @@ def _export_deps():
 
 # ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
 # 補正の目の明細は前のステップ（文字層・△）が作る一時ディレクトリを読むので、前のステップが飛ばされたら飛ばす
-# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読む
+# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読むので、
+# 書き出しが飛ばされたら飛ばす（NDLOCR-Lite の結果がない環境など）
 STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps(),
              **{f"補正 {rid}（目の明細）": [f"{{tmp:tl-{rid}}}"] for rid in ("R8-06-1", "R8-08-2", "R8-09-4")},
              "補正 R8-09-3（目の明細）": ["{tmp:neg-09-3}"],

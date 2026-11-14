@@ -246,10 +246,13 @@ class Exporter:
         self.unresolved = []  # 裏付けのない名前（画像で確かめる一覧。款・項・目・歳入の節）
         self.raw = []  # 読み取りごとの 目の行（key → 目）。[0] が採用した読み取り（cross）と同じ OCR
 
-    def readings(self, paths):
-        """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。"""
+    def readings(self, paths, ndl_path):
+        """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。
+        ndl_path: NDLOCR-Lite で名前の欄を読み直した読み取り（ocr/ndl_pages.py → parse_setsumeisho.py）。必須
+        （ないと名前の選び方が変わる）。名前の候補にだけ使う（金額は OCR の値を写したものなので、金額の多数決には数えない）。self.raw[3] に持つ"""
         loaded = [self.vote.load(p) for p in paths]
         self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
+        self.raw.append({self.vote.key(m): m for m in self.vote.load(ndl_path)})
         # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
         return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]
 
@@ -270,7 +273,8 @@ class Exporter:
         （name_evidence.resolve）。系統: bill＝予算書の本体（議案）の文字層、ocr＝説明書の OCR と旧 OCR（同じ切り抜きを読む
         ので1つの系統）、textlayer＝説明書の文字層。"""
         cands = [(clean_name(c), g) for c, g in cands if c and c.strip()]
-        name, src, ev = name_evidence.resolve(cands, self.corpus, reference)
+        # NDLOCR-Lite（ndl）は一致の支えにだけ使う（広く切り抜くので名前の端に余計な字が付き、疑いの根拠にならない）
+        name, src, ev = name_evidence.resolve(cands, self.corpus, reference, support_only=frozenset({"ndl"}))
         name = clean_name(name)
         first = cands[0][0] if cands else ""
         if src == "reference" and name != first:
@@ -280,10 +284,11 @@ class Exporter:
         return name, src, (ev if src == "search" else None)
 
     def others(self, m):
-        """同じ目の、採用した読み取り以外の読み取り [(読み取りの種類, 目の行)]。文字層・旧 OCR の順
-        （裏付けがないとき、先の方の名前を使う）。self.raw は（OCR・旧 OCR・文字層）の順。"""
+        """同じ目の、採用した読み取り以外の読み取り [(読み取りの種類, 目の行)]。文字層・旧 OCR・NDLOCR-Lite の順
+        （裏付けがないとき、先の方の名前を使う）。self.raw は（OCR・旧 OCR・文字層・NDLOCR-Lite）の順。"""
         key = self.vote.key(m)
-        return [(kind, r[key]) for kind, r in zip(("textlayer", "v4"), (self.raw[2], self.raw[1])) if key in r]
+        kinds = [("textlayer", self.raw[2]), ("v4", self.raw[1]), ("ndl", self.raw[3])]
+        return [(kind, r[key]) for kind, r in kinds if key in r]
 
     @staticmethod
     def by_amount(entries):
@@ -303,8 +308,9 @@ class Exporter:
         where = {"id": f"{account_id}/{side}/{m['款']}-{kou_no}-{m['目番号']}",
                  "row": f"{m.get('会計') or '一般会計'} {m['side']} {m['款']}-{kou_no}-{m['目番号']}",
                  "source": "r8-setsumeisho-toku" if special else "r8-setsumeisho-ippan", "cell": m.get("cell")}
-        others = self.others(m)  # [(textlayer|v4, 目の行)]
-        group = {"textlayer": "textlayer", "v4": "ocr"}
+        others = self.others(m)  # [(textlayer|v4|ndl, 目の行)]
+        # 名前の系統: 旧 OCR は OCR と同じ系統（同じ字を一緒に読み違える）。NDLOCR-Lite は別の系統（名前の読み取りに NDLOCR-Lite を組み込む設計）
+        group = {"textlayer": "textlayer", "v4": "ocr", "ndl": "ndl"}
         # 項・款: 予算書の本体（議案）の名前（choose_kou が予算書の項の一覧から選んだ名前）と、OCR・旧 OCR の表の見出しの名前。
         # 文字層の読み取りの見出しは OCR の見出しを借りている（textlayer_pages.py）ので候補に入れない
         heads = [m] + [x for kind, x in others if kind == "v4"]
@@ -434,13 +440,16 @@ class Exporter:
                 no, no_src = st.get("no") or None, "ocr"
                 # 同じ金額の節の、各読み取りの区分の文字と番号（OCR・文字層・旧 OCR の順）
                 labels = [(label, "ocr")] + [(clean_name(o[k]["label"]), group[kind]) for kind, o in other_top if k in o]
+                # 節番号は NDLOCR-Lite の読み取りから取らない（名前の欄を読み直しただけで、番号の読みは確かめていない）
                 nos = [(no, "ocr")] + [(o[k].get("no"), kind if kind == "textlayer" else "ocr")
-                                       for kind, o in other_top if k in o]
+                                       for kind, o in other_top if k in o and kind != "ndl"]
                 # 歳出の節名は節番号で決まる（地方自治法施行規則）。番号と区分の文字が合う読み取りの番号を使う
                 # （区分の文字が合うことで番号の読みを確かめる）。OCR が「11」「19」「24」を「1」と読み、区分の文字
                 # 「役務費」「扶助費」「積立金」と食い違った実例がある（文字層・旧 OCR の番号は正しかった）
+                # 番号を確かめる区分の文字に NDLOCR-Lite は使わない（支えにだけ使う。NDLOCR-Lite の区分だけで番号を確かめると、
+                # 番号の読み違いが画像で確かめる一覧から外れる）
                 hit = next(((n, s) for n, s in nos if expense and n in SETSU_NAMES
-                            and any(setsu_label_matches(lab, n) for lab, _ in labels)), None)
+                            and any(setsu_label_matches(lab, n) for lab, g in labels if g != "ndl")), None)
                 if hit:
                     no, no_src = hit
                     name, nsrc, nev = SETSU_NAMES[no], "reference", None
@@ -595,8 +604,14 @@ def main():
     stats = Counter()
     read_files = {"ippan": ("setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json"),
                   "toku": ("setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json")}
+    # 名前の3つ目の系統（NDLOCR-Lite。ocr/ndl_pages.py）。ないと名前の選び方が変わり、別の公開データになるので止める
+    # （NDLOCR-Lite のない環境では回帰テストが書き出しを飛ばす）
+    ndl_files = {"ippan": "setsumeisho-ndl.json", "toku": "setsumeisho-toku-ndl.json"}
+    for f in ndl_files.values():
+        if not os.path.exists(w(f)):
+            sys.exit(f"{f} がない（NDLOCR-Lite で名前の欄を読み直した読み取り。データの作り方の「名前の読み取り（NDLOCR-Lite）」）")
     for kind, cross in (("ippan", "cross.json"), ("toku", "cross-toku.json")):
-        readings = ex.readings([w(x) for x in read_files[kind]])
+        readings = ex.readings([w(x) for x in read_files[kind]], w(ndl_files[kind]))
         ms = [m for m in json.load(open(w(cross)))["目"] if m["kind"] == "目"]
         for m in ms:
             special = kind == "toku"
@@ -657,7 +672,9 @@ def main():
             "rules": {"A_説明欄": rule_counts["A"], "B_財源": rule_counts["B"], "C_比較": rule_counts["C"], "D_節": rule_counts["D"]},
             "external": external,
             "readings": {"agree_2plus": round(vals["2plus"] / vals["n"], 4) if vals["n"] else 0,
-                         "confirmed_by_image": vals["image"]},
+                         "confirmed_by_image": vals["image"],
+                         # 名前の候補に使った読み取り（画面の「データについて」が帰属の表示を出すかをこれで決める）
+                         "name_engines": ["PP-OCRv6", "PP-OCRv4", "文字層", "NDLOCR-Lite"]},
             "corrections": n_fix,
         },
         **({"general_fund": gfund} if gfund else {}),

@@ -117,7 +117,7 @@ def contradicts(name: str, other: str) -> bool:
     return len(other) == len(name) and sorted(other) == sorted(name)
 
 
-def char_vote(cands: list[tuple[str, str]]):
+def char_vote(cands: list[tuple[str, str]], support_only=frozenset()):
     """1字ずつの多数決: 読み取りのうち、どの字も「別の系統」の読み取りの1つ以上が同じ位置（順番を保った対応）で
     同じ字を読んでいるもの。作った名前ではなく、実際の読み取りの1つをそのまま返す（ちょうど1つに決まるときだけ）。
     cands: [(名前, 系統)]。同じ系統の読み取りは支えに数えない（OCR と旧 OCR は字を一緒に落とし、字の順を一緒に混ぜる）。
@@ -126,6 +126,8 @@ def char_vote(cands: list[tuple[str, str]]):
     import difflib
     ok = set()
     for i, (h, g) in enumerate(cands):
+        if g in support_only:
+            continue  # 支えには数えるが、採る名前にはしない
         sup = [0] * len(h)
         for j, (r, rg) in enumerate(cands):
             if j == i or rg == g:
@@ -138,7 +140,7 @@ def char_vote(cands: list[tuple[str, str]]):
     return ok.pop() if len(ok) == 1 else None
 
 
-def resolve(candidates, corpus: Corpus, reference=None):
+def resolve(candidates, corpus: Corpus, reference=None, support_only=frozenset()):
     """同じ箇所の名前の候補から名前を選ぶ。
     candidates: [(名前, 系統)]（または名前だけ。そのときは候補ごとに別の系統）。先頭がいちばん信頼できる読み取り。
       系統: 独立でない読み取りをまとめる名札。OCR（PP-OCRv6）と旧 OCR は同じ画像の同じ切り抜きを同じ規則でつなぐので、
@@ -151,7 +153,10 @@ def resolve(candidates, corpus: Corpus, reference=None):
 
     いちばん強い裏付けの名前が1つに決まらない（同じ強さで別の名前が並び、一致した系統の数も同じ）とき、
     また別の系統の読み取りが採る名前に疑いをかける形（contradicts: 字を足した形・字の並べ替え）のときは、決めずに ocr とする。
-    並べ替えの疑いは readings で採る名前にだけかける（資料・参照で見つかった名前は、字の順が資料で確かめられている）。"""
+    並べ替えの疑いは readings で採る名前にだけかける（資料・参照で見つかった名前は、字の順が資料で確かめられている）。
+    support_only: 一致の数には入れるが、疑い・採る名前の候補には使わない系統（NDLOCR-Lite の ndl。OCR の文字枠より広く切り抜いて
+    読むので、隣の番号・2行の名前の間の記号を名前の端に読み込む（「の用水事業費2負担金」）。字を足した形を疑いにすると、
+    正しい名前を 17件 読み取りのみに下げた。R8 当初 2026-11-15）"""
     pairs = [(c, str(i)) if isinstance(c, str) else c for i, c in enumerate(candidates)]
     cands = [(vs, g) for vs, g in ((variants(c), g) for c, g in pairs) if vs]
     if not cands:
@@ -161,7 +166,9 @@ def resolve(candidates, corpus: Corpus, reference=None):
         for v in vs:
             groups.setdefault(v, set()).add(g)
     best = {}  # 採る名前 → (強さ, 一致した系統の数, 出典, 根拠)
-    for vs, _ in cands:
+    for vs, g in cands:
+        if g in support_only:
+            continue  # 一致の数（groups）には入っている。採る名前の候補にはしない
         for v in vs:
             agree = len(groups[v])
             ref = reference(v) if reference is not None else None
@@ -176,9 +183,11 @@ def resolve(candidates, corpus: Corpus, reference=None):
             name = got[4]
             if name not in best or got[:2] > best[name][:2]:
                 best[name] = got[:4]
-    first = cands[0][0][0]
+    # 決まらないときに残す名前は、support_only でない先頭の読み取り（ほかの読み取りがすべて空なら空。support_only の読み取りは採らない）
+    first = next((vs[0] for vs, g in cands if g not in support_only), "")
     if not best:
-        voted = char_vote([(vs[-1], g) for vs, g in cands])  # 字形の取り違えを直した形で多数決
+        # 1字ずつの多数決も、support_only の系統の読み取りを採る名前にはしない（支えには数える）
+        voted = char_vote([(vs[-1], g) for vs, g in cands], support_only)  # 字形の取り違えを直した形で多数決
         if not voted:
             return first, "ocr", None
         best[voted] = (RANK["readings"], 1, "readings", "chars")
@@ -194,7 +203,7 @@ def resolve(candidates, corpus: Corpus, reference=None):
     rank, n_agree, src, ev = best[name]
     # 疑い: 採る名前を読んでいない系統の読み取りが、採る名前に字を足した形・字の並べ替えになっている
     support = groups.get(name, set())
-    doubt = sorted({v for vs, g in cands if g not in support for v in vs
+    doubt = sorted({v for vs, g in cands if g not in support and g not in support_only for v in vs
                     if contradicts(name, v) and (src == "readings" or len(v) > len(name))})
     if doubt:
         return first, "ocr", {"conflict": [name] + doubt}
