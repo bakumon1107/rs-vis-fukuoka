@@ -28,7 +28,7 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
 
 function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: string): Setsu[] | undefined {
   if (!sup || sup.length === 0) return base;
-  const out = (base ?? []).map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
+  const out: Setsu[] = (base ?? []).map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
   for (const s of sup) {
     const hit = s.no !== null ? out.find(x => x.no === s.no) : out.find(x => x.name === s.name);
     if (!hit) {
