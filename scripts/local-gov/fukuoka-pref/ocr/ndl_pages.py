@@ -45,6 +45,9 @@ INSET, PAD_Y = 6, 6
 EXTEND = 1.2
 # 名前の両端に付く罫線の読み（細節の内側の枠）
 FRAME_RE = re.compile(r"^[|｜丨]+|[|｜丨]+$")
+# 計の行（目の欄の「計」）。解釈は目の欄の文字で計の行を見分けるので、置き換えない（NDLOCR-Lite が「計」を「10」と読むと、
+# 計の行が架空の目になった。R8 で 74行）
+TOTAL_RE = re.compile(r"^(歳入|歳出)?[合小総]?計$")
 
 
 class Parseq:
@@ -63,6 +66,8 @@ class Parseq:
         h, w = img.shape[:2]
         if h > w * 0.8:
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        # 縦横比を保たずに入力の大きさへ引き伸ばす（parseq.py と同じ）。短い行（1字の「計」）は横に数倍伸びて「10」と読むことがあるが、
+        # 縦横比を保って右を白で埋めると、目の名前の正解が 20件中 18 → 1件に落ちた（R8 p18〜30。2026-11-15）。計の行は置き換えない（TOTAL_RE）
         x = cv2.resize(img, (self.w, self.h), interpolation=cv2.INTER_LINEAR)
         x = np.ascontiguousarray(x[:, :, ::-1]).astype(np.float32) / 127.5 - 1.0
         out = self.s.run(None, {self.inp.name: x.transpose(2, 0, 1)[None]})[0]
@@ -138,6 +143,22 @@ def name_lines(col: list[dict], left: float, right: float, full: bool = False) -
     return out
 
 
+def merge_numbers(ocr_text: str, ndl_text: str) -> str:
+    """数字は OCR の読みを使う（NDLOCR-Lite は名前の読み直しにだけ使う。数字に弱い）。
+    - NDLOCR-Lite の読みの頭の数字を外し、OCR の行の頭の数字（目・節の番号）を付ける（「7林業改善…」と読んで、番号の印字のない前年度のみの目に
+      番号が付いた。R8 歳入 12-1）
+    - NDLOCR-Lite の読みが金額の形（数字だけ）になったら、OCR の読みのまま（2行の事項の2行目の1字「費」を「19」と読み、解釈が金額にした。R8 13目）"""
+    if not ndl_text or amount(ndl_text) is not None:
+        return ocr_text
+    m = re.match(r"\s*(\d+)", ocr_text)
+    body = re.sub(r"^\d+", "", ndl_text)
+    # 末尾の数字も、OCR の行が数字で終わらなければ外す（2行の目の名前の1行目の右端の罫線を「1」と読み「林業改善資金1」、
+    # 解釈がそれを目の番号にして、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
+    if not re.search(r"\d\s*$", ocr_text):
+        body = re.sub(r"\d+$", "", body)
+    return (m.group(1) if m else "") + body
+
+
 def replace_names(rec: dict, img, ndl) -> int:
     """ページの名前の欄の文字枠を、行ごとに NDLOCR-Lite で読んだ1つの文字枠に置き換える。置き換えた行の数を返す"""
     n = 0
@@ -152,8 +173,12 @@ def replace_names(rec: dict, img, ndl) -> int:
             new_col = [d for d in t["cols"][ci] if is_amount_box(d)]
             # 節の区分の欄（各表の名前の列の2つ目）は欄の幅いっぱいに読む
             for row, (x0, y0, x1, y1) in name_lines(t["cols"][ci], vl[ci], vl[ci + 1], full=ci == cols[1]):
+                if TOTAL_RE.match("".join(d["text"] for d in row).replace(" ", "")):
+                    new_col += row  # 計の行は OCR の文字枠のまま
+                    continue
                 crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
                 text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
+                text = merge_numbers("".join(d["text"] for d in row), text)
                 new_col.append({"x0": min(d["x0"] for d in row), "x1": max(d["x1"] for d in row),
                                 "y0": min(d["y0"] for d in row), "y1": max(d["y1"] for d in row),
                                 "text": text, "score": 1.0, "ndl": True})

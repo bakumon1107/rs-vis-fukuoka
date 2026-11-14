@@ -42,6 +42,9 @@ import unicodedata
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# 名前の一致の支えにだけ使う系統（疑いの根拠・採る名前・節番号の確かめには使わない）。NDLOCR-Lite（ndl）は OCR の文字枠より広く
+# 切り抜くので、名前の端に余計な字を読む（名前の読み取りに NDLOCR-Lite を組み込む設計 9章）。同じ扱いの系統を足すときはここに足す
+SUPPORT_ONLY = frozenset({"ndl"})
 sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
 import export_settlement  # noqa: E402
@@ -252,7 +255,17 @@ class Exporter:
         （ないと名前の選び方が変わる）。名前の候補にだけ使う（金額は OCR の値を写したものなので、金額の多数決には数えない）。self.raw[3] に持つ"""
         loaded = [self.vote.load(p) for p in paths]
         self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
-        self.raw.append({self.vote.key(m): m for m in self.vote.load(ndl_path)})
+        ndl = {self.vote.key(m): m for m in self.vote.load(ndl_path)}
+        # NDLOCR-Lite の読み取りは OCR の文字枠の位置で切り抜き、金額は OCR の値を写す。OCR を流し直した後に読み直しを忘れると、
+        # 古い切り抜きの名前を別の目の支えに使ってしまう。目の並びと金額が今の OCR と同じことを確かめ、違えば止める
+        # 修正表で金額を直した目は比べない（OCR の解釈にだけ修正表を当てている。NDLOCR-Lite の解釈は名前が違うので修正表が当たらない）
+        stale = [k for k, m in self.raw[0].items() if not m.get("修正") and (
+                 k not in ndl or [m.get(c) for c in ("本年度", "前年度")] != [ndl[k].get(c) for c in ("本年度", "前年度")]
+                 or [e["amount"] for e in m.get("説明", [])] != [e["amount"] for e in ndl[k].get("説明", [])])]
+        if stale or len(ndl) != len(self.raw[0]):
+            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）が今の OCR と合わない（目 {len(stale)} 件・"
+                     f"目の数 {len(ndl)} / {len(self.raw[0])}）。OCR を流し直したら ocr/ndl_pages.py も流し直す（データの作り方）")
+        self.raw.append(ndl)
         # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
         return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]
 
@@ -274,13 +287,14 @@ class Exporter:
         ので1つの系統）、textlayer＝説明書の文字層。"""
         cands = [(clean_name(c), g) for c, g in cands if c and c.strip()]
         # NDLOCR-Lite（ndl）は一致の支えにだけ使う（広く切り抜くので名前の端に余計な字が付き、疑いの根拠にならない）
-        name, src, ev = name_evidence.resolve(cands, self.corpus, reference, support_only=frozenset({"ndl"}))
+        name, src, ev = name_evidence.resolve(cands, self.corpus, reference, support_only=SUPPORT_ONLY)
         name = clean_name(name)
         first = cands[0][0] if cands else ""
         if src == "reference" and name != first:
             self.replaced.append((level, first, name))
         if src == "ocr" and report:
-            self.unresolved.append((level, where, name, [c for c, _ in cands], ev))
+            # 画像で確かめる一覧の候補。支えにだけ使う読み取りは、そうと分かるように印を付ける
+            self.unresolved.append((level, where, name, [c if g not in SUPPORT_ONLY else f"{c}（{g}・支えのみ）" for c, g in cands], ev))
         return name, src, (ev if src == "search" else None)
 
     def others(self, m):
@@ -442,14 +456,14 @@ class Exporter:
                 labels = [(label, "ocr")] + [(clean_name(o[k]["label"]), group[kind]) for kind, o in other_top if k in o]
                 # 節番号は NDLOCR-Lite の読み取りから取らない（名前の欄を読み直しただけで、番号の読みは確かめていない）
                 nos = [(no, "ocr")] + [(o[k].get("no"), kind if kind == "textlayer" else "ocr")
-                                       for kind, o in other_top if k in o and kind != "ndl"]
+                                       for kind, o in other_top if k in o and group[kind] not in SUPPORT_ONLY]
                 # 歳出の節名は節番号で決まる（地方自治法施行規則）。番号と区分の文字が合う読み取りの番号を使う
                 # （区分の文字が合うことで番号の読みを確かめる）。OCR が「11」「19」「24」を「1」と読み、区分の文字
                 # 「役務費」「扶助費」「積立金」と食い違った実例がある（文字層・旧 OCR の番号は正しかった）
                 # 番号を確かめる区分の文字に NDLOCR-Lite は使わない（支えにだけ使う。NDLOCR-Lite の区分だけで番号を確かめると、
                 # 番号の読み違いが画像で確かめる一覧から外れる）
                 hit = next(((n, s) for n, s in nos if expense and n in SETSU_NAMES
-                            and any(setsu_label_matches(lab, n) for lab, g in labels if g != "ndl")), None)
+                            and any(setsu_label_matches(lab, n) for lab, g in labels if g not in SUPPORT_ONLY)), None)
                 if hit:
                     no, no_src = hit
                     name, nsrc, nev = SETSU_NAMES[no], "reference", None
@@ -458,7 +472,8 @@ class Exporter:
                     name, nsrc, nev = SETSU_NAMES[no], "ocr", None
                     self.unresolved.append(("setsu", {**where, "page": st.get("page"), "y": st.get("y"),
                                                       "amount": st["amount"]}, name,
-                                            [lab for lab, _ in labels], {"no": no}))
+                                            [lab if g not in SUPPORT_ONLY else f"{lab}（{g}・支えのみ）" for lab, g in labels],
+                                            {"no": no}))
                 else:
                     if no is None:
                         # OCR で番号が読めなかった歳入の節: 文字層の同じ金額の節に番号があれば使う。なければ null

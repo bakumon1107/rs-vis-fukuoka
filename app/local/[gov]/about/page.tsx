@@ -355,7 +355,16 @@ function LocalGovAboutContent() {
                 <a href="https://github.com/ndl-lab/ndlocr-lite" className="text-primary-accent underline" target="_blank" rel="noopener noreferrer">
                   NDLOCR-Lite
                 </a>
-                （CC BY 4.0）の文字認識を使っています（目・説明欄の事項・節の区分の名前だけ。金額には使っていません）。
+                （
+                <a
+                  href="https://creativecommons.org/licenses/by/4.0/deed.ja"
+                  className="text-primary-accent underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  CC BY 4.0
+                </a>
+                ）の文字認識を使っています（目・説明欄の事項・節の区分の名前だけ。金額には使っていません）。
               </p>
             )}
           </section>

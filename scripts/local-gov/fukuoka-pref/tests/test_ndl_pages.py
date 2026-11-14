@@ -1,5 +1,6 @@
 """名前の欄を NDLOCR-Lite で読み直す（ocr/ndl_pages.py）の単体テスト。切り抜きの範囲と置き換え方（モデルは使わない）。"""
 import numpy as np
+import pytest
 
 from conftest import load
 
@@ -55,8 +56,23 @@ class TestNameLines:
         assert [[d["text"] for d in r] for r, _ in lines] == [["職員費"]]
 
 
+class TestMergeNumbers:
+    def test_numbers_come_from_ocr(self):
+        # NDLOCR-Lite の頭の数字は外し、OCR の番号を使う（番号の印字のない目に数字が付かない）
+        assert nd.merge_numbers("林業改善資金助成事業", "7林業改善資金助成事業") == "林業改善資金助成事業"
+        assert nd.merge_numbers("1 報", "13報酬") == "1報酬"
+        # 末尾の数字（右端の罫線の読み）も外す。OCR の行が数字で終わるとき（「人生100」）は残す
+        assert nd.merge_numbers("林業改善資金", "林業改善資金1") == "林業改善資金"
+        assert nd.merge_numbers("人生100", "人生100") == "人生100"
+        # 金額の形の読み（2行目の1字「費」→「19」）は OCR の読みのまま
+        assert nd.merge_numbers("費", "19") == "費"
+        assert nd.merge_numbers("管理事務費", "") == "管理事務費"
+
+
 class TestReplaceNames:
     def test_replaces_name_boxes_keeps_amounts_and_left_edge(self):
+        # 切り抜きの前処理（squeeze_gaps）が opencv を使う。PYLIB なしの環境では飛ばす
+        pytest.importorskip("cv2")
         # 歳入の表（7列）: 0 目 / 4 節の区分 / 6 説明 が名前の欄。金額の文字枠と左端（字下げで細節を見分ける）は変えない
         vlines = [0, 300, 500, 700, 900, 1300, 1500, 2000]
         cols = [[box("1 県民税", 20, 200)], [box("100", 310, 490)], [], [], [box("現年", 950, 1000), box("課税分", 1010, 1100)],
@@ -68,8 +84,17 @@ class TestReplaceNames:
         t = rec["tables"][0]["cols"]
         assert n == 3
         # 罫線の読み「|」は名前の両端から外す
-        assert [d["text"] for d in t[0]] == ["読"] and t[0][0]["ndl"]
+        assert [d["text"] for d in t[0]] == ["1読"] and t[0][0]["ndl"]  # 目の番号は OCR の「1」
         assert [(d["text"], d["x0"]) for d in t[4]] == [("読", 950)]
         assert [d["text"] for d in t[6]] == ["読", "100"]  # 名前と金額（位置の順）
         assert [d["text"] for d in t[1]] == ["100"]  # 名前の欄でない列はそのまま
         assert rec["source"] == "ndl"
+
+    def test_total_rows_are_kept(self):
+        # 目の欄の「計」の行は置き換えない（NDLOCR-Lite が「10」と読むと、解釈が計の行を見分けられず架空の目になる）
+        pytest.importorskip("cv2")
+        vlines = [0, 300, 500, 700, 900, 1300, 1500, 2000]
+        cols = [[box("計", 20, 60)], [box("100", 310, 490)], [], [], [], [], []]
+        rec = {"vlines": vlines, "tables": [{"cols": cols}]}
+        assert nd.replace_names(rec, np.zeros((300, 2100, 3), dtype=np.uint8), FakeNdl()) == 0
+        assert [d["text"] for d in rec["tables"][0]["cols"][0]] == ["計"]
