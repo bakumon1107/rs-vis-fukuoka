@@ -185,3 +185,16 @@ class TestExplanations:
         # 1事項で金額の記載がない（p180「○病院事業会計への負担金」）。目の額を当てるのは検算の段階
         out, rest = ps.parse_explanations([item("○病院事業会計への負担金", 10, 10)])
         assert out == [] and rest == "○病院事業会計への負担金"
+
+    def test_staff_note_is_split_from_next_item(self):
+        # 金額のない人数の注記の行が、次の事項の名前の頭につながる（p319「○事業費支弁職員 379人」「○道路橋りょう事業事務費」）
+        out, _ = ps.parse_explanations([item("○事業費支弁職員", 10, 10), item("379人", 300, 10),
+                                        item("○道路橋りょう事業事務費", 10, 60), item("3,600,542", 500, 60, 600)])
+        assert [(e["name"], e["amount"], e.get("注記")) for e in out] == [
+            ("○道路橋りょう事業事務費", 3600542, ["事業費支弁職員379人"])]
+
+    def test_staff_note_between_heading_and_breakdown(self):
+        # 金額のない見出しの事項と内訳の間に注記（特別会計 p100「○苅田港新松山地区埠頭用地造成事業費」「事業費支弁職員 24人」「工事費」）
+        name, notes = ps.split_staff_notes("○苅田港新松山地区埠頭用地造成事業費事業費支弁職員24人工事費")
+        assert (name, notes) == ("○苅田港新松山地区埠頭用地造成事業費工事費", ["事業費支弁職員24人"])
+        assert ps.split_staff_notes("○職員費10人") == ("○職員費10人", [])   # 職員費の人数は注記ではない（別の処理で分ける）
