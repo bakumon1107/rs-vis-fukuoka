@@ -24,7 +24,6 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { Basis, MokuRow, ValueSource } from '@/types/local-gov';
 import {
-  fundingReclassNotes,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -115,7 +114,8 @@ function LocalGovAboutContent() {
   // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
-  const fundingNotes = fundingReclassNotes(gov, file);
+  // 財源内訳と歳入の款の違い（組み替え）の説明は、一般財源の中身のデータに持つ（書き出しが組み替えの表から入れる）
+  const fundingNotes = file.general_fund?.notes;
   const isSettlement = file.basis === 'settlement';
   const basisQuery = isSettlement ? '&basis=settlement' : '';
   // 図に箱を出さない目（0 円の目・額の読めない目）の一覧の1行。会計 ／ 歳入出 ／ 款 ／ 項 ／ 目と、額・予算現額・不用額・説明
@@ -269,6 +269,9 @@ function LocalGovAboutContent() {
                 <li key={n}>{n}</li>
               ))}
             </ul>
+            <p className="text-xs text-mirai-text-muted">
+              サンキー図の一般会計の見方で「一般財源」の箱を押すと、一般財源の中身を表で見られます（{file.general_fund?.checked_on} に説明書で確認）。
+            </p>
           </section>
         )}
 

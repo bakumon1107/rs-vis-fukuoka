@@ -45,6 +45,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
 import export_settlement  # noqa: E402
+import general_fund  # noqa: E402
 import name_evidence  # noqa: E402
 from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
 
@@ -644,6 +645,10 @@ def main():
     external, external_ng = external_checks(rows, ex.yo, ex.keijou, total_rows)
     for line in external_ng:
         print(f"NG  外部の検算 {line}", file=sys.stderr)
+    # 一般財源の中身（組み替えの表と歳入の目から作る。表と合わなければ止める: 説明書を読んで確かめた額なので、データが変わったら調べ直す）
+    gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
+    if gfund_fails:
+        sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",
         "unit_source": "千円", "accounts": accounts, "rows": rows,
@@ -655,6 +660,7 @@ def main():
                          "confirmed_by_image": vals["image"]},
             "corrections": n_fix,
         },
+        **({"general_fund": gfund} if gfund else {}),
     }
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, f"budget-{YEAR}-initial.json"), "w", encoding="utf-8") as f:
@@ -702,6 +708,9 @@ def main():
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
+    if gfund:
+        print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
+              file=sys.stderr)
     for line in settlement_lines + hosei_lines:
         print(line, file=sys.stderr)
     for level, o, n in ex.replaced:

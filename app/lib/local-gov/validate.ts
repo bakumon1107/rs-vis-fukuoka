@@ -7,6 +7,7 @@
  * 自治体固有の照合（予算書・計上額調との一致など）はパイプライン側（scripts/local-gov/<自治体>/）で行う。
  */
 import {
+  GENERAL_FUND_BASES,
   LOCAL_GOV_SCHEMA_VERSION,
   NAME_SOURCES,
   SETSU_NO_SOURCES,
@@ -197,6 +198,23 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     }
   });
   if (file.revenue_by_kan && file.basis !== 'settlement') err('revenue_by_kan は決算のファイルだけ');
+
+  // 一般財源の中身: 当初予算だけ。行の合計 = total = 一般会計の歳出の目の財源内訳の一般財源の合計。額は 0 以上の整数（円）
+  const gf = file.general_fund;
+  if (gf) {
+    if (file.basis !== 'initial') err('general_fund は当初予算のファイルだけ');
+    gf.rows.forEach((r, i) => {
+      if (!GENERAL_FUND_BASES.includes(r.basis)) err(`general_fund.rows[${i}]: basis が不正（${r.basis}）`);
+      if (!Number.isInteger(r.amount) || r.amount < 0) err(`general_fund.rows[${i}] ${r.label}: 額が 0 以上の整数でない（${r.amount}）`);
+      for (const id of r.refs ?? []) if (!rowIds.has(id)) err(`general_fund.rows[${i}] ${r.label}: 組み替えの元の目 ${id} がない`);
+    });
+    const sum = gf.rows.reduce((s, r) => s + r.amount, 0);
+    if (sum !== gf.total) err(`general_fund: 行の合計 ${sum} ≠ total ${gf.total}`);
+    const general = file.rows
+      .filter(r => r.account === 'general' && r.side === 'expense')
+      .reduce((s, r) => s + (r.funding?.general.v ?? 0), 0);
+    if (gf.total !== general) err(`general_fund: total ${gf.total} ≠ 一般会計の歳出の財源内訳の一般財源の合計 ${general}`);
+  }
 
   if (file.checks.rows !== file.rows.length) err(`checks.rows ${file.checks.rows} ≠ 目の行数 ${file.rows.length}`);
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);

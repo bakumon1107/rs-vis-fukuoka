@@ -52,6 +52,32 @@ test('正しいデータは誤りなし', () => {
   assert.equal(r.inferredCount, 0);
 });
 
+test('一般財源の中身: 行の合計 = total = 財源内訳の一般財源の合計。組み替えの元の目があること。当初予算だけ', () => {
+  const gf = (rows: { label: string; amount: number; basis: 'revenue_kan' | 'matched' | 'residual'; refs?: string[] }[]) => ({
+    rows,
+    total: rows.reduce((s, r) => s + r.amount, 0),
+    notes: [],
+    checked_on: '2026-11-14',
+  });
+  const ok = gf([
+    { label: '県税', amount: 10_000_000_000, basis: 'revenue_kan' },
+    { label: '一般管理費の組み替え', amount: 404_032_000, basis: 'matched', refs: ['general/expense/2-1-1'] },
+  ]);
+  assert.deepEqual(validateBudgetFile(file([row()], { general_fund: ok })).errors, []);
+  // 合計が財源内訳の一般財源（10,404,032,000）と合わない
+  const off = gf([{ label: '県税', amount: 10_000_000_000, basis: 'revenue_kan' }]);
+  assert.ok(validateBudgetFile(file([row()], { general_fund: off })).errors.some(e => e.includes('一般財源の合計')));
+  // 行の合計と total が違う・ない目・負の額
+  assert.ok(validateBudgetFile(file([row()], { general_fund: { ...ok, total: 1 } })).errors.some(e => e.includes('行の合計')));
+  const bad = gf([
+    { label: '県税', amount: 10_404_032_001, basis: 'revenue_kan' },
+    { label: 'ない目', amount: -1, basis: 'residual', refs: ['general/revenue/99-1-1'] },
+  ]);
+  const errs = validateBudgetFile(file([row()], { general_fund: bad })).errors;
+  assert.ok(errs.some(e => e.includes('組み替えの元の目')) && errs.some(e => e.includes('0 以上の整数')));
+  assert.ok(validateBudgetFile(file([row()], { basis: 'settlement', general_fund: ok })).errors.some(e => e.includes('当初予算のファイルだけ')));
+});
+
 test('ID は会計/歳入歳出/款-項-目', () => {
   assert.equal(expectedRowId(row()), 'general/expense/2-1-1');
   const r = validateBudgetFile(file([row({ id: 'general/expense/2-1-9' })]));
