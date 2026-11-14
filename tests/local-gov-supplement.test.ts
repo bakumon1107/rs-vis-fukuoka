@@ -235,9 +235,11 @@ test('composeLatest keeps nested initial items, drops ambiguous matches and nega
   );
   assert.equal(get('general/revenue/9-2-6').items, undefined);
   assert.equal(get('general/expense/8-2-1').funding, undefined);
-  // 子のある当初の事項に補正が当たるときは出さない
+  // 子のある当初の事項・入れ子の子の事項に補正が当たるときは出さない
   const s2 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '中小企業振興資金融資費', amount: v(5) }] })], '9月');
   assert.equal(composeLatest(init, [s2]).rows[0].items, undefined);
+  const s3 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '内訳', amount: v(5) }] })], '9月');
+  assert.equal(composeLatest(init, [s3]).rows[0].items, undefined);
 });
 
 test('composeLatest rejects mismatched files', () => {
@@ -273,6 +275,12 @@ test('composed real data matches the last bill total when files exist', () => {
       outs.set(e.source, (outs.get(e.source) ?? 0) + e.value);
     }
     for (const n of g.nodes) if (into.has(n.id) && outs.has(n.id)) assert.equal(outs.get(n.id), into.get(n.id), `${view} ${n.id}`);
+  }
+  // 財源内訳は、補正後で負の区分が出ると外す（図では「財源の記載なし」から流れる）。実データでは起きないことを確かめる
+  // （起きたら、財源の振り替えの描き方を決める）
+  const init0 = new Map<string, LocalBudgetFile['rows'][number]>(init.rows.map((r: LocalBudgetFile['rows'][number]) => [r.id, r]));
+  for (const r of out.rows.filter(x => x.side === 'expense' && x.account === 'general')) {
+    if (init0.get(r.id)?.funding || r.added_in) assert.ok(r.funding, `${r.id} 財源内訳が外れた`);
   }
   for (const r of out.rows.filter(x => x.supplements)) {
     const sum = (xs: { amount: Value; parent?: number }[]) => xs.filter(x => x.parent === undefined).reduce((s, x) => s + (x.amount.v ?? 0), 0);

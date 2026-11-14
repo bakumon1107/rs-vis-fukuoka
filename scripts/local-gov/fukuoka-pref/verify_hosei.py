@@ -50,16 +50,19 @@ def main():
         for r in rows:
             b, a, s = r["before"]["v"], r["amount"]["v"], r["after"]["v"]
             want = cur[r["id"]]
-            if b != want:
-                fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前 {b:,} ≠ 当初＋それまでの補正 {want:,}")
-            if b + a != s:
-                fails.append(f"{rid} {r['id']}: 補正前 + 補正額 ≠ 計")
+            if None in (b, a, s):
+                fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前・補正額・計に読めない値がある（{b}・{a}・{s}）")
+            else:
+                if b != want:
+                    fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前 {b:,} ≠ 当初＋それまでの補正 {want:,}")
+                if b + a != s:
+                    fails.append(f"{rid} {r['id']}: 補正前 + 補正額 ≠ 計")
             n["目の鎖"] += 1
         # 1. 項
         if gs.get("gian"):
             got = Counter()
             for r in rows:
-                got[(r["side"], r["kan"]["no"], r["kou"]["no"])] += r["amount"]["v"]
+                got[(r["side"], r["kan"]["no"], r["kou"]["no"])] += r["amount"]["v"] or 0
             listed = set()
             for s_ja, s in SIDE.items():
                 for k in gs["gian"][s_ja]:
@@ -78,7 +81,8 @@ def main():
                 continue
             n["財源"] += 1
             for jp, en in FUND.items():
-                g = sum(r["funding"][en]["v"] for r in rows if r["side"] == "expense" and r["kan"]["no"] == k["no"])
+                g = sum((r.get("funding") or {}).get(en, {}).get("v") or 0
+                        for r in rows if r["side"] == "expense" and r["kan"]["no"] == k["no"])
                 if g != k["財源"][jp] * 1000:
                     fails.append(f"{rid} 歳出 {k['no']}款 {jp}: 目の合計 {g:,} ≠ 総括 {k['財源'][jp] * 1000:,}")
         # 4. 総括の款の補正前（公開データの行から足した款の額と比べる）
@@ -88,8 +92,9 @@ def main():
                 if k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
                     fails.append(f"{rid} 総括 {s_ja} {k['no']}款: 補正前 {k['補正前'] * 1000:,} ≠ 当初＋それまでの公開データの補正 {kan_cur[(s, k['no'])]:,}")
         for r in rows:
-            cur[r["id"]] += r["amount"]["v"]
-            kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"]
+            # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは 0 として足し、例外で止めない
+            cur[r["id"]] += r["amount"]["v"] or 0
+            kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     print("照合した数: " + "・".join(f"{k} {v}" for k, v in n.items()), file=sys.stderr)

@@ -63,7 +63,8 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
       continue;
     }
     if (count(base!, s.name) > 1 || count(sup!, s.name) > 1) return undefined;
-    if (base!.some(it => it.parent === idx)) return undefined;
+    // 子のある事項・入れ子の子の事項に当たると、親と子の合計が合わなくなる（図は子を描かないので、子に足した分も消える）
+    if (base!.some(it => it.parent === idx) || base![idx].parent !== undefined) return undefined;
     out[idx].amount = add(out[idx].amount, s.amount);
   }
   return hasNegative(out) ? undefined : out;
@@ -127,14 +128,7 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
         });
         // 図は行の順（款・項・目の順）に箱を並べるので、末尾ではなく同じ会計・款・項の最後の目の後ろに入れる
         const kou = `${sr.account}/${sr.side}/${sr.kan.no}-${sr.kou.no}-`;
-        // （findLastIndex は ES2023。古いブラウザで落ちないよう後ろから探す）
-        let at = -1;
-        for (let i = order.length - 1; i >= 0; i--) {
-          if (order[i].startsWith(kou)) {
-            at = i;
-            break;
-          }
-        }
+        const at = order.findLastIndex(id => id.startsWith(kou));
         if (at >= 0) order.splice(at + 1, 0, sr.id);
         else order.push(sr.id);
         continue;
