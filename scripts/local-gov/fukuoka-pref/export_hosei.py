@@ -1,0 +1,148 @@
+"""R8 補正予算を回ごとの共通 JSON 形式（budget-2026-supplementary-<回>.json）に組み立てる。
+
+設計: docs/local-gov/tasks/20261114_1317_R8補正予算の抽出の設計.md（8章: 回ごとにファイルを分ける）、共通 JSON 形式の設計（basis supplementary）
+入力（作業ディレクトリ）: 回ごとに
+- hosei-<回>.json … extract_hosei.py の出力（議案・総括）
+- setsumeisho-hosei-<回>.json … parse_setsumeisho.py --hosei の出力（目の明細）
+と、当初予算の公開データ（目の ID・款項の名前をそろえる）。
+
+行は補正のある目だけ（差分）。amount = 補正額、before = 補正前の額、after = 計。目の ID は当初と同じ（補正で新しく設けた目は新しい番号）。
+款・項の名前は当初の名前（出典も当初のまま）。目の名前は、当初にある目は当初の名前、補正で新しく設けた目は説明書の名前。
+検算: 目ごとの検算（parse_setsumeisho の A〜D）と、目の補正額の合計 = 総括の款の補正額（歳入・歳出の全部の款）。
+"""
+import json
+import os
+import re
+import sys
+from collections import Counter
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from kessan_common import SETSU_NAMES  # noqa: E402
+
+YEAR, YEAR_LABEL = 2026, "令和8年度"
+# 回の一覧（古い順）。id は extract_hosei.py の --id、src は説明書の資料 id（sources.json）、text は説明書がテキストか
+ROUNDS = [
+    {"id": "R8-06-1", "round": "6月補正（第1号）", "kind": "定例", "bill_no": "第120号議案", "src": "r8-hosei-06-setsumeisho", "text": True},
+    {"id": "R8-08-2", "round": "8月専決補正（第2号）", "kind": "専決", "bill_no": None, "src": "r8-hosei-08-setsumeisho", "text": True},
+    {"id": "R8-09-3", "round": "9月補正（第3号）", "kind": "定例", "bill_no": "第122号議案", "src": "r8-hosei-09-3-setsumeisho", "text": False},
+    {"id": "R8-09-4", "round": "9月補正（第4号・追加提案）", "kind": "追加提案", "bill_no": "第158号議案", "src": "r8-hosei-09-4-setsumeisho", "text": True},
+]
+SIDE = {"歳入": "revenue", "歳出": "expense"}
+FUND = {"国庫支出金": "national", "地方債": "bond", "その他": "other", "一般財源": "general"}
+
+
+def yen(v):
+    return None if v is None else int(v) * 1000
+
+
+def val(v, src):
+    return {"v": yen(v), "src": src}
+
+
+def clean(s: str) -> str:
+    return re.sub(r"^○", "", (s or "").strip())
+
+
+def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails: list[str]):
+    src = "text" if r["text"] else "ocr"
+    init_rows = {x["id"]: x for x in initial["rows"]}
+    kan_name = {(x["side"], x["kan"]["no"]): x["kan"] for x in initial["rows"] if x["account"] == "general"}
+    kou_name = {(x["side"], x["kan"]["no"], x["kou"]["no"]): x["kou"] for x in initial["rows"] if x["account"] == "general"}
+    rows, all_ok = [], 0
+    for m in parsed:
+        if m.get("kind") != "目" or m.get("会計") != "一般会計":
+            continue
+        side = SIDE[m["side"]]
+        kou_no = (m["項"] or [None])[0]
+        rid = f"general/{side}/{m['款']}-{kou_no}-{m['目番号']}"
+        if m["目番号"] is None or kou_no is None:
+            fails.append(f"{r['id']}: 目・項の番号が読めない目 {m['目名']}")
+            continue
+        base = init_rows.get(rid)
+        new_moku = base is None or m["前年度"] == 0 and m.get("空欄を0とみなした") == "前年度"
+        if base is not None and not new_moku and yen(m["前年度"]) is not None:
+            # 補正前の額は「当初 + それより前の補正」なので、当初の額とは限らない。名前のずれだけ知らせる
+            if clean(m["目名"]) and clean(m["目名"]) != base["moku"]["name"]:
+                print(f"WARN {r['id']} {rid}: 目の名前 当初「{base['moku']['name']}」/ 補正の説明書「{clean(m['目名'])}」（当初の名前を使う）",
+                      file=sys.stderr)
+        kan = kan_name.get((side, m["款"]))
+        kou = kou_name.get((side, m["款"], kou_no))
+        if kan is None or kou is None:
+            fails.append(f"{r['id']} {rid}: 当初にない款・項")
+            continue
+        moku = dict(base["moku"]) if base is not None else {"no": m["目番号"], "name": clean(m["目名"]), "name_src": src}
+        row = {"id": rid, "account": "general", "side": side, "kan": kan, "kou": kou, "moku": moku,
+               "amount": val(m["本年度"], src), "before": val(m["前年度"], "blank-as-zero" if m.get("空欄を0とみなした") == "前年度" else src),
+               "after": val(m["比較"], src)}
+        if side == "expense":
+            row["funding"] = {FUND[k]: val(v, src) for k, v in m["財源"].items()}
+        items = [{"name": clean(e["name"]), "name_src": src, "amount": val(e["amount"], src),
+                  **({"no_amount_printed": True} if e.get("金額の記載なし") else {})} for e in m.get("説明", []) if e.get("amount") is not None]
+        if items:
+            row["items"] = items
+        setsu = []
+        for s in m.get("節", []):
+            if s.get("top", s.get("no") is not None):
+                name = SETSU_NAMES.get(s["no"]) if side == "expense" and s.get("no") in SETSU_NAMES else clean(s["label"])
+                nsrc = "reference" if side == "expense" and s.get("no") in SETSU_NAMES else src
+                setsu.append({"no": s.get("no"), **({"no_src": src} if s.get("no") is not None else {}),
+                              "name": name, "name_src": nsrc, "amount": val(s["amount"], src)})
+            elif setsu:
+                setsu[-1].setdefault("sub", []).append({"name": clean(s["label"]), "name_src": src, "amount": val(s["amount"], src)})
+        if setsu:
+            row["setsu"] = setsu
+        if m.get("注記"):
+            row["notes"] = m["注記"]
+        row["pages"] = [{"source": r["src"], "page": p} for p in dict.fromkeys(m["pages"])]
+        if all(m.get("checks", {}).values()):
+            all_ok += 1
+        else:
+            fails.append(f"{r['id']} {rid}: 目の検算 {m.get('checks')}")
+        rows.append(row)
+    # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
+    got = Counter()
+    for x in rows:
+        got[(x["side"], x["kan"]["no"])] += x["amount"]["v"]
+    for s_ja, s in SIDE.items():
+        for k in gian_sk["総括"][s_ja]:
+            if got[(s, k["no"])] != yen(k["補正額"]):
+                fails.append(f"{r['id']} {s_ja} {k['no']}款: 目の補正額の合計 {got[(s, k['no'])]:,} ≠ 総括 {yen(k['補正額']):,}")
+    accounts = [a for a in initial["accounts"] if a["id"] == "general"]
+    out = {"schema_version": initial["schema_version"], "gov_id": initial["gov_id"], "year": YEAR, "year_label": YEAR_LABEL,
+           "basis": "supplementary",
+           "supplementary": {"round": r["round"], "kind": r["kind"], **({"bill_no": r["bill_no"]} if r["bill_no"] else {})},
+           "unit_source": "千円", "accounts": accounts, "rows": rows,
+           "checks": {"rows": len(rows), "all_ok": all_ok, "rules": {}, "external": {
+               "総括_目の合計": f"{sum(1 for s in SIDE for k in gian_sk['総括'][s])} 款で照合"}}}
+    return out
+
+
+def build(work: str, initial: dict, rounds=ROUNDS):
+    """返り値: [(ファイル名, データ, 検算が通ったか, 要約の行)]"""
+    out = []
+    for r in rounds:
+        fails: list[str] = []
+        gp, sp = os.path.join(work, f"hosei-{r['id']}.json"), os.path.join(work, f"setsumeisho-hosei-{r['id']}.json")
+        if not (os.path.exists(gp) and os.path.exists(sp)):
+            print(f"WARN 補正 {r['id']}: 入力がない（{os.path.basename(gp)}・{os.path.basename(sp)}）。この回は書き出さない", file=sys.stderr)
+            continue
+        data = build_round(r, json.load(open(gp, encoding="utf-8")), json.load(open(sp, encoding="utf-8")), initial, fails)
+        n = int(r["id"].rsplit("-", 1)[1])
+        lines = [f"FAIL 補正 {f}" for f in fails] + [
+            f"補正 {r['id']}: 目 {len(data['rows'])} 件（全検算一致 {data['checks']['all_ok']}）、補正額 歳出 "
+            f"{sum(x['amount']['v'] for x in data['rows'] if x['side'] == 'expense'):,} 円"]
+        out.append((f"budget-{YEAR}-supplementary-{n}.json", data, not fails, lines))
+    return out
+
+
+if __name__ == "__main__":
+    work, initial_path, outdir = sys.argv[1:4]
+    initial = json.load(open(initial_path, encoding="utf-8"))
+    ok_all = True
+    for name, data, ok, lines in build(work, initial):
+        for ln in lines:
+            print(ln, file=sys.stderr)
+        with open(os.path.join(outdir, name), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+        ok_all = ok_all and ok
+    sys.exit(0 if ok_all else 1)

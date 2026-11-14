@@ -61,9 +61,12 @@ export interface NumberedName {
 export type NameSource = 'text' | 'reference' | 'search' | 'readings' | 'correction' | 'ocr';
 export const NAME_SOURCES: readonly NameSource[] = ['text', 'reference', 'search', 'readings', 'correction', 'ocr'];
 
-/** 節番号の出典。ocr: 説明書の OCR（旧 OCR を含む）/ textlayer: 発行元の文字層 / correction: 画像で確かめて修正表に記録 */
-export type SetsuNoSource = 'ocr' | 'textlayer' | 'correction';
-export const SETSU_NO_SOURCES: readonly SetsuNoSource[] = ['ocr', 'textlayer', 'correction'];
+/**
+ * 節番号の出典。ocr: 説明書の OCR（旧 OCR を含む）/ textlayer: 発行元の文字層 / correction: 画像で確かめて修正表に記録 /
+ * text: テキスト PDF の説明書（R8 の補正予算のうちテキストの回）
+ */
+export type SetsuNoSource = 'ocr' | 'textlayer' | 'correction' | 'text';
+export const SETSU_NO_SOURCES: readonly SetsuNoSource[] = ['ocr', 'textlayer', 'correction', 'text'];
 
 /** 名前とその出典（事項・節・細節） */
 export interface NameWithSource {
@@ -82,6 +85,8 @@ export interface Item extends NameWithSource {
   /** 1事項で金額の記載なし（目の額を当てた） */
   no_amount_printed?: boolean;
   links?: { kind: '施策別資料' | '行政評価'; id: string; match: 'amount+name' | 'name' }[];
+  /** 補正後（当初 + Σ補正）で、当初になく補正で加わった事項（その回の名前。例「9月補正（第3号）」） */
+  added_in?: string;
 }
 
 export interface Setsu extends NameWithSource {
@@ -91,6 +96,8 @@ export interface Setsu extends NameWithSource {
   no_src?: SetsuNoSource;
   amount: Value;
   sub?: (NameWithSource & { amount: Value })[];
+  /** 補正後で、当初になく補正で加わった節 */
+  added_in?: string;
 }
 
 export interface Funding {
@@ -142,6 +149,10 @@ export interface MokuRow {
   /** 「○○課所管」「事業費支弁職員 2人」などの注記 */
   notes?: string[];
   pages: { source: string; page: number }[];
+  /** 補正後（当初 + Σ補正）で、当初になく補正で新しく設けた目（その回の名前） */
+  added_in?: string;
+  /** 補正後で、この目を動かした補正の回と補正額（古い順） */
+  supplements?: { round: string; amount: Value }[];
 }
 
 /** 決算の目の説明（概要説明書の「決算の内容」「不用額の内容」の文） */
@@ -191,6 +202,11 @@ export interface LocalBudgetFile {
   /** 決算の歳入（会計 × 款）。決算の行は歳出の目だけなので、歳入はここに持つ */
   revenue_by_kan?: RevenueByKan[];
   checks: CheckSummary;
+  /**
+   * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
+   * basis は 'initial' のまま（図の組み立ては当初と同じ）。rows の amount は補正後の額、before は当初の額
+   */
+  composed?: { through: string; rounds: { round: string; kind: string }[] };
 }
 
 export interface SourceDocument {
