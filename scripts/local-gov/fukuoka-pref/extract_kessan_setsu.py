@@ -91,6 +91,8 @@ def rows_of(page, special: bool = False):
 
 
 CID_RE = re.compile(r"\(cid:(\d+)\)")
+CID_ZERO = 19  # (cid:19) が 0、(cid:28) が 9（digit_of とラベルの番号の正規表現の、範囲の1か所の定義）
+CID_DIGIT = "|".join(str(CID_ZERO + d) for d in range(10))
 
 
 def digit_of(text: str) -> str | None:
@@ -99,8 +101,8 @@ def digit_of(text: str) -> str | None:
     if text.isdigit():
         return text
     m = CID_RE.fullmatch(text)
-    if m and 19 <= int(m.group(1)) <= 28:
-        return str(int(m.group(1)) - 19)
+    if m and CID_ZERO <= int(m.group(1)) <= CID_ZERO + 9:
+        return str(int(m.group(1)) - CID_ZERO)
     return None
 
 
@@ -117,8 +119,8 @@ def rows_of_special(page, shift: float):
         one = [c for c in cs if repr(c.get("non_stroking_color")) == "(0.0,)"]
         # 節の区分の番号も (cid:N) で描かれることがある（「(cid:20)(cid:20)需用費」= 11）。番号の部分だけ数字に直す
         label = "".join(c["text"] for c in one if la + shift <= c["x0"] < lb + shift).strip()
-        # 数字の (cid:N) は 19〜28 だけ（digit_of と同じ範囲。29 は数字ではない）
-        mlab = re.match(r"^((?:\d|\(cid:(?:19|2[0-8])\))+)(.*)$", label)
+        # 数字の (cid:N) は digit_of と同じ範囲（CID_DIGIT）だけ
+        mlab = re.match(rf"^((?:\d|\(cid:(?:{CID_DIGIT})\))+)(.*)$", label)
         if mlab:
             label = "".join(digit_of(x) for x in re.findall(r"\d|\(cid:\d+\)", mlab.group(1))) + mlab.group(2)
         rec = {"two_layers": False, "label": label,

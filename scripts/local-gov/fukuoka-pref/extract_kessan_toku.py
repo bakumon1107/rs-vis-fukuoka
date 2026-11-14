@@ -77,7 +77,8 @@ def parse_revenue(lines: list[str], fails: list[str], label: str):
     for ln in lines:
         m = REV_RE.match(ln)
         if not m:
-            if not re.search(r"\d", ln):
+            # 計の行より後の名前だけの行（注記など）は款の名前ではないので貯めない
+            if not re.search(r"\d", ln) and total is None:
                 pending += flat(ln)
             continue
         nums = [to_int(x) for x in re.findall(NUM, m.group("nums"))]
@@ -197,6 +198,9 @@ def parse(pdf: str):
                 blk.append(ln)
             elif mode == "kou":
                 if ln.strip() and not is_header(ln):
+                    if not kou["_lines"]:
+                        # 出典のページは、項の見出しではなく目の表の最初の行があるページ（見出しがページの下端にあるとき）
+                        kou["pdf_page"] = pno
                     kou["_lines"].append(ln)
             elif mode == "explain":
                 kou["_explain"].feed(ln, is_header)
