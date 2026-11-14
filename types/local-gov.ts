@@ -117,7 +117,13 @@ export interface MokuRow {
   enterprise_section?: '収益的' | '資本的';
   kan: NumberedName;
   kou: NumberedName;
-  moku: NumberedName;
+  /** 目。前年度にだけあった目（previous_only）は番号が印字されないので no は null（ID は `…-p<項の中の順>`） */
+  moku: Omit<NumberedName, 'no'> & { no: number | null };
+  /**
+   * 前年度にだけあった目（当初予算。本年度が空欄で番号の印字がない。R8 の知事選挙費など）。
+   * 番号をこしらえると、補正で新しく設けた目と同じ番号になる（R8 8月専決「3 県議会議員補欠選挙費」）ので、ID を p<n> にする
+   */
+  previous_only?: true;
   /** 本年度（予算）／補正額（補正）／支出済額（決算） */
   amount: Value;
   previous?: Value; // 前年度（当初予算）

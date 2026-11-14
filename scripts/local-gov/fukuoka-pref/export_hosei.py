@@ -40,7 +40,9 @@ def val(v, src):
 
 
 def clean(s: str) -> str:
-    return re.sub(r"^○", "", (s or "").strip())
+    # 減額の事項は金額の左に △ が印字され、OCR は名前の末尾に読み込むことがある（R8 9月第3号「堰堤改良費補助金△」）。
+    # 金額の符号は文字層の △ で付けてある（mark_negatives.py）ので、名前からは除く
+    return re.sub(r"[△▲]+$", "", re.sub(r"^○", "", (s or "").strip())).strip()
 
 
 def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails: list[str]):
@@ -78,6 +80,11 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             row["funding"] = {FUND[k]: val(v, src) for k, v in m["財源"].items()}
         items = [{"name": clean(e["name"]), "name_src": src, "amount": val(e["amount"], src),
                   **({"no_amount_printed": True} if e.get("金額の記載なし") else {})} for e in m.get("説明", []) if e.get("amount") is not None]
+        # 歳入の説明欄は、金額の印字されない事項（節ごとに1事項）があり、事項の合計が目の額にならないことがある
+        # （R8 9月第3号の県土整備債: 金額のない「堰堤改良事業債」「海岸高潮対策事業債」）。合わない目は事項を載せない（推計で埋めない）
+        if items and side == "revenue" and sum(i["amount"]["v"] for i in items) != row["amount"]["v"]:
+            print(f"WARN {r['id']} {rid}: 歳入の説明欄の事項の合計が目の額と合わないので、事項を載せない", file=sys.stderr)
+            items = []
         if items:
             row["items"] = items
         setsu = []

@@ -96,7 +96,13 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     const where = row.id;
     if (rowIds.has(row.id)) err(`目の ID が重複: ${row.id}`);
     rowIds.add(row.id);
-    if (row.id !== expectedRowId(row)) err(`${where}: ID が款・項・目の番号と合わない（期待 ${expectedRowId(row)}）`);
+    if (row.previous_only) {
+      // 前年度にだけあった目は番号がない（ID は …-<款>-<項>-p<n>）
+      const prefix = `${row.account}/${row.side}/${row.kan.no}-${row.kou.no}-p`;
+      if (row.moku.no !== null || !row.id.startsWith(prefix) || !/^\d+$/.test(row.id.slice(prefix.length)))
+        err(`${where}: 前年度のみの目の ID・番号が合わない（期待 ${prefix}<n>・番号 null）`);
+      if (row.amount.v !== 0) err(`${where}: 前年度のみの目の本年度が 0 でない`);
+    } else if (row.id !== expectedRowId(row)) err(`${where}: ID が款・項・目の番号と合わない（期待 ${expectedRowId(row)}）`);
     if (!accountIds.has(row.account)) err(`${where}: 会計 ${row.account} が accounts にない`);
     if (!SIDES.includes(row.side)) err(`${where}: side が不正（${row.side}）`);
     for (const level of ['kan', 'kou', 'moku'] as const) checkName(`${where} ${level}`, row[level], true);

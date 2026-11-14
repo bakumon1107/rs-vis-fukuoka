@@ -1,0 +1,351 @@
+{
+ "schema_version": 1,
+ "gov_id": "fukuoka-pref",
+ "year": 2026,
+ "year_label": "令和8年度",
+ "basis": "supplementary",
+ "supplementary": {
+  "round": "8月専決補正（第2号）",
+  "kind": "専決"
+ },
+ "unit_source": "千円",
+ "accounts": [
+  {
+   "id": "general",
+   "kind": "general",
+   "name": "一般会計"
+  }
+ ],
+ "rows": [
+  {
+   "id": "general/revenue/13-1-1",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 13,
+    "name": "繰越金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "繰越金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "繰越金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 34721000,
+    "src": "text"
+   },
+   "before": {
+    "v": 1000,
+    "src": "text"
+   },
+   "after": {
+    "v": 34722000,
+    "src": "text"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "text",
+     "name": "繰越金",
+     "name_src": "text",
+     "amount": {
+      "v": 34721000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-08-setsumeisho",
+     "page": 10
+    }
+   ]
+  },
+  {
+   "id": "general/expense/2-5-3",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 2,
+    "name": "総務費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 5,
+    "name": "選挙費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 3,
+    "name": "県議会議員補欠選挙費",
+    "name_src": "text"
+   },
+   "amount": {
+    "v": 31684000,
+    "src": "text"
+   },
+   "before": {
+    "v": 0,
+    "src": "blank-as-zero"
+   },
+   "after": {
+    "v": 31684000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 31684000,
+     "src": "text"
+    }
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "text",
+     "name": "報酬",
+     "name_src": "reference",
+     "amount": {
+      "v": 218000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 7,
+     "no_src": "text",
+     "name": "報償費",
+     "name_src": "reference",
+     "amount": {
+      "v": 338000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 8,
+     "no_src": "text",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 92000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "text",
+       "amount": {
+        "v": 71000,
+        "src": "text"
+       }
+      },
+      {
+       "name": "費用弁償",
+       "name_src": "text",
+       "amount": {
+        "v": 21000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "text",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 6025000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "光熱水費",
+       "name_src": "text",
+       "amount": {
+        "v": 635000,
+        "src": "text"
+       }
+      },
+      {
+       "name": "その他需用費",
+       "name_src": "text",
+       "amount": {
+        "v": 5390000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 11,
+     "no_src": "text",
+     "name": "役務費",
+     "name_src": "reference",
+     "amount": {
+      "v": 3448000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "text",
+       "amount": {
+        "v": 3448000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "text",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 187000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 13,
+     "no_src": "text",
+     "name": "使用料及び賃借料",
+     "name_src": "reference",
+     "amount": {
+      "v": 481000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 20895000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-08-setsumeisho",
+     "page": 13
+    }
+   ]
+  },
+  {
+   "id": "general/expense/2-5-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 2,
+    "name": "総務費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 5,
+    "name": "選挙費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "県議会議員補欠選挙臨時啓発費",
+    "name_src": "text"
+   },
+   "amount": {
+    "v": 3037000,
+    "src": "text"
+   },
+   "before": {
+    "v": 0,
+    "src": "blank-as-zero"
+   },
+   "after": {
+    "v": 3037000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 3037000,
+     "src": "text"
+    }
+   },
+   "setsu": [
+    {
+     "no": 10,
+     "no_src": "text",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 234000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "text",
+       "amount": {
+        "v": 234000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "text",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 2803000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-08-setsumeisho",
+     "page": 14
+    }
+   ]
+  }
+ ],
+ "checks": {
+  "rows": 3,
+  "all_ok": 3,
+  "rules": {},
+  "external": {
+   "総括_目の合計": "29 款で照合"
+  }
+ }
+}

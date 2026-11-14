@@ -14,7 +14,7 @@ import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
-import { pickDataset, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import { type BasisChoice, pickDataset, supplementDatasets, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import type { Basis } from '@/types/local-gov';
 import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
@@ -65,8 +65,9 @@ function LocalGovContent() {
   const router = useRouter();
   const view: LocalGraphView = searchParams.get('view') === 'all' ? 'all' : 'general';
   const selectedId = searchParams.get('sel');
-  // 予算か決算か（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
-  const basis: Basis = searchParams.get('basis') === 'settlement' ? 'settlement' : 'initial';
+  // 当初・補正後・決算（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
+  const qb = searchParams.get('basis');
+  const basis: BasisChoice = qb === 'settlement' || qb === 'latest' ? qb : 'initial';
   const year = yearFromQuery(searchParams.get('year'));
   const state = useLocalBudget(gov, year, basis);
   const panel = useSidePanel({ side: 'right' });
@@ -74,14 +75,18 @@ function LocalGovContent() {
 
   // 年度・見方・選択は URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
-    (next: { basis?: Basis; year?: number; view?: LocalGraphView; sel?: string | null }) => {
+    (next: { basis?: BasisChoice; year?: number; view?: LocalGraphView; sel?: string | null }) => {
       const q = new URLSearchParams(searchParams.toString());
       if (next.basis !== undefined) {
-        // 予算と決算は年度も箱の ID も違うので、年度と選択は外す（それぞれ最新の年度を開く）
         if (next.basis === 'initial') q.delete('basis');
         else q.set('basis', next.basis);
-        q.delete('year');
-        q.delete('sel');
+        // 予算と決算は年度も箱の ID も違うので、年度と選択は外す（それぞれ最新の年度を開く）。
+        // 当初と補正後は同じ年度・同じ目の ID なので、年度と選択を残す（同じ目の当初と補正後を見比べられる）
+        const budgetPair = (b: BasisChoice) => b === 'initial' || b === 'latest';
+        if (!(budgetPair(next.basis) && budgetPair(basis))) {
+          q.delete('year');
+          q.delete('sel');
+        }
       }
       if (next.year !== undefined) {
         q.set('year', String(next.year));
@@ -97,7 +102,7 @@ function LocalGovContent() {
       }
       router.replace(`?${q.toString()}`, { scroll: false });
     },
-    [router, searchParams]
+    [router, searchParams, basis]
   );
 
   const display = useMemo(
@@ -141,10 +146,21 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
-  // 予算と決算の切り替え（その種類のデータがあるものだけ。それぞれ最新の年度のラベル）
-  const bases = (['initial', 'settlement'] as const)
-    .map(b => ({ basis: b, ds: pickDataset(index, b) }))
-    .filter((x): x is { basis: 'initial' | 'settlement'; ds: NonNullable<typeof x.ds> } => x.ds !== undefined);
+  // 当初・補正後・決算の切り替え（その種類のデータがあるものだけ。それぞれ最新の年度のラベル）。
+  // 補正後は、当初予算の最新の年度に補正のデータがあるときだけ
+  const latestInitial = pickDataset(index, 'initial');
+  const bases: { basis: BasisChoice; ds: NonNullable<ReturnType<typeof pickDataset>> }[] = [];
+  for (const b of ['initial', 'latest', 'settlement'] as const) {
+    const ds =
+      b === 'latest'
+        ? latestInitial && supplementDatasets(index, latestInitial.year).length > 0
+          ? latestInitial
+          : undefined
+        : pickDataset(index, b);
+    if (ds) bases.push({ basis: b, ds });
+  }
+  // 見出しの基準の名前（補正後はどの回までを足したか）
+  const basisTitle = file.composed ? `補正後予算（${file.composed.through}まで）` : BASIS_LABEL[file.basis];
   const views = VIEWS[file.basis];
   // 「データについて」へのリンク。今の見方・選択（クエリ全体）を back で渡し、「← サンキー図に戻る」で同じ表示に戻れるようにする
   const aboutHref = (hash = '') =>
@@ -162,7 +178,7 @@ function LocalGovContent() {
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}
-            {BASIS_LABEL[file.basis]}
+            {basisTitle}
           </h1>
           <span className="text-sm text-mirai-text-muted">
             {/* 公営企業会計は全会計の見方に描かない（歳入と歳出が一致しない様式。設計書 3.2）ので、いつも「除く」と示す */}
@@ -180,11 +196,11 @@ function LocalGovContent() {
                 <button
                   key={b}
                   type="button"
-                  aria-pressed={file.basis === b}
+                  aria-pressed={basis === b}
                   onClick={() => setQuery({ basis: b })}
-                  className={`px-3 py-1 text-sm ${file.basis === b ? 'bg-primary-accent font-bold text-white' : 'bg-card'}`}
+                  className={`px-3 py-1 text-sm ${basis === b ? 'bg-primary-accent font-bold text-white' : 'bg-card'}`}
                 >
-                  {BASIS_LABEL[b]}（{ds.label}）
+                  {b === 'latest' ? '補正後予算' : BASIS_LABEL[b]}（{ds.label}）
                 </button>
               ))}
             </div>

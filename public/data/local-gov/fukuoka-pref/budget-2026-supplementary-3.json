@@ -1,0 +1,2193 @@
+{
+ "schema_version": 1,
+ "gov_id": "fukuoka-pref",
+ "year": 2026,
+ "year_label": "令和8年度",
+ "basis": "supplementary",
+ "supplementary": {
+  "round": "9月補正（第3号）",
+  "kind": "定例",
+  "bill_no": "第122号議案"
+ },
+ "unit_source": "千円",
+ "accounts": [
+  {
+   "id": "general",
+   "kind": "general",
+   "name": "一般会計"
+  }
+ ],
+ "rows": [
+  {
+   "id": "general/revenue/7-2-3",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 7,
+    "name": "分担金及び負担金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "負担金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 3,
+    "name": "県土整備費負担金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 39280000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 1492434000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 1531714000,
+    "src": "ocr"
+   },
+   "items": [
+    {
+     "name": "港湾局部改良事業費負担金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 15600000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾既存施設有効活用促進事業費負担金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 23680000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "ocr",
+     "name": "港湾費負担金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 39280000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 10
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/9-2-6",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 9,
+    "name": "国庫支出金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "国庫補助金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 6,
+    "name": "県土整備費国庫補助金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 723902000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 35491587000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 36215489000,
+    "src": "ocr"
+   },
+   "items": [
+    {
+     "name": "橋りよう補修費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 340101000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "社会資本整備総合交付金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 74150000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "堰堤改良費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": -1609000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "海岸高潮対策事業費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 7100000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "社会資本整備総合交付金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 12500000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾局部改良事業費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": -142000000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾海岸高潮対策事業費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 15000000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾既存施設有効活用促進事業費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 2600000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "社会資本整備総合交付金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 416060000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 2,
+     "no_src": "ocr",
+     "name": "道路橋りよう費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 414251000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 3,
+     "no_src": "ocr",
+     "name": "河川海岸費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 17991000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 4,
+     "no_src": "ocr",
+     "name": "港湾費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 291660000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 12
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/9-2-8",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 9,
+    "name": "国庫支出金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "国庫補助金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 8,
+    "name": "教育費国庫補助金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 6480000000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 18866559000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 25346559000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 2,
+     "no_src": "ocr",
+     "name": "教育振興費補助金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 6480000000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 12
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/12-2-24",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 12,
+    "name": "繰入金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "基金繰入金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 24,
+    "name": "文化芸術振興基金繰入金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 950000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 9808000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 10758000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "ocr",
+     "name": "基金繰入金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 950000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 14
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/12-2-25",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 12,
+    "name": "繰入金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "基金繰入金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 25,
+    "name": "公立高等学校等教育改革促進基金繰入金",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 272904000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 33239000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 306143000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "ocr",
+     "name": "基金繰入金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 272904000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 14
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/13-1-1",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 13,
+    "name": "繰越金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "繰越金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "繰越金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 307473000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 34722000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 342195000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "ocr",
+     "name": "繰越金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 307473000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 16
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/14-4-6",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 14,
+    "name": "諸収入",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 4,
+    "name": "受託事業収入",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 6,
+    "name": "県土整備受託事業収入",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 15533000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 1229623000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 1245156000,
+    "src": "ocr"
+   },
+   "items": [
+    {
+     "name": "北九州市受託金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 14033000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "西日本電信電話受託金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 1500000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 7,
+     "no_src": "ocr",
+     "name": "広域河川改修事業受託金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 15533000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 18
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/14-7-2",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 14,
+    "name": "諸収入",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 7,
+    "name": "雑入",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 2,
+    "name": "雑入",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 95241000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 10497451000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 10592692000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 2,
+     "no_src": "ocr",
+     "name": "雇用保険料納付金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 32000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 42,
+     "no_src": "ocr",
+     "name": "堰堤改良費負担金",
+     "name_src": "ocr",
+     "amount": {
+      "v": 95209000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 18
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/15-1-1",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 15,
+    "name": "県債",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "県債",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "総務債",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 7900000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 17060700000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 17068600000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 9,
+     "no_src": "ocr",
+     "name": "文化施設整備事業債",
+     "name_src": "ocr",
+     "amount": {
+      "v": 7900000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 20
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/15-1-4",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 15,
+    "name": "県債",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "県債",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "生活労働債",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 190100000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 6121800000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 6311900000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "ocr",
+     "name": "生活労働施設債",
+     "name_src": "ocr",
+     "amount": {
+      "v": 190100000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 20
+    }
+   ]
+  },
+  {
+   "id": "general/revenue/15-1-7",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 15,
+    "name": "県債",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "県債",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 7,
+    "name": "県土整備債",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 564500000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 72838400000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 73402900000,
+    "src": "ocr"
+   },
+   "setsu": [
+    {
+     "no": 3,
+     "no_src": "ocr",
+     "name": "河川事業債",
+     "name_src": "ocr",
+     "amount": {
+      "v": -12000000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 6,
+     "no_src": "ocr",
+     "name": "海岸事業債",
+     "name_src": "ocr",
+     "amount": {
+      "v": 19400000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 7,
+     "no_src": "ocr",
+     "name": "港湾事業債",
+     "name_src": "ocr",
+     "amount": {
+      "v": 389300000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 13,
+     "no_src": "ocr",
+     "name": "道路事業債",
+     "name_src": "ocr",
+     "amount": {
+      "v": 167800000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 20
+    }
+   ]
+  },
+  {
+   "id": "general/expense/2-4-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 2,
+    "name": "総務費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 4,
+    "name": "市町村地域振興費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 4,
+    "name": "地域振興費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 19971000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 20407700000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 20427671000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 7900000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 950000,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 11121000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "交通企画費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 8363000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "能楽堂維持管理費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 10658000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "文化政策費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 950000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 8,
+     "no_src": "ocr",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 11000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 11000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "ocr",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 17000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 17000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 11,
+     "no_src": "ocr",
+     "name": "役務費",
+     "name_src": "reference",
+     "amount": {
+      "v": 2000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 2000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 2364000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 13,
+     "no_src": "ocr",
+     "name": "使用料及び賃借料",
+     "name_src": "reference",
+     "amount": {
+      "v": 11000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 9203000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 18,
+     "no_src": "ocr",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 8363000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 23
+    }
+   ]
+  },
+  {
+   "id": "general/expense/5-1-2",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 5,
+    "name": "生活労働費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "人材育成活躍推進費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "人材育成活躍推進費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 6759000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 1637012000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 1643771000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 6759000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "スポーツ推進費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 6759000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 18,
+     "no_src": "ocr",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 6759000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 25
+    }
+   ]
+  },
+  {
+   "id": "general/expense/5-2-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 5,
+    "name": "生活労働費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "福祉企画費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "福祉総務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 211178000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 5416535000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 5627713000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 190100000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 21078000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "福岡県総合福祉施設運営費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 211178000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 17028000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 194150000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 25
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-2-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "道路橋りょう費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "道路橋りょう総務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 38334000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 5097607000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 5135941000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 36104000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 2230000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "道路橋りよう事業事務費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 38334000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 8,
+     "no_src": "ocr",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 2060000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "普通旅",
+       "name_src": "ocr",
+       "amount": {
+        "v": 2060000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "ocr",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 3241000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 3241000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 33033000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 27
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-2-3",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "道路橋りょう費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 3,
+    "name": "道路新設改良費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 148300000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 42096152000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 42244452000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 74150000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 66727000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 7423000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "舖装道補修費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 148300000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 10084000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 138216000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 27
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-2-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "道路橋りょう費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "橋りょう維持費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 618374000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 4818652000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 5437026000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 340101000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 64969000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 213304000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "橋りよう補修費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 618374000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 294964000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 323410000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 27
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-3-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 3,
+    "name": "河川海岸費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "河川総務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 1700000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 4814267000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 4815967000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 1226000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 275000,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 199000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "河川砂防海岸事業事務費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 1700000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 8,
+     "no_src": "ocr",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 91000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 91000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "ocr",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 144000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 144000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 1465000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 28
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-3-2",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 3,
+    "name": "河川海岸費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 2,
+    "name": "河川改良費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 97451000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 24898687000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 24996138000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": -1609000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": -11463000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 110467000,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 56000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "広域河川改修費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 14793000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "堰堤改良費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 82658000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": -40040000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 137491000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 28
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-3-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 3,
+    "name": "河川海岸費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "海岸保全費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 39200000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 1046108000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 1085308000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 19600000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 17637000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 1963000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "海岸高潮対策事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 39200000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 39200000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 28
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-4-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 4,
+    "name": "港湾費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "港湾総務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 37780000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 807047000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 844827000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 34030000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 3750000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "港湾事業事務費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 37780000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 8,
+     "no_src": "ocr",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 2029000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 2029000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "ocr",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 3195000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 3195000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 32556000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 28
+    },
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 29
+    }
+   ]
+  },
+  {
+   "id": "general/expense/8-4-2",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 8,
+    "name": "県土整備費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 4,
+    "name": "港湾費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 2,
+    "name": "港湾建設費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 725800000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 3450529000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 4176329000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 291660000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 355270000,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 39280000,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 39590000,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "港湾改修事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 33800000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾局部改良事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 88000000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾海岸高潮対策事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 53000000,
+      "src": "ocr"
+     }
+    },
+    {
+     "name": "港湾既存施設有効活用促進事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 551000000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "setsu": [
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 725800000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 29
+    }
+   ]
+  },
+  {
+   "id": "general/expense/10-1-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 10,
+    "name": "教育費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "教育総務費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "教育振興費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 6752936000,
+    "src": "ocr"
+   },
+   "before": {
+    "v": 18128446000,
+    "src": "ocr"
+   },
+   "after": {
+    "v": 24881382000,
+    "src": "ocr"
+   },
+   "funding": {
+    "national": {
+     "v": 6480000000,
+     "src": "ocr"
+    },
+    "bond": {
+     "v": 0,
+     "src": "ocr"
+    },
+    "other": {
+     "v": 272936000,
+     "src": "ocr"
+    },
+    "general": {
+     "v": 0,
+     "src": "ocr"
+    }
+   },
+   "items": [
+    {
+     "name": "学校教育活性化推進事業費",
+     "name_src": "ocr",
+     "amount": {
+      "v": 6752936000,
+      "src": "ocr"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 2,
+     "no_src": "ocr",
+     "name": "給料",
+     "name_src": "reference",
+     "amount": {
+      "v": 4808000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 3,
+     "no_src": "ocr",
+     "name": "職員手当等",
+     "name_src": "reference",
+     "amount": {
+      "v": 1004000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "地域手当",
+       "name_src": "ocr",
+       "amount": {
+        "v": 260000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "通勤手当",
+       "name_src": "ocr",
+       "amount": {
+        "v": 154000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "期末手当",
+       "name_src": "ocr",
+       "amount": {
+        "v": 320000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "勤勉手当",
+       "name_src": "ocr",
+       "amount": {
+        "v": 270000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 4,
+     "no_src": "ocr",
+     "name": "共済費",
+     "name_src": "reference",
+     "amount": {
+      "v": 1842000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "共済組合負担金等",
+       "name_src": "ocr",
+       "amount": {
+        "v": 678000,
+        "src": "ocr"
+       }
+      },
+      {
+       "name": "社会保険料",
+       "name_src": "ocr",
+       "amount": {
+        "v": 1164000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 8,
+     "no_src": "ocr",
+     "name": "旅費",
+     "name_src": "reference",
+     "amount": {
+      "v": 1065000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "普通旅費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 1065000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 10,
+     "no_src": "ocr",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 3625000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 3625000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 11,
+     "no_src": "ocr",
+     "name": "役務費",
+     "name_src": "reference",
+     "amount": {
+      "v": 38000,
+      "src": "ocr"
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "ocr",
+       "amount": {
+        "v": 38000,
+        "src": "ocr"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "ocr",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 105895000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 13,
+     "no_src": "ocr",
+     "name": "使用料及び賃借料",
+     "name_src": "reference",
+     "amount": {
+      "v": 4033000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 14,
+     "no_src": "ocr",
+     "name": "工事請負費",
+     "name_src": "reference",
+     "amount": {
+      "v": 12845000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 17,
+     "no_src": "ocr",
+     "name": "備品購入費",
+     "name_src": "reference",
+     "amount": {
+      "v": 132689000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 18,
+     "no_src": "ocr",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 5092000,
+      "src": "ocr"
+     }
+    },
+    {
+     "no": 24,
+     "no_src": "ocr",
+     "name": "積立金",
+     "name_src": "reference",
+     "amount": {
+      "v": 6480000000,
+      "src": "ocr"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 31
+    },
+    {
+     "source": "r8-hosei-09-3-setsumeisho",
+     "page": 32
+    }
+   ]
+  }
+ ],
+ "checks": {
+  "rows": 23,
+  "all_ok": 23,
+  "rules": {},
+  "external": {
+   "総括_目の合計": "29 款で照合"
+  }
+ }
+}

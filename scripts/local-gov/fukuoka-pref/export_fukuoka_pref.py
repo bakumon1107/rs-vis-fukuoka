@@ -43,6 +43,7 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import export_hosei  # noqa: E402
 import export_settlement  # noqa: E402
 import name_evidence  # noqa: E402
 from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
@@ -361,6 +362,10 @@ class Exporter:
         }
         s, n = scalar_src("前年度")
         out["previous"] = val(m["前年度"], s, agree("前年度"), n)
+        if m.get("前年度のみ"):
+            # 前年度にだけあった目: 番号は印字されない（ID は p<n>、parse_setsumeisho が付ける）。番号は null にする
+            out["moku"]["no"] = None
+            out["previous_only"] = True
         if m["side"] == "歳出":
             f_notes = " ".join(m.get("財源の突き合わせ") or [])
             f = {}
@@ -663,6 +668,15 @@ def main():
         json.dump(settlement, f, ensure_ascii=False, indent=1)
         f.write("\n")
 
+    # R8 補正予算（export_hosei.py）。回ごとのファイル（差分）。入力（hosei-<回>.json・setsumeisho-hosei-<回>.json）のない回は書かない
+    hosei_files = export_hosei.build(a.work, budget)
+    hosei_lines = []
+    for name, data, ok, lines in hosei_files:
+        with open(os.path.join(a.out, name), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        hosei_lines += lines
+
     sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
@@ -671,7 +685,9 @@ def main():
                       # verified は、目の全検算と外部の資料との突き合わせがすべて一致したときだけ
                       "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"},
                      {"year": export_settlement.YEAR, "label": export_settlement.YEAR_LABEL, "basis": "settlement",
-                      "file": settlement_file, "status": "verified" if settlement_ok else "partial"}],
+                      "file": settlement_file, "status": "verified" if settlement_ok else "partial"}]
+                    + [{"year": export_hosei.YEAR, "label": export_hosei.YEAR_LABEL, "basis": "supplementary",
+                        "file": name, "status": "verified" if ok else "partial"} for name, _, ok, _ in hosei_files],
         "sources": sources,
     }
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
@@ -686,7 +702,7 @@ def main():
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
-    for line in settlement_lines:
+    for line in settlement_lines + hosei_lines:
         print(line, file=sys.stderr)
     for level, o, n in ex.replaced:
         print(f"名前の置き換え（{level}）: {o} → {n}", file=sys.stderr)

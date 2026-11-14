@@ -113,6 +113,8 @@ test('composed real data matches the last bill total when files exist', () => {
   const init = JSON.parse(fs.readFileSync(path.join(dir, 'budget-2026-initial.json'), 'utf8'));
   const files = sups.map((d: { file: string }) => JSON.parse(fs.readFileSync(path.join(dir, d.file), 'utf8')));
   const out = composeLatest(init, files);
-  const total = out.rows.filter(r => r.side === 'expense').reduce((s, r) => s + (r.amount.v ?? 0), 0);
+  const total = out.rows
+    .filter(r => r.account === 'general' && r.side === 'expense')
+    .reduce((s, r) => s + (r.amount.v ?? 0), 0);
   assert.equal(total, 2_313_266_114_000);
 });

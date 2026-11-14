@@ -1989,7 +1989,7 @@
    ]
   },
   {
-   "id": "general/revenue/7-2-4",
+   "id": "general/revenue/7-2-p1",
    "account": "general",
    "side": "revenue",
    "kan": {
@@ -2003,7 +2003,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 4,
+    "no": null,
     "name": "生活労働費負担金",
     "name_src": "reference"
    },
@@ -2017,6 +2017,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -5226,7 +5227,7 @@
    ]
   },
   {
-   "id": "general/revenue/9-2-10",
+   "id": "general/revenue/9-2-p1",
    "account": "general",
    "side": "revenue",
    "kan": {
@@ -5240,7 +5241,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 10,
+    "no": null,
     "name": "商工費国庫補助金",
     "name_src": "reference"
    },
@@ -5254,6 +5255,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -6696,7 +6698,7 @@
    }
   },
   {
-   "id": "general/revenue/12-1-7",
+   "id": "general/revenue/12-1-p1",
    "account": "general",
    "side": "revenue",
    "kan": {
@@ -6710,7 +6712,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 7,
+    "no": null,
     "name": "林業改善資金助成事業特別会計繰入金",
     "name_src": "reference"
    },
@@ -6724,6 +6726,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -8085,7 +8088,7 @@
    ]
   },
   {
-   "id": "general/revenue/12-2-26",
+   "id": "general/revenue/12-2-p1",
    "account": "general",
    "side": "revenue",
    "kan": {
@@ -8099,9 +8102,9 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 26,
+    "no": null,
     "name": "地域づくり基金繰入金",
-    "name_src": "readings"
+    "name_src": "correction"
    },
    "amount": {
     "v": 0,
@@ -8113,6 +8116,7 @@
     "src": "ocr",
     "agree": 2
    },
+   "previous_only": true,
    "pages": [
     {
      "source": "r8-setsumeisho-ippan",
@@ -20532,7 +20536,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-3",
+   "id": "general/expense/2-5-p1",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20546,7 +20550,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 3,
+    "no": null,
     "name": "知事選挙費",
     "name_src": "reference"
    },
@@ -20560,6 +20564,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,
@@ -20590,7 +20595,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-4",
+   "id": "general/expense/2-5-p2",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20604,7 +20609,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 4,
+    "no": null,
     "name": "知事選挙臨時啓発費",
     "name_src": "reference"
    },
@@ -20618,6 +20623,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,
@@ -20648,7 +20654,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-5",
+   "id": "general/expense/2-5-p3",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20662,7 +20668,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 5,
+    "no": null,
     "name": "参議院議員通常選挙費",
     "name_src": "readings"
    },
@@ -20676,6 +20682,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,
@@ -20706,7 +20713,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-6",
+   "id": "general/expense/2-5-p4",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20720,7 +20727,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 6,
+    "no": null,
     "name": "参議院議員通常選挙臨時啓発費",
     "name_src": "readings"
    },
@@ -20734,6 +20741,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,
@@ -20764,7 +20772,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-7",
+   "id": "general/expense/2-5-p5",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20778,7 +20786,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 7,
+    "no": null,
     "name": "県議会議員補欠選挙費",
     "name_src": "reference"
    },
@@ -20792,6 +20800,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,
@@ -20822,7 +20831,7 @@
    ]
   },
   {
-   "id": "general/expense/2-5-8",
+   "id": "general/expense/2-5-p6",
    "account": "general",
    "side": "expense",
    "kan": {
@@ -20836,7 +20845,7 @@
     "name_src": "reference"
    },
    "moku": {
-    "no": 8,
+    "no": null,
     "name": "県議会議員補欠選挙臨時啓発費",
     "name_src": "reference"
    },
@@ -20850,6 +20859,7 @@
     "src": "ocr",
     "agree": 3
    },
+   "previous_only": true,
    "funding": {
     "national": {
      "v": 0,

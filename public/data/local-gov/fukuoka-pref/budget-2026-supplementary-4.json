@@ -1,0 +1,159 @@
+{
+ "schema_version": 1,
+ "gov_id": "fukuoka-pref",
+ "year": 2026,
+ "year_label": "令和8年度",
+ "basis": "supplementary",
+ "supplementary": {
+  "round": "9月補正（第4号・追加提案）",
+  "kind": "追加提案",
+  "bill_no": "第158号議案"
+ },
+ "unit_source": "千円",
+ "accounts": [
+  {
+   "id": "general",
+   "kind": "general",
+   "name": "一般会計"
+  }
+ ],
+ "rows": [
+  {
+   "id": "general/revenue/9-2-10",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 9,
+    "name": "国庫支出金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "国庫補助金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 10,
+    "name": "商工費国庫補助金",
+    "name_src": "text"
+   },
+   "amount": {
+    "v": 1960934000,
+    "src": "text"
+   },
+   "before": {
+    "v": 0,
+    "src": "blank-as-zero"
+   },
+   "after": {
+    "v": 1960934000,
+    "src": "text"
+   },
+   "setsu": [
+    {
+     "no": 1,
+     "no_src": "text",
+     "name": "観光費補助金",
+     "name_src": "text",
+     "amount": {
+      "v": 1960934000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-4-setsumeisho",
+     "page": 10
+    }
+   ]
+  },
+  {
+   "id": "general/expense/7-3-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 7,
+    "name": "商工費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 3,
+    "name": "観光費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "観光費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 1960934000,
+    "src": "text"
+   },
+   "before": {
+    "v": 4275335000,
+    "src": "text"
+   },
+   "after": {
+    "v": 6236269000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 1960934000,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 0,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "観光振興費",
+     "name_src": "text",
+     "amount": {
+      "v": 1960934000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 1960934000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-09-4-setsumeisho",
+     "page": 13
+    }
+   ]
+  }
+ ],
+ "checks": {
+  "rows": 2,
+  "all_ok": 2,
+  "rules": {},
+  "external": {
+   "総括_目の合計": "29 款で照合"
+  }
+ }
+}

@@ -62,6 +62,7 @@ export function LocalDetailPanel({
         <h2 className="text-base font-bold">
           {row.moku.name}
           <NameMark src={row.moku.name_src} />
+          {row.added_in && <span className="ml-1 text-[11px] font-normal text-primary-accent">{row.added_in}で新設</span>}
         </h2>
         <p className="text-[11px] text-mirai-text-muted">名前の出典: {NAME_SRC_LABEL[isOcrName(row.moku.name_src) ? 'ocr' : row.moku.name_src!]}</p>
       </div>
@@ -143,7 +144,32 @@ export function LocalDetailPanel({
         </section>
   );
 
-  const amounts = settlementAmounts || (
+  // 補正後（当初 + Σ補正）の目: 補正後の額・当初の額・回ごとの補正額（before は当初の額。composeLatest が入れる）
+  const latestAmounts = row.before !== undefined && (row.supplements !== undefined || row.added_in !== undefined) && (
+      <table className="w-full text-sm">
+        <tbody>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">補正後</th>
+            <td className="text-right font-bold">{yen(row.amount)}<Mark v={row.amount} /></td>
+          </tr>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">当初予算</th>
+            <td className="text-right">{row.added_in ? '—（補正で新設）' : yen(row.before)}</td>
+          </tr>
+          {(row.supplements ?? []).map(s => (
+            <tr key={s.round}>
+              <th className="py-0.5 text-left font-normal text-mirai-text-muted">{s.round}</th>
+              <td className="text-right">
+                {(s.amount.v ?? 0) >= 0 ? '+' : '△'}
+                {formatBudgetFromYen(Math.abs(s.amount.v ?? 0))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+  );
+
+  const amounts = settlementAmounts || latestAmounts || (
       <table className="w-full text-sm">
         <tbody>
           <tr>
@@ -191,6 +217,7 @@ export function LocalDetailPanel({
                     {it.name}
                     {it.headcount !== undefined && <span className="text-mirai-text-muted">（{it.headcount}人）</span>}
                     <NameMark src={it.name_src} />
+                    {it.added_in && <span className="ml-1 text-[10px] text-primary-accent">{it.added_in}で追加</span>}
                     {it.no_amount_printed && (
                       <span className="ml-1 text-[10px] text-amber-700" title="説明欄に事項が1つだけで金額が印字されていないため、目の額を当てています（事項の額としては検算していません）">
                         ※金額の記載なし（目の額）
