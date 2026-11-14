@@ -484,8 +484,8 @@ NAME_CORRECTIONS = os.path.join(HERE, "ocr", "corrections", f"r{YEAR - 2018}-nam
 
 def apply_name_corrections(rows, fixes, unresolved):
     """名前の修正表（画像で確かめた名前）を書き出した行に当てる。出典は correction。
-    款は id「<会計>/<歳入出>/<款>」、項は「…/<款>-<項>」でその款・項のすべての目の行に、目・節は目の行の id に当てる。
-    節は目の中の金額（千円）で特定する。当たる先が無い・節が1つに絞れない修正は、修正表が古い（データが変わった）
+    款は id「<会計>/<歳入出>/<款>」、項は「…/<款>-<項>」でその款・項のすべての目の行に、目・節・事項は目の行の id に当てる。
+    節・事項（item）は目の中の金額（千円）で特定する。当たる先が無い・節が1つに絞れない修正は、修正表が古い（データが変わった）
     ので止める。当てた名前は裏付けのない名前の一覧（unresolved）から除く。返り値: 当てた件数。"""
     n = 0
     for fx in fixes:
@@ -500,9 +500,15 @@ def apply_name_corrections(rows, fixes, unresolved):
             # 同じ金額の節が目の中に2つあるときは、画像の節番号（"no"）も合わせて特定する（14款7項2目の 30,000 千円）
             targets = [s for r in rows if r["id"] == fid for s in r.get("setsu", [])
                        if s["amount"]["v"] == yen(fx["amount"]) and ("no" not in fx or s["no"] == fx["no"])]
+        elif lv == "item":
+            # 説明欄の事項は目の中の金額（千円）で特定する。同じ金額の事項が目の中に2つあるとき（内訳の事項が親と同じ金額のときも）は、
+            # 今の名前（"was"。書き出したデータの name を写したもの）も合わせる。全角・半角の違いは clean_name でそろえて比べる
+            targets = [it for r in rows if r["id"] == fid for it in r.get("items", [])
+                       if it["amount"]["v"] == yen(fx["amount"])
+                       and ("was" not in fx or it["name"] == clean_name(fx["was"]))]
         else:
             sys.exit(f"名前の修正表: level が不正（{lv}）")
-        if not targets or (lv in ("moku", "setsu") and len(targets) != 1):
+        if not targets or (lv in ("moku", "setsu", "item") and len(targets) != 1):
             sys.exit(f"名前の修正表: {fid} の {lv}「{fx['name']}」に当たる先が {len(targets)} 件（1件に絞れない・修正表が古い）")
         for t in targets:
             t["name"], t["name_src"] = name, "correction"

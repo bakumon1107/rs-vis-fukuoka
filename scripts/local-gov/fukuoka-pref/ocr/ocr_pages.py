@@ -6,6 +6,8 @@ OCR は時間がかかるので、この段階では「どの列の、どの高�
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/ocr/ocr_pages.py <説明書.pdf> <出力ディレクトリ> <PDFページ範囲 例 121-420> [--dpi 300] [--redo-unknown]
     既にあるページは飛ばす。--redo-unknown は、見出しのない続きの表を前のページの結果なしで判定したページ（WARN が出る）だけ読み直す
+    --dpi は 300 で検証した。罫線の検出（detect_lines）の間隔の値（二重線をまとめる 45px など）は 300dpi の値のままで、
+    線の選び方（choose_vlines）の基準だけを解像度の比で直している。300 以外で流すなら、検出の値も合わせて確かめること
 
 必要なパッケージ: rapidocr（3.x。OCR_ENGINE=v4ch なら rapidocr-onnxruntime）, onnxruntime, opencv-python-headless, numpy（PYLIB 環境変数のディレクトリを sys.path に足す）
 出力: <出力ディレクトリ>/p0123.json  … {page, dpi, size, vlines, hlines, title:[...], cols:[[{y,x,text,score}...], ...]}
@@ -26,21 +28,89 @@ import numpy as np  # noqa: E402
 
 # 予算に関する説明書の表の縦線の本数（福岡県。歳入 7列＝8本、歳出 11列＝12本）
 VALID_LINE_COUNTS = (8, 12)
+# 同じ線とみなす間隔（二重線をまとめる間隔と同じ）と、列の幅の下限（300dpi。R8 の説明書でいちばん狭い列は約 225px）
+SAME_LINE_PX = 45
+MIN_COL_PX = 150
+
+# 列見出しの語。旧 OCR（中国語モデル）は簡体字で読む（「财源」「国支出金」）ので、見分ける前に繁体字（日本の字形）へ寄せる。
+# 財源の語を見落とすと歳出の表を歳入（8本）で切り、歳入・歳出の取り違えが後ろの表まで続く
+# （R8 281298 p138 ほか 9表。2026-11-13 に取り直して分かった）
+_SIMPLIFIED = str.maketrans({"财": "財", "库": "庫", "节": "節", "说": "説", "细": "細", "额": "額"})
+HEADER_RE = re.compile(r"年度|区分|説明|節|款名|財源")    # 列見出しの行（これがなければ見出しのない続きの表）
+EXPENSE_HEADER_RE = re.compile(r"財源|国庫|一般財")        # 歳出の表の見出し（財源内訳の欄）
 
 
-def choose_vlines(tv, page_vlines, header_text, prev_cols):
+def normalize_header(text: str) -> str:
+    """列見出しの文字を、見出しの語の判定のために繁体字（日本の字形）へ寄せる。"""
+    return text.translate(_SIMPLIFIED)
+
+
+def union_vlines(tv, page_vlines, scale=1.0):
+    """表ごとの線とページ共通の線がどちらも歳出の本数より1本少ないとき（それぞれ別の線を1本ずつ取りこぼした）、
+    ページ共通の線に、表ごとの線のうちページ共通の線から SAME_LINE_PX 以上離れたものを足して 12本にする。
+    返り値: (合わせた線 or None, 表ごとの線が怪しいか)。合わせる条件に当たらなければ (None, False)。
+    近い線は同じ線とみなし、ページ共通の位置を使う。表ごとの線は細節の区切りの短い線を
+    列の境界と取り違えることがある（R8 281298 p367）ので、ページの高さ全体で測った線を優先する。
+    本数を絞るのは、様式の違う表（特別会計の総括の表は 9本・ページ共通 5本。R8 281299 p7）を、
+    たまたま足して 12本になった線で切らないため。足した線が両隣の線と列の幅の下限より近ければ、細節の区切りの線を
+    足した疑いがあるので合わせず、表ごとの線が怪しい（True）と返す。scale は 300dpi に対する解像度の比。"""
+    exp = VALID_LINE_COUNTS[1]
+    if len(tv) != exp - 1 or len(page_vlines) != exp - 1:
+        return None, False
+    tol, min_col = SAME_LINE_PX * scale, MIN_COL_PX * scale
+    extra = [x for x in tv if all(abs(x - y) >= tol for y in page_vlines)]
+    merged = sorted(list(page_vlines) + extra)
+    if len(merged) != exp:
+        return None, False
+    for x in extra:
+        i = merged.index(x)
+        if (i > 0 and x - merged[i - 1] < min_col) or (i + 1 < len(merged) and merged[i + 1] - x < min_col):
+            return None, True
+    return merged, False
+
+
+def same_positions(a, b, scale=1.0):
+    """本数が同じ2組の線が、1本ずつ同じ位置（SAME_LINE_PX 以内）にあるか。"""
+    return len(a) == len(b) and all(abs(x - y) < SAME_LINE_PX * scale for x, y in zip(a, b))
+
+
+def choose_vlines(tv, page_vlines, header_text, prev_cols, dpi=300):
     """表の縦線を、表ごとの線（tv）とページ共通の線（page_vlines）から選ぶ。表でなければ None。
     header_text: 列見出しの文字（見出しのない続きの表は None）。prev_cols: 直前の表の列数（なければ None）。
+    dpi: 画像の解像度（線の間隔の基準 SAME_LINE_PX・MIN_COL_PX は 300dpi の値なので比で直す）。
     規則と実例は main のコメント（R8 281299 p9・p45・p51、281298 p131）。"""
     rev, exp = VALID_LINE_COUNTS
-    if header_text is not None and re.search(r"財源|国庫|一般財", header_text):
+    scale = dpi / 300
+    if header_text is not None and EXPENSE_HEADER_RE.search(normalize_header(header_text)):
         if len(tv) == exp:
             return tv
-        return page_vlines if len(page_vlines) == exp else max(tv, page_vlines, key=len)
+        if len(page_vlines) == exp:
+            return page_vlines
+        # どちらも 12本でない: 表ごとの線とページ共通の線が1本ずつ別の線を取りこぼした（R8 281298 p238: 表ごとは左端の
+        # 区分の線、ページ共通は節の区分と金額の間の線がない）。どちらか一方では列がつながる（「2扶助費30,999,209」）ので、
+        # 両方を合わせて 12本になればそれを使う。表ごとの線が怪しければページ共通（余計な列の境界で切らない）
+        merged, tv_suspect = union_vlines(tv, page_vlines, scale)
+        if merged:
+            return merged
+        return page_vlines if tv_suspect else max(tv, page_vlines, key=len)
     if header_text is not None and len(tv) == rev:
         return tv
     if header_text is None and prev_cols == rev - 1 and len(tv) == rev:
         return tv
+    if header_text is None and prev_cols == exp - 1:
+        # 見出しのない歳出の続きの表でも同じ取りこぼし方があれば、財源の見出しのある表（上）と同じく合わせる
+        merged, tv_suspect = union_vlines(tv, page_vlines, scale)
+        if merged:
+            return merged
+        if tv_suspect:
+            return page_vlines
+    if header_text is None and prev_cols == exp - 1 and len(tv) >= 6 and same_positions(tv, page_vlines, scale):
+        # 見出しのない歳出の続きの表で、本数が同じで1本ずつ近い位置にあるなら、ページ共通の線を使う（歳入の続きや直前が
+        # 分からない表、位置の離れた線がある表は今までどおり。ページ共通の線が同じページの別の様式の表の線のことがある）。
+        # 表ごとの線は、細節の行の区切りの短い縦線を
+        # 列の境界と取り違えることがある（R8 281298 p367: 節の欄の左端がページ共通 2153 → 表ごと 2180。
+        # 節の番号が欄の外に落ち、節と細節の字下げの差が消えて細節を節として数えた）。ページの高さ全体で測った線の方が確か
+        return page_vlines
     if len(tv) < max(6, len(page_vlines)):
         return page_vlines if len(page_vlines) >= 6 else None
     return tv if len(tv) >= 6 else None
@@ -267,15 +337,17 @@ def main():
                     #   見出しがあり財源の語がない → 歳入: 8本の線（表ごと）
                     #   見出しがない（前のページから続く表）→ 直前の表（同じページの前の表、なければ前のページの最後の表）が
                     #     歳入で、表ごとの線が8本ならそれを使う（R8 281299 p51: 歳入の続きの表と歳出の表が同じページ）
+                    #   表ごともページ共通も 11本（別の線を1本ずつ取りこぼした）で歳出の表 → 合わせて 12本（一般会計 p238）
+                    #   見出しのない歳出の続きの表で本数が同じ → ページ共通（表ごとは細節の区切りの線を拾うことがある。一般会計 p367）
                     #   それ以外 → 表ごとの本数がページ共通以上なら表ごと、でなければページ共通
                     #     （長い表は行の区切りで線が途切れ、表ごとだと本数が減る。一般会計 p131 で 12→10）
-                    is_header = bool(re.search(r"年度|区分|説明|節|款名|財源", htext)) and head - vtop <= 400
+                    is_header = bool(HEADER_RE.search(normalize_header(htext))) and head - vtop <= 400
                     if rec["tables"]:
                         prev_cols = len(rec["tables"][-1]["cols"])
                         prev_unknown = bool(rec["tables"][-1].get("prev_cols_unknown"))
                     else:
                         prev_cols, prev_unknown = previous_table_cols(outdir, page)
-                    tv = choose_vlines(tv, vlines, htext if is_header else None, prev_cols)
+                    tv = choose_vlines(tv, vlines, htext if is_header else None, prev_cols, dpi)
                     if tv is None:
                         continue  # 表ではない（枠だけの囲みなど）
                     # 前のページから続く表には列見出しがない（R8 一般会計 p151 で確認）。最初の全幅の線は目の区切り。

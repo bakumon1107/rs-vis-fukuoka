@@ -105,6 +105,27 @@ def test_name_corrections_apply_and_clear_unresolved():
     assert unresolved == []   # 当てた名前は、画像で確かめる一覧から消える
 
 
+def test_name_corrections_apply_to_items():
+    # 説明欄の事項は目の中の金額で特定する。同じ金額の事項が2つあれば今の名前（was）も合わせる
+    row = _row("general/expense/12-1-2")
+    row["items"] = [{"name": "一時借入金利子", "name_src": "readings", "amount": {"v": 90_000_000, "src": "ocr"}},
+                    {"name": "公債管理特別会計の繰出金", "name_src": "ocr", "amount": {"v": 31_278_351_000, "src": "ocr"}},
+                    {"name": "x", "name_src": "ocr", "amount": {"v": 5_000, "src": "ocr"}},
+                    {"name": "y", "name_src": "ocr", "amount": {"v": 5_000, "src": "ocr"}}]
+    fixes = [{"id": "general/expense/12-1-2", "level": "item", "amount": 31278351, "name": "公債管理特別会計への繰出金"},
+             {"id": "general/expense/12-1-2", "level": "item", "amount": 5, "was": "y", "name": "z"}]
+    assert ex.apply_name_corrections([row], fixes, []) == 2
+    assert [(it["name"], it["name_src"]) for it in row["items"]] == [
+        ("一時借入金利子", "readings"), ("公債管理特別会計への繰出金", "correction"), ("x", "ocr"), ("z", "correction")]
+    # 今の名前は画像のとおり全角で書いてもよい（行の名前と同じく clean_name でそろえて比べる）
+    row["items"][2]["name"] = "A1"
+    assert ex.apply_name_corrections([row], [{"id": "general/expense/12-1-2", "level": "item", "amount": 5,
+                                               "was": "Ａ１", "name": "v"}], []) == 1
+    assert row["items"][2]["name"] == "v"
+    with pytest.raises(SystemExit):   # 同じ金額の事項が2つで今の名前の指定なし → 1件に絞れない
+        ex.apply_name_corrections([row], [{"id": "general/expense/12-1-2", "level": "item", "amount": 5, "name": "w"}], [])
+
+
 def test_name_corrections_stop_when_stale():
     rows = [_row("general/revenue/8-1-3", [(2, 836), (3, 836)])]
     with pytest.raises(SystemExit):   # 同じ金額の節が2つで番号の指定なし → 1件に絞れない
