@@ -177,3 +177,30 @@ def test_pick_name():
     assert pick("地域振興総務費") == ("地域振興総務費", "ocr")  # R8 の新しい目は（ほかの裏付けがなければ）OCR のまま
     assert e.replaced == [("moku", "店報費", "広報費")]
     assert [u[2] for u in e.unresolved] == ["地域振興総務費"]   # 裏付けのない名前は画像で確かめる一覧に出る
+
+
+def _moku(h, p, items, fixes=None):
+    return {"本年度": h, "前年度": p, "説明": [{"name": "x", "amount": a} for a in items], **({"修正": fixes} if fixes else {})}
+
+
+def test_ndl_mismatches_finds_stale_readings():
+    ocr = {"a": _moku(100, 90, [60, 40]), "b": _moku(5, 5, [5])}
+    # 同じなら空
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 40]), "b": _moku(5, 5, [5])}) == []
+    # 説明欄の金額が1件違う・本年度が違う・目が欠ける／余る
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 41]), "b": _moku(5, 5, [5])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {"a": _moku(101, 90, [60, 40]), "b": _moku(5, 5, [5])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 40]), "c": _moku(5, 5, [5])}) == ["b", "c"]
+
+
+def test_ndl_mismatches_skips_only_corrected_columns():
+    # 修正表で本年度を直した目: 本年度は比べないが、説明欄の金額と目の有無は比べる
+    ocr = {"a": _moku(100, 90, [100], fixes=[{"列": "本年度"}])}
+    assert ex.ndl_mismatches(ocr, {"a": _moku(99, 90, [100])}) == []
+    assert ex.ndl_mismatches(ocr, {"a": _moku(99, 90, [99])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {}) == ["a"]
+
+
+def test_candidate_labels_mark_support_only():
+    assert ex.candidate_labels([("用水事業費負担金", "ocr"), ("の用水事業費2負担金", "ndl")]) == \
+        ["用水事業費負担金", "の用水事業費2負担金（ndl・支えのみ）"]

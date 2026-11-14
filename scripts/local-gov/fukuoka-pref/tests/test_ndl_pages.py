@@ -1,6 +1,5 @@
 """名前の欄を NDLOCR-Lite で読み直す（ocr/ndl_pages.py）の単体テスト。切り抜きの範囲と置き換え方（モデルは使わない）。"""
 import numpy as np
-import pytest
 
 from conftest import load
 
@@ -63,16 +62,25 @@ class TestMergeNumbers:
         assert nd.merge_numbers("1 報", "13報酬") == "1報酬"
         # 末尾の数字（右端の罫線の読み）も外す。OCR の行が数字で終わるとき（「人生100」）は残す
         assert nd.merge_numbers("林業改善資金", "林業改善資金1") == "林業改善資金"
+        assert nd.merge_numbers("林業改善資金", "林業改善資金|1") == "林業改善資金"  # 罫線と数字の順が逆でも
         assert nd.merge_numbers("人生100", "人生100") == "人生100"
+
+
+class TestKeepOcrLine:
+    def test_short_and_total_lines(self):
+        assert nd.keep_ocr_line("計", moku_col=True) and nd.keep_ocr_line("費", moku_col=False)
+        assert nd.keep_ocr_line("合 計", moku_col=True) and nd.keep_ocr_line("计", moku_col=True)  # 簡体字・空白入りも
+        assert not nd.keep_ocr_line("管理事務費", moku_col=False)
+        assert not nd.keep_ocr_line("会計", moku_col=False)  # 計で終わっても目の欄でなければ読み直す
         # 金額の形の読み（2行目の1字「費」→「19」）は OCR の読みのまま
         assert nd.merge_numbers("費", "19") == "費"
         assert nd.merge_numbers("管理事務費", "") == "管理事務費"
 
 
 class TestReplaceNames:
-    def test_replaces_name_boxes_keeps_amounts_and_left_edge(self):
-        # 切り抜きの前処理（squeeze_gaps）が opencv を使う。PYLIB なしの環境では飛ばす
-        pytest.importorskip("cv2")
+    def test_replaces_name_boxes_keeps_amounts_and_left_edge(self, monkeypatch):
+        # 切り抜きの前処理（squeeze_gaps）は opencv を使うので、ここでは素通しにする（PYLIB のない環境でも流れる）
+        monkeypatch.setattr(nd, "squeeze_gaps", lambda img: img)
         # 歳入の表（7列）: 0 目 / 4 節の区分 / 6 説明 が名前の欄。金額の文字枠と左端（字下げで細節を見分ける）は変えない
         vlines = [0, 300, 500, 700, 900, 1300, 1500, 2000]
         cols = [[box("1 県民税", 20, 200)], [box("100", 310, 490)], [], [], [box("現年", 950, 1000), box("課税分", 1010, 1100)],
@@ -91,8 +99,8 @@ class TestReplaceNames:
         assert rec["source"] == "ndl"
 
     def test_total_rows_are_kept(self):
-        # 目の欄の「計」の行は置き換えない（NDLOCR-Lite が「10」と読むと、解釈が計の行を見分けられず架空の目になる）
-        pytest.importorskip("cv2")
+        # 目の欄の「計」の行は置き換えない（NDLOCR-Lite が「10」と読むと、解釈が計の行を見分けられず架空の目になる）。
+        # 読み直しの前に戻るので opencv は使わない（退行して読み直すと squeeze_gaps で落ちて気づける）
         vlines = [0, 300, 500, 700, 900, 1300, 1500, 2000]
         cols = [[box("計", 20, 60)], [box("100", 310, 490)], [], [], [], [], []]
         rec = {"vlines": vlines, "tables": [{"cols": cols}]}

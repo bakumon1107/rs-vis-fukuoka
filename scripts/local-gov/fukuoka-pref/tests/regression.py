@@ -238,7 +238,12 @@ def main():
     for n in skipped:
         print(f"WARN 飛ばした: [{n}] {got[n]['skipped']}", file=sys.stderr)
     print(f"回帰テスト: {len(want)} ステップ、差分 {len(diffs)} 件、飛ばした {len(skipped)} 件", file=sys.stderr)
-    sys.exit(1 if diffs else 0)
+    # 期待値に結果のあるステップを飛ばしたら失敗にする（入力の一部が欠けた環境で、書き出しなどの回帰テストが抜けたまま通らないように）。
+    # 原本の一部しかない環境で、分かっていて流すときは --allow-skip
+    missed = [n for n in skipped if n in want and "skipped" not in want[n]]
+    if missed and "--allow-skip" not in sys.argv:
+        print(f"FAIL 期待値のあるステップを飛ばした: {', '.join(missed)}（入力を揃えるか --allow-skip）", file=sys.stderr)
+    sys.exit(1 if diffs or (missed and "--allow-skip" not in sys.argv) else 0)
 
 
 if __name__ == "__main__":

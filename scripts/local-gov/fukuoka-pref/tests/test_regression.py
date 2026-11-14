@@ -34,3 +34,6 @@ def test_regression():
     got = reg.run_all(os.environ["FUKUOKA_DATA"])
     want = json.load(open(reg.EXPECTED, encoding="utf-8"))
     assert reg.compare(got, want) == []
+    # 期待値に結果のあるステップは飛ばさない（regression.py の --allow-skip と同じ決まり。環境変数 REGRESSION_ALLOW_SKIP=1 で許す）
+    if not os.environ.get("REGRESSION_ALLOW_SKIP"):
+        assert [n for n, g in got.items() if "skipped" in g and n in want and "skipped" not in want[n]] == []

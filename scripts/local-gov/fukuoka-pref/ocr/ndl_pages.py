@@ -34,7 +34,7 @@ sys.path.insert(0, HERE)
 if os.environ.get("PYLIB"):
     for p in reversed(os.environ["PYLIB"].split(":")):
         sys.path.insert(0, p)
-from parse_setsumeisho import amount, lines_of  # noqa: E402
+from parse_setsumeisho import amount, lines_of, norm_name  # noqa: E402
 
 # 名前の欄（列の数 → 名前の列）。歳出は 0 目 / 8 節の区分 / 10 説明、歳入は 0 目 / 4 節の区分 / 6 説明（parse_setsumeisho と同じ）。
 # 10列の表（節の区分と金額の間の縦線が取れなかった表）は 8 に区分と金額が混ざるので、金額でない文字枠だけを読む
@@ -45,9 +45,18 @@ INSET, PAD_Y = 6, 6
 EXTEND = 1.2
 # 名前の両端に付く罫線の読み（細節の内側の枠）
 FRAME_RE = re.compile(r"^[|｜丨]+|[|｜丨]+$")
-# 計の行（目の欄の「計」）。解釈は目の欄の文字で計の行を見分けるので、置き換えない（NDLOCR-Lite が「計」を「10」と読むと、
-# 計の行が架空の目になった。R8 で 74行）
-TOTAL_RE = re.compile(r"^(歳入|歳出)?[合小総]?計$")
+
+
+def keep_ocr_line(ocr_text: str, moku_col: bool) -> bool:
+    """NDLOCR-Lite で読み直さず、OCR の読みのまま残す行。
+    - 1字の行（「計」「費」）: 入力の大きさへ横に数倍引き伸ばすので、数字・別の字に読む（「計」→「10」、2行目の「費」→「19」）
+    - 目の欄の計の行（解釈の is_total と同じ見分け方: 字形を直した名前が「計」で終わり、数字がない）: 解釈が計の行を目と見なし、
+      架空の目ができた（R8 で 74行）
+    OCR が「计」（簡体字）・「合　計」と読んでも当たるよう、解釈と同じ norm_name で直してから見る"""
+    name = norm_name(ocr_text)
+    if len(name) <= 1:
+        return True
+    return moku_col and name.endswith("計") and not re.search(r"\d", ocr_text)
 
 
 class Parseq:
@@ -67,7 +76,7 @@ class Parseq:
         if h > w * 0.8:
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
         # 縦横比を保たずに入力の大きさへ引き伸ばす（parseq.py と同じ）。短い行（1字の「計」）は横に数倍伸びて「10」と読むことがあるが、
-        # 縦横比を保って右を白で埋めると、目の名前の正解が 20件中 18 → 1件に落ちた（R8 p18〜30。2026-11-15）。計の行は置き換えない（TOTAL_RE）
+        # 縦横比を保って右を白で埋めると、目の名前の正解が 20件中 18 → 1件に落ちた（R8 p18〜30。2026-11-15）。1字の行・計の行は読み直さない（keep_ocr_line）
         x = cv2.resize(img, (self.w, self.h), interpolation=cv2.INTER_LINEAR)
         x = np.ascontiguousarray(x[:, :, ::-1]).astype(np.float32) / 127.5 - 1.0
         out = self.s.run(None, {self.inp.name: x.transpose(2, 0, 1)[None]})[0]
@@ -151,12 +160,15 @@ def merge_numbers(ocr_text: str, ndl_text: str) -> str:
     if not ndl_text or amount(ndl_text) is not None:
         return ocr_text
     m = re.match(r"\s*(\d+)", ocr_text)
+    if not re.search(r"\d", ocr_text):
+        # OCR の行に数字がなければ、NDLOCR-Lite の読みの数字はすべて罫線・記号の読み違い（「林業改善資金1」「林業改善資金|1」
+        # 「林業改善資金1)」。2行の目の名前の1行目の右端の罫線。解釈がそれを目の番号にして、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
+        return FRAME_RE.sub("", re.sub(r"\d", "", ndl_text)).strip()
     body = re.sub(r"^\d+", "", ndl_text)
-    # 末尾の数字も、OCR の行が数字で終わらなければ外す（2行の目の名前の1行目の右端の罫線を「1」と読み「林業改善資金1」、
-    # 解釈がそれを目の番号にして、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
+    # OCR の行に数字があれば、頭の番号は OCR の読みを使い、末尾の数字は OCR の行が数字で終わらなければ外す
     if not re.search(r"\d\s*$", ocr_text):
         body = re.sub(r"\d+$", "", body)
-    return (m.group(1) if m else "") + body
+    return (m.group(1) if m else "") + FRAME_RE.sub("", body).strip()
 
 
 def replace_names(rec: dict, img, ndl) -> int:
@@ -173,12 +185,13 @@ def replace_names(rec: dict, img, ndl) -> int:
             new_col = [d for d in t["cols"][ci] if is_amount_box(d)]
             # 節の区分の欄（各表の名前の列の2つ目）は欄の幅いっぱいに読む
             for row, (x0, y0, x1, y1) in name_lines(t["cols"][ci], vl[ci], vl[ci + 1], full=ci == cols[1]):
-                if TOTAL_RE.match("".join(d["text"] for d in row).replace(" ", "")):
-                    new_col += row  # 計の行は OCR の文字枠のまま
+                ocr_text = "".join(d["text"] for d in row)
+                if keep_ocr_line(ocr_text, moku_col=ci == cols[0]):
+                    new_col += row  # 1字の行・計の行は OCR の文字枠のまま
                     continue
                 crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
                 text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
-                text = merge_numbers("".join(d["text"] for d in row), text)
+                text = merge_numbers(ocr_text, text)
                 new_col.append({"x0": min(d["x0"] for d in row), "x1": max(d["x1"] for d in row),
                                 "y0": min(d["y0"] for d in row), "y1": max(d["y1"] for d in row),
                                 "text": text, "score": 1.0, "ndl": True})

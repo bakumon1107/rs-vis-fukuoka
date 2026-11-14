@@ -231,6 +231,31 @@ def val(v, src, agree=None, note=None):
     return out
 
 
+def ndl_mismatches(ocr: dict, ndl: dict) -> list:
+    """NDLOCR-Lite の読み取り（ndl）が今の OCR の読み取り（ocr）と合わない目の鍵。どちらも 目の鍵 → 目の行。
+    NDLOCR-Lite の読み取りは OCR の文字枠の位置で切り抜き、金額は OCR の値を写す。OCR を流し直した後に読み直しを忘れると、
+    古い切り抜きの名前を別の目の支えに使ってしまう。目の並び（鍵の集まり）と、本年度・前年度・説明欄の金額が同じことを確かめる。
+    修正表で直した欄は比べない（OCR の解釈にだけ修正表を当てている。NDLOCR-Lite の解釈は名前が違うので修正表が当たらない）。
+    鍵の有無は修正のある目も比べる"""
+    bad = sorted(set(ocr) ^ set(ndl), key=str)
+    for k, m in ocr.items():
+        o = ndl.get(k)
+        if o is None:
+            continue
+        fixed = {fx.get("列") for fx in m.get("修正", [])}
+        cols = [c for c in ("本年度", "前年度") if c not in fixed]
+        if [m.get(c) for c in cols] != [o.get(c) for c in cols]:
+            bad.append(k)
+        elif "説明" not in fixed and [e["amount"] for e in m.get("説明", [])] != [e["amount"] for e in o.get("説明", [])]:
+            bad.append(k)
+    return bad
+
+
+def candidate_labels(cands) -> list[str]:
+    """画像で確かめる一覧（names-unresolved.json）に出す候補。支えにだけ使う系統の読み取りには、そうと分かる印を付ける"""
+    return [c if g not in SUPPORT_ONLY else f"{c}（{g}・支えのみ）" for c, g in cands]
+
+
 class Exporter:
     def __init__(self, work, kmk, keijou, yosansho, vote, corpus=None):
         self.vote = vote
@@ -256,15 +281,10 @@ class Exporter:
         loaded = [self.vote.load(p) for p in paths]
         self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
         ndl = {self.vote.key(m): m for m in self.vote.load(ndl_path)}
-        # NDLOCR-Lite の読み取りは OCR の文字枠の位置で切り抜き、金額は OCR の値を写す。OCR を流し直した後に読み直しを忘れると、
-        # 古い切り抜きの名前を別の目の支えに使ってしまう。目の並びと金額が今の OCR と同じことを確かめ、違えば止める
-        # 修正表で金額を直した目は比べない（OCR の解釈にだけ修正表を当てている。NDLOCR-Lite の解釈は名前が違うので修正表が当たらない）
-        stale = [k for k, m in self.raw[0].items() if not m.get("修正") and (
-                 k not in ndl or [m.get(c) for c in ("本年度", "前年度")] != [ndl[k].get(c) for c in ("本年度", "前年度")]
-                 or [e["amount"] for e in m.get("説明", [])] != [e["amount"] for e in ndl[k].get("説明", [])])]
-        if stale or len(ndl) != len(self.raw[0]):
-            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）が今の OCR と合わない（目 {len(stale)} 件・"
-                     f"目の数 {len(ndl)} / {len(self.raw[0])}）。OCR を流し直したら ocr/ndl_pages.py も流し直す（データの作り方）")
+        bad = ndl_mismatches(self.raw[0], ndl)
+        if bad:
+            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）が今の OCR と合わない（{len(bad)} 件。例: {bad[:3]}）。"
+                     f"OCR を流し直したら ocr/ndl_pages.py も流し直す（データの作り方）")
         self.raw.append(ndl)
         # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
         return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]
@@ -294,7 +314,7 @@ class Exporter:
             self.replaced.append((level, first, name))
         if src == "ocr" and report:
             # 画像で確かめる一覧の候補。支えにだけ使う読み取りは、そうと分かるように印を付ける
-            self.unresolved.append((level, where, name, [c if g not in SUPPORT_ONLY else f"{c}（{g}・支えのみ）" for c, g in cands], ev))
+            self.unresolved.append((level, where, name, candidate_labels(cands), ev))
         return name, src, (ev if src == "search" else None)
 
     def others(self, m):
@@ -472,8 +492,7 @@ class Exporter:
                     name, nsrc, nev = SETSU_NAMES[no], "ocr", None
                     self.unresolved.append(("setsu", {**where, "page": st.get("page"), "y": st.get("y"),
                                                       "amount": st["amount"]}, name,
-                                            [lab if g not in SUPPORT_ONLY else f"{lab}（{g}・支えのみ）" for lab, g in labels],
-                                            {"no": no}))
+                                            candidate_labels(labels), {"no": no}))
                 else:
                     if no is None:
                         # OCR で番号が読めなかった歳入の節: 文字層の同じ金額の節に番号があれば使う。なければ null
