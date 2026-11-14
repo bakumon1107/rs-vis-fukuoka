@@ -6,7 +6,7 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2
  */
 import Link from 'next/link';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
@@ -23,6 +23,7 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { ValueSource } from '@/types/local-gov';
 import {
+  fundingReclassNotes,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -55,7 +56,10 @@ export default function LocalGovAboutPage() {
 function LocalGovAboutContent() {
   const { gov } = useParams<{ gov: string }>();
   // 年度はサンキー図のページと同じクエリ（year）で受け取る。なければ最新の年度
-  const year = yearFromQuery(useSearchParams().get('year'));
+  const searchParams = useSearchParams();
+  const year = yearFromQuery(searchParams.get('year'));
+  // 来たときのサンキー図のクエリ（見方・選択）。クエリとして解釈し直してから使う（パスや「#」は付けさせない）
+  const back = searchParams.get('back');
   const state = useLocalBudget(gov, year);
   const summary = useMemo(() => {
     if (state.status !== 'ready') return null;
@@ -68,6 +72,26 @@ function LocalGovAboutContent() {
       noAmount: noAmountPrintedCount(f),
     };
   }, [state]);
+
+  // データを読み終えるまで節がないので、ブラウザの「#…」へのスクロールが効かない。読み終えてから該当の節へ動かす
+  // （一般会計・全会計の見方の「調べた内訳はデータについて」は #funding へ案内する）
+  // 最初に読み終えたときだけ動かす（年度を変えて読み直したときに、読んでいた場所から「#…」へ戻さない）
+  const ready = state.status === 'ready';
+  const scrolledToHash = useRef(false);
+  useEffect(() => {
+    if (!ready || scrolledToHash.current || !window.location.hash) return;
+    scrolledToHash.current = true;
+    let id: string;
+    try {
+      id = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return; // 壊れた「#…」（%E0 など）は無視する
+    }
+    // 読み上げの位置も移すため、フォーカスも移す（移動先の節は tabIndex={-1}。タブ順には入れない）
+    const el = document.getElementById(id);
+    el?.scrollIntoView();
+    el?.focus({ preventScroll: true });
+  }, [ready]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
@@ -83,13 +107,17 @@ function LocalGovAboutContent() {
   // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
+  const fundingNotes = fundingReclassNotes(gov, file);
 
   return (
     <div className="min-h-screen bg-mirai-surface">
       <AppHeader current="/" />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-sm text-mirai-text">
         <div>
-          <Link href={`/local/${gov}?year=${file.year}`} className="text-xs text-primary-accent underline">
+          <Link
+            href={back ? `/local/${gov}?${new URLSearchParams(back).toString()}` : `/local/${gov}?year=${file.year}`}
+            className="text-xs text-primary-accent underline"
+          >
             ← サンキー図に戻る
           </Link>
           <h1 className="mt-1 text-xl font-bold">
@@ -116,6 +144,27 @@ function LocalGovAboutContent() {
             <li>複数の読み取り（OCR 2種類と PDF の文字情報）で同じ値になるかを数える</li>
           </ul>
         </section>
+
+        {fundingNotes && (
+          <section
+            id="funding"
+            tabIndex={-1}
+            className="scroll-mt-24 space-y-2 rounded-2xl bg-card p-4 shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent"
+          >
+            <h2 className="font-bold">財源内訳と歳入の款の違い</h2>
+            <p>
+              一般会計の見方の左端は歳出の財源内訳（国庫支出金・地方債・その他・一般財源）、全会計の見方の左端は歳入の款（県税・国庫支出金・県債・繰入金など）です。
+              国庫支出金や県債の額が2つの見方で違うのは、主に全会計の見方が特別会計の分も含むためです。
+              一般会計だけで比べても、歳入では国庫支出金・県債・繰入金などに入っているお金の一部を、歳出の財源内訳では一般財源として数えているため、額が合いません。
+              一般会計について説明書を読んで調べた結果は次のとおりです。どこまで確かめられたかは、それぞれの括弧の中に書いています（{index.gov.name}の資料。なぜ一般財源に数えるのかは説明書に書かれていません）。
+            </p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {fundingNotes.map(n => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
           <h2 className="font-bold">検算の結果</h2>
