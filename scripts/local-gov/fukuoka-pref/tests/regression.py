@@ -90,7 +90,9 @@ STEPS = [
 def _export_deps():
     """書き出し（export_fukuoka_pref.py）が読む入力: 前のステップの出力と、sources.json の資料の PDF（SHA256 を確かめる）。
     引数は --work <dir> だけなので、ここで並べる（どれかが欠けたら、書き出しのステップを飛ばす）"""
-    outs = ["kessan-kmk.json", "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
+    # 決算の書き出し（export_settlement.build）が読む kessan-bukyoku・kessan-toku・kessan-setsu も入れる
+    outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
+            "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
             "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json",
             "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json"]
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:

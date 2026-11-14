@@ -17,16 +17,14 @@ PDF の癖（R6 で確認）:
 - 明細表のすべての目（予算現額が 0 でないもの）に対応が付く
 """
 import json
+import os
 import re
 import sys
 
 import pdfplumber
 
-SETSU = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5: "災害補償費", 6: "恩給及び退職年金", 7: "報償費", 8: "旅費",
-         9: "交際費", 10: "需用費", 11: "役務費", 12: "委託料", 13: "使用料及び賃借料", 14: "工事請負費", 15: "原材料費",
-         16: "公有財産購入費", 17: "備品購入費", 18: "負担金、補助及び交付金", 19: "扶助費", 20: "貸付金",
-         21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
-         26: "公課費", 27: "繰出金"}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from kessan_common import SETSU_NAMES as SETSU  # noqa: E402  節の名前（番号で決まる）
 
 
 # 文字単位で列を組み立てる x の範囲（R6 実測）。単語単位だと、1文字ずつの層の数字（x≈352〜376）と
@@ -119,7 +117,8 @@ def rows_of_special(page, shift: float):
         one = [c for c in cs if repr(c.get("non_stroking_color")) == "(0.0,)"]
         # 節の区分の番号も (cid:N) で描かれることがある（「(cid:20)(cid:20)需用費」= 11）。番号の部分だけ数字に直す
         label = "".join(c["text"] for c in one if la + shift <= c["x0"] < lb + shift).strip()
-        mlab = re.match(r"^((?:\d|\(cid:(?:19|2\d|28)\))+)(.*)$", label)
+        # 数字の (cid:N) は 19〜28 だけ（digit_of と同じ範囲。29 は数字ではない）
+        mlab = re.match(r"^((?:\d|\(cid:(?:19|2[0-8])\))+)(.*)$", label)
         if mlab:
             label = "".join(digit_of(x) for x in re.findall(r"\d|\(cid:\d+\)", mlab.group(1))) + mlab.group(2)
         rec = {"two_layers": False, "label": label,

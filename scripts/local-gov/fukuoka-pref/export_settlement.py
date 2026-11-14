@@ -16,18 +16,15 @@ export_fukuoka_pref.py の main から呼ぶ（index.json を1か所で書くた
 import json
 import os
 import re
+import sys
 from collections import defaultdict
 
 YEAR, YEAR_LABEL = 2024, "令和6年度"
 SRC_GAIYOU, SRC_JIKOU = "r6-kessan-gaiyou", "r6-kessan-jikou"
 COLS = {"amount": "支出済額", "budget_current": "予算現額", "carried_over": "翌年度繰越額", "unused": "不用額"}
 
-# 節の名前（地方自治法施行規則の歳出の節。番号で決まる）
-SETSU_NAMES = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5: "災害補償費", 6: "恩給及び退職年金", 7: "報償費", 8: "旅費",
-               9: "交際費", 10: "需用費", 11: "役務費", 12: "委託料", 13: "使用料及び賃借料", 14: "工事請負費", 15: "原材料費",
-               16: "公有財産購入費", 17: "備品購入費", 18: "負担金、補助及び交付金", 19: "扶助費", 20: "貸付金",
-               21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
-               26: "公課費", 27: "繰出金"}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
 
 
 def val(v):
@@ -112,7 +109,8 @@ def build(work: str, special_slugs: dict[str, str]):
                 row = {"id": f"{aid}/expense/" + "{}-{}-{}".format(*key), "account": aid, "side": "expense",
                        "kan": named(kou["款"], kan_names[kou["款"]]), "kou": named(kou["項"], kou["項名"]),
                        "moku": named(mo["no"], mo["name"]), **{k: val(mo[s]) for k, s in COLS.items()},
-                       "pages": [{"source": SRC_GAIYOU, "page": acc["pdf_page"]}] + spages}
+                       # 出典は、その項の目の表があるページ（古い抽出の出力には項のページがないので会計の最初のページ）
+                       "pages": [{"source": SRC_GAIYOU, "page": kou.get("pdf_page", acc["pdf_page"])}] + spages}
                 ex = explanation(mo)
                 if ex:
                     row["explanation"] = ex
@@ -161,12 +159,16 @@ def check(rows, revenue, kmk, toku):
     for acc in toku["会計"]:
         n_acc += 1
         got = sum(x["決算額"] for x in acc["款項"])
-        n_ok += got == (acc["款項の計"] if acc["款項の計"] is not None else got)
+        # 款・項の表の計の行が読めなかった会計は、照合できていないので一致に数えない
+        n_ok += acc["款項の計"] is not None and got == acc["款項の計"]
     ext["特別会計の歳出_款項の表"] = f"{n_ok}/{n_acc} 会計で一致"
+    # 特別会計の抽出（extract_kessan_toku.py）自身の検算（一覧表との照合など）が通ったか。件数のない古い出力は通ったとみなさない
+    toku_fail = toku.get("fail")
+    ext["特別会計の抽出の検算"] = "FAIL なし" if toku_fail == 0 else f"FAIL {toku_fail if toku_fail is not None else '不明'}"
     no_setsu = sum(1 for r in rows if "setsu" not in r and r["budget_current"]["v"])
     ext["節_事項別明細書"] = f"予算現額のある目 {sum(1 for r in rows if r['budget_current']['v'])} のうち節あり " \
                        f"{sum(1 for r in rows if 'setsu' in r)}（節なし {no_setsu}）"
-    ok = not ng and spent_general == want and n_ok == n_acc and no_setsu == 0
+    ok = not ng and spent_general == want and n_ok == n_acc and no_setsu == 0 and toku_fail == 0
     rev_ok = sum(1 for x in revenue if x["amount"]["v"] - (x.get("overpaid") or {"v": 0})["v"] + x["deficit_loss"]["v"]
                  + x["uncollected"]["v"] == x["assessed"]["v"])
     ext["歳入の調定額の式"] = f"{rev_ok}/{len(revenue)} 款"

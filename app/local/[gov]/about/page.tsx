@@ -248,7 +248,8 @@ function LocalGovAboutContent() {
             )}
             {summary && (
               <li>
-                値の出典（目の本年度・前年度・財源内訳・事項・節・細節）:{' '}
+                {/* 数えている値は種類で違う（決算は支出済額と節。予算現額・繰越額・不用額・歳入の款は数えていない） */}
+                {file.basis === 'settlement' ? '値の出典（目の支出済額・節）' : '値の出典（目の本年度・前年度・財源内訳・事項・節・細節）'}:{' '}
                 {VALUE_SOURCE_ORDER.filter(k => summary.values[k]).map(k => `${VALUE_SRC_LABEL[k]} ${summary.values[k]}`).join('、')}
               </li>
             )}
@@ -294,7 +295,8 @@ function LocalGovAboutContent() {
           </section>
         )}
 
-        {summary && (
+        {/* 決算はテキスト PDF から取るので、読み取りの食い違いを直した値はない（0 件のときは節ごと出さない） */}
+        {summary && !(file.basis === 'settlement' && summary.notes.length === 0) && (
           <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
             <h2 className="font-bold">読み取り以外の方法で決めた値（{summary.notes.length} 件）</h2>
             <p>

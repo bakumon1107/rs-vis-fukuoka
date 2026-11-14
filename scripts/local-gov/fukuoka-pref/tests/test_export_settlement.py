@@ -22,11 +22,11 @@ def _write(tmp_path, kmk=None, bukyoku=None, toku=None, setsu=None):
         {"部局": "会計管理局", "款": [{"no": 2, "項": [{"no": 1, "目": [
             {"no": 1, "name": "一般管理費", "予算現額": 140, "支出済額": 100, "翌年度繰越額": 0, "不用額": 40}]}]}]},
     ]}
-    toku = toku or {"会計": [{"会計": "福岡県住宅管理特別会計", "pdf_page": 250,
+    toku = toku or {"fail": 0, "会計": [{"会計": "福岡県住宅管理特別会計", "pdf_page": 250,
                              "歳入": [{"no": 1, "name": "県営住宅管理費収入", "予算現額": 10, "調定額": 9, "収入済額": 10,
                                       "不納欠損額": 0, "収入未済額": 0, "過誤納金": 1}],
                              "款項": [{"款": 1, "款名": "県営住宅管理費", "項": 1, "項名": "県営住宅管理費", "決算額": 50}], "款項の計": 50,
-                             "項": [{"款": 1, "項": 1, "項名": "県営住宅管理費", "目": [
+                             "項": [{"款": 1, "項": 1, "項名": "県営住宅管理費", "pdf_page": 251, "目": [
                                  {"no": 1, "name": "県営住宅管理費", "予算現額": 60, "支出済額": 50, "翌年度繰越額": 0, "不用額": 10,
                                   "決算の内容": "人件費 一般会計繰出金", "不用額の内容": "管理事務費 （10千円）"}]}]}]}
     setsu = setsu or {"目": [
@@ -54,10 +54,30 @@ def test_build_rows_and_checks(tmp_path):
     # 特別会計の目は行に説明を持つ
     t = next(r for r in f["rows"] if r["account"] == "special:jutaku-kanri")
     assert t["id"] == "special:jutaku-kanri/expense/1-1-1" and t["explanation"]["unused"].startswith("管理事務費")
+    # 出典は、その項の目の表があるページ（会計の最初のページではない）
+    assert {"source": "r6-kessan-gaiyou", "page": 251} in t["pages"]
     # 歳入は会計 × 款（過誤納金を含む）
     rk = {(r["account"], r["kan"]["no"]): r for r in f["revenue_by_kan"]}
     assert rk[("special:jutaku-kanri", 1)]["overpaid"]["v"] == 1 and "overpaid" not in rk[("general", 1)]
     assert f["checks"]["all_ok"] == 2
+
+
+def test_special_account_extraction_must_pass(tmp_path):
+    # 特別会計の抽出が FAIL を出した（または件数のない古い出力）・款項の表の計が読めない、のどれでも「検算済み」にしない
+    for toku_patch in ({"fail": 2}, {"fail": None}, {"款項の計": None}):
+        _write(tmp_path)
+        p = tmp_path / "kessan-toku.json"
+        d = json.loads(p.read_text(encoding="utf-8"))
+        if "fail" in toku_patch:
+            if toku_patch["fail"] is None:
+                d.pop("fail")
+            else:
+                d["fail"] = toku_patch["fail"]
+        else:
+            d["会計"][0]["款項の計"] = None
+        p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        _, ok, _ = es.build(str(tmp_path), {"住宅管理": "jutaku-kanri"})
+        assert not ok, toku_patch
 
 
 def test_department_sum_mismatch_is_ng(tmp_path):

@@ -71,7 +71,8 @@ REV_RE = re.compile(rf"^\s*(?P<no>\d+)?\s*(?P<name>\D*?)\s+(?P<nums>(?:{NUM}\s+)
 
 
 def parse_revenue(lines: list[str], fails: list[str], label: str):
-    """歳入の款の表。名前の折り返しは、番号のない名前だけの行を直前・直後の款につなぐ。"""
+    """歳入の款の表。名前の折り返しは、番号のない名前だけの行を**次の**款の名前の頭につなぐ（R6 の14会計は、折り返した名前の
+    1行目が数字の行の上に印字される形だけだった）。最後の款の後に名前だけの行が残ったら、つなぐ先が分からないので FAIL にする。"""
     rows, total, pending = [], None, ""
     for ln in lines:
         m = REV_RE.match(ln)
@@ -89,6 +90,8 @@ def parse_revenue(lines: list[str], fails: list[str], label: str):
             continue
         rows.append({"no": int(m.group("no")), "name": pending + name, **dict(zip(REV_COLS, nums))})
         pending = ""
+    if pending:
+        fails.append(f"{label} 歳入: つなぐ先の款のない名前の行 {pending}")
     return rows, total
 
 
@@ -146,14 +149,14 @@ def parse(pdf: str):
     starts = [pg for _, pg in items] + [end]
     accounts, fails = [], []
     for (name, pstart), pnext in zip(items, starts[1:]):
-        lines = []
+        lines = []  # (PDF のページ, 行)。項の表がどのページにあるか（出典のページ）を項に記録するため
         for pno in range(pmap[pstart], pmap[pnext]):
-            lines.extend(pdftext(pdf, pno).splitlines())
+            lines.extend((pno, ln) for ln in pdftext(pdf, pno).splitlines())
         acc = {"会計": name, "印字ページ": [pstart, pnext - 1], "pdf_page": pmap[pstart],
                "歳入": [], "歳入の計": None, "款項": [], "款項の計": None, "項": []}
         mode, rev_lines, sum_blocks, blk, split = None, [], [], [], None
         kou = None
-        for ln in lines:
+        for pno, ln in lines:
             f = flat(ln)
             if f.startswith("【歳入】"):
                 mode = "revenue"
@@ -167,7 +170,7 @@ def parse(pdf: str):
                     sum_blocks.append(blk)
                     blk = []
                 kou = {"款": int(mk.group(1).translate(Z2H)), "項": int(mk.group(2).translate(Z2H)), "項名": mk.group(3),
-                       "目": [], "計": None, "_lines": [], "_explain": ExplainReader()}
+                       "pdf_page": pno, "目": [], "計": None, "_lines": [], "_explain": ExplainReader()}
                 acc["項"].append(kou)
                 mode = "kou"
                 continue
@@ -293,7 +296,8 @@ def verify(accounts, fails, ichiran_rows) -> int:
         spent = sum(x["決算額"] for x in a["款項"])
         for col, got in (("予算現額", rt and rt["予算現額"]), ("歳入決算額", rt and rt["収入済額"]), ("歳出決算額", spent)):
             if got != ich[col]:
-                fail(f"{n}: 一覧表の{col} {ich[col]:,} ≠ 抽出 {got:,}")
+                # 歳入の計の行が読めないと got は None（その FAIL は上で出している）。書式で落ちないようにする
+                fail(f"{n}: 一覧表の{col} {ich[col]:,} ≠ 抽出 {'なし' if got is None else f'{got:,}'}")
     tot = next((r for r in ichiran_rows if r["合計"]), None)
     if tot is None or tot["歳出決算額"] != sum(x["決算額"] for a in accounts for x in a["款項"]):
         fail(f"一覧表の合計の歳出決算額 {tot and tot['歳出決算額']} ≠ 抽出の合計")
@@ -309,5 +313,7 @@ if __name__ == "__main__":
     accs, fl, ich_page, pm = parse(sys.argv[1])
     ich = parse_ichiran(sys.argv[1], pm, ich_page)
     nf = verify(accs, fl, ich)
-    json.dump({"source": os.path.basename(sys.argv[1]), "unit": "円", "会計": accs}, sys.stdout, ensure_ascii=False, indent=1)
+    # FAIL の件数も出力に入れる（書き出し export_settlement.py が、抽出の検算が通ったかを確かめて「検算済み」にするため）
+    json.dump({"source": os.path.basename(sys.argv[1]), "unit": "円", "fail": nf, "会計": accs}, sys.stdout,
+              ensure_ascii=False, indent=1)
     sys.exit(1 if nf else 0)
