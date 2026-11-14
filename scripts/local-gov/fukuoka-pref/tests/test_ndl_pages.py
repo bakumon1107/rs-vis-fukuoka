@@ -60,21 +60,26 @@ class TestMergeNumbers:
         # NDLOCR-Lite の頭の数字は外し、OCR の番号を使う（番号の印字のない目に数字が付かない）
         assert nd.merge_numbers("林業改善資金助成事業", "7林業改善資金助成事業") == "林業改善資金助成事業"
         assert nd.merge_numbers("1 報", "13報酬") == "1報酬"
-        # 末尾の数字（右端の罫線の読み）も外す。OCR の行が数字で終わるとき（「人生100」）は残す
+        # 末尾の数字・罫線・括弧（右端の罫線の読み）も外す。OCR の行が数字で終わるとき（「人生100」）は残す
         assert nd.merge_numbers("林業改善資金", "林業改善資金1") == "林業改善資金"
         assert nd.merge_numbers("林業改善資金", "林業改善資金|1") == "林業改善資金"  # 罫線と数字の順が逆でも
+        assert nd.merge_numbers("林業改善資金", "林業改善資金1)") == "林業改善資金"
         assert nd.merge_numbers("人生100", "人生100") == "人生100"
+        # 名前の途中の数字は残す（OCR が読めなかった数字を NDLOCR-Lite が読むことがある）
+        assert nd.merge_numbers("第フ5回大会", "第75回大会") == "第75回大会"
+        # 金額の形の読み（2行目の1字「費」→「19」）・空の読みは使わない。OCR の字も写さない（写すと OCR の読み違いに裏付けが付く）
+        assert nd.merge_numbers("費", "19") == nd.UNREAD
+        assert nd.merge_numbers("管理事務費", "") == nd.UNREAD
 
 
-class TestKeepOcrLine:
-    def test_short_and_total_lines(self):
-        assert nd.keep_ocr_line("計", moku_col=True) and nd.keep_ocr_line("費", moku_col=False)
-        assert nd.keep_ocr_line("合 計", moku_col=True) and nd.keep_ocr_line("计", moku_col=True)  # 簡体字・空白入りも
-        assert not nd.keep_ocr_line("管理事務費", moku_col=False)
-        assert not nd.keep_ocr_line("会計", moku_col=False)  # 計で終わっても目の欄でなければ読み直す
-        # 金額の形の読み（2行目の1字「費」→「19」）は OCR の読みのまま
-        assert nd.merge_numbers("費", "19") == "費"
-        assert nd.merge_numbers("管理事務費", "") == "管理事務費"
+class TestLineAction:
+    def test_total_short_and_names(self):
+        assert nd.line_action("計") == "keep" and nd.line_action("合 計") == "keep" and nd.line_action("计") == "keep"
+        assert nd.line_action("歳入合計") == "keep"
+        # 1字の行は読み直さず UNREAD（OCR の字を写さない）
+        assert nd.line_action("費") == "unread"
+        # 計で終わる名前の行（2行の目の名前の1行目「事業特別会計」）は読み直す
+        assert nd.line_action("事業特別会計") == "read" and nd.line_action("管理事務費") == "read"
 
 
 class TestReplaceNames:
@@ -102,7 +107,9 @@ class TestReplaceNames:
         # 目の欄の「計」の行は置き換えない（NDLOCR-Lite が「10」と読むと、解釈が計の行を見分けられず架空の目になる）。
         # 読み直しの前に戻るので opencv は使わない（退行して読み直すと squeeze_gaps で落ちて気づける）
         vlines = [0, 300, 500, 700, 900, 1300, 1500, 2000]
-        cols = [[box("計", 20, 60)], [box("100", 310, 490)], [], [], [], [], []]
+        cols = [[box("計", 20, 60), box("歳入合計", 20, 200, 200, 240)], [box("100", 310, 490)], [], [], [box("費", 950, 990)], [], []]
         rec = {"vlines": vlines, "tables": [{"cols": cols}]}
-        assert nd.replace_names(rec, np.zeros((300, 2100, 3), dtype=np.uint8), FakeNdl()) == 0
-        assert [d["text"] for d in rec["tables"][0]["cols"][0]] == ["計"]
+        # 計の行は OCR のまま、1字の行（節の区分の「費」）は読まずに UNREAD
+        assert nd.replace_names(rec, np.zeros((300, 2100, 3), dtype=np.uint8), FakeNdl()) == 1
+        assert [d["text"] for d in rec["tables"][0]["cols"][0]] == ["計", "歳入合計"]
+        assert [d["text"] for d in rec["tables"][0]["cols"][4]] == [nd.UNREAD]

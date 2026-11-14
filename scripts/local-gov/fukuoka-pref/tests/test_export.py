@@ -179,8 +179,9 @@ def test_pick_name():
     assert [u[2] for u in e.unresolved] == ["地域振興総務費"]   # 裏付けのない名前は画像で確かめる一覧に出る
 
 
-def _moku(h, p, items, fixes=None):
-    return {"本年度": h, "前年度": p, "説明": [{"name": "x", "amount": a} for a in items], **({"修正": fixes} if fixes else {})}
+def _moku(h, p, items, fixes=None, setsu=()):
+    return {"本年度": h, "前年度": p, "説明": [{"name": "x", "amount": a} for a in items],
+            "節": [{"label": "x", "amount": a} for a in setsu], **({"修正": fixes} if fixes else {})}
 
 
 def test_ndl_mismatches_finds_stale_readings():
@@ -191,6 +192,9 @@ def test_ndl_mismatches_finds_stale_readings():
     assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 41]), "b": _moku(5, 5, [5])}) == ["a"]
     assert ex.ndl_mismatches(ocr, {"a": _moku(101, 90, [60, 40]), "b": _moku(5, 5, [5])}) == ["a"]
     assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 40]), "c": _moku(5, 5, [5])}) == ["b", "c"]
+    # 節の金額が違う（OCR の節の金額を補った後に読み直していない）
+    ocr_s = {"a": _moku(100, 90, [100], setsu=[60, 40])}
+    assert ex.ndl_mismatches(ocr_s, {"a": _moku(100, 90, [100], setsu=[100])}) == ["a"]
 
 
 def test_ndl_mismatches_skips_only_corrected_columns():

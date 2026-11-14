@@ -45,18 +45,26 @@ INSET, PAD_Y = 6, 6
 EXTEND = 1.2
 # 名前の両端に付く罫線の読み（細節の内側の枠）
 FRAME_RE = re.compile(r"^[|｜丨]+|[|｜丨]+$")
+# 名前の両端の数字・罫線・括弧（NDLOCR-Lite が端の罫線・隣の番号を読んだもの）。頭だけ・両端
+_EDGE = r"[\d|｜丨()（）\[\]［］{}｛｝]+"
+HEAD_RE = re.compile(rf"^{_EDGE}")
+EDGE_RE = re.compile(rf"^{_EDGE}|{_EDGE}$")
 
 
-def keep_ocr_line(ocr_text: str, moku_col: bool) -> bool:
-    """NDLOCR-Lite で読み直さず、OCR の読みのまま残す行。
-    - 1字の行（「計」「費」）: 入力の大きさへ横に数倍引き伸ばすので、数字・別の字に読む（「計」→「10」、2行目の「費」→「19」）
-    - 目の欄の計の行（解釈の is_total と同じ見分け方: 字形を直した名前が「計」で終わり、数字がない）: 解釈が計の行を目と見なし、
-      架空の目ができた（R8 で 74行）
-    OCR が「计」（簡体字）・「合　計」と読んでも当たるよう、解釈と同じ norm_name で直してから見る"""
+# 計の行の語（OCR が「计」（簡体字）・「合　計」と読んでも当たるよう、解釈と同じ norm_name で直してから比べる）
+TOTAL_WORDS = {"計", "合計", "小計", "総計", "歳入合計", "歳出合計"}
+# 読み直さない1字の行に入れる字。NDLOCR-Lite の名前が OCR の読みと一致しないようにする（OCR の字を写すと、OCR が1字を読み違えたとき
+# NDLOCR-Lite の名前も同じになり、別の系統の一致として誤った名前に裏付けが付く）。解釈で金額・番号にならない字
+UNREAD = "〓"
+
+
+def line_action(ocr_text: str) -> str:
+    """名前の欄の行の扱い。"keep": OCR の文字枠のまま（計の行。解釈が計の行を見分けるのに使う。NDLOCR-Lite が「計」を「10」と読み、
+    架空の目が 74件できた）/ "unread": 読み直さず UNREAD を入れる（1字の行。横に数倍引き伸ばすので「費」を「19」と読む）/ "read": 読み直す"""
     name = norm_name(ocr_text)
-    if len(name) <= 1:
-        return True
-    return moku_col and name.endswith("計") and not re.search(r"\d", ocr_text)
+    if name in TOTAL_WORDS:
+        return "keep"
+    return "unread" if len(name) <= 1 else "read"
 
 
 class Parseq:
@@ -158,17 +166,16 @@ def merge_numbers(ocr_text: str, ndl_text: str) -> str:
       番号が付いた。R8 歳入 12-1）
     - NDLOCR-Lite の読みが金額の形（数字だけ）になったら、OCR の読みのまま（2行の事項の2行目の1字「費」を「19」と読み、解釈が金額にした。R8 13目）"""
     if not ndl_text or amount(ndl_text) is not None:
-        return ocr_text
+        return UNREAD  # 金額の形の読み（崩れ）は使わない（OCR の字を写さない。line_action の UNREAD と同じ理由）
     m = re.match(r"\s*(\d+)", ocr_text)
-    if not re.search(r"\d", ocr_text):
-        # OCR の行に数字がなければ、NDLOCR-Lite の読みの数字はすべて罫線・記号の読み違い（「林業改善資金1」「林業改善資金|1」
-        # 「林業改善資金1)」。2行の目の名前の1行目の右端の罫線。解釈がそれを目の番号にして、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
-        return FRAME_RE.sub("", re.sub(r"\d", "", ndl_text)).strip()
-    body = re.sub(r"^\d+", "", ndl_text)
-    # OCR の行に数字があれば、頭の番号は OCR の読みを使い、末尾の数字は OCR の行が数字で終わらなければ外す
-    if not re.search(r"\d\s*$", ocr_text):
-        body = re.sub(r"\d+$", "", body)
-    return (m.group(1) if m else "") + FRAME_RE.sub("", body).strip()
+    # 頭と末尾の数字・罫線・括弧は NDLOCR-Lite の読みから外す（右端の罫線を「1」「|1」「1)」と読み「林業改善資金1)」、解釈がそれを目の番号にして、
+    # 番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）。名前の途中の数字（「第75回」）は残す
+    body = EDGE_RE.sub("", ndl_text)
+    # 末尾の数字が本当に名前の一部（OCR の行も数字で終わる「人生100」）なら、NDLOCR-Lite の読みのまま
+    if re.search(r"\d\s*$", ocr_text):
+        body = HEAD_RE.sub("", ndl_text)
+    # 頭の番号は OCR の読みを使う
+    return (m.group(1) if m else "") + body
 
 
 def replace_names(rec: dict, img, ndl) -> int:
@@ -186,12 +193,16 @@ def replace_names(rec: dict, img, ndl) -> int:
             # 節の区分の欄（各表の名前の列の2つ目）は欄の幅いっぱいに読む
             for row, (x0, y0, x1, y1) in name_lines(t["cols"][ci], vl[ci], vl[ci + 1], full=ci == cols[1]):
                 ocr_text = "".join(d["text"] for d in row)
-                if keep_ocr_line(ocr_text, moku_col=ci == cols[0]):
-                    new_col += row  # 1字の行・計の行は OCR の文字枠のまま
+                action = line_action(ocr_text)
+                if action == "keep":
+                    new_col += row  # 計の行は OCR の文字枠のまま
                     continue
-                crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
-                text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
-                text = merge_numbers(ocr_text, text)
+                if action == "unread":
+                    text = UNREAD
+                else:
+                    crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
+                    text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
+                    text = merge_numbers(ocr_text, text)
                 new_col.append({"x0": min(d["x0"] for d in row), "x1": max(d["x1"] for d in row),
                                 "y0": min(d["y0"] for d in row), "y1": max(d["y1"] for d in row),
                                 "text": text, "score": 1.0, "ndl": True})

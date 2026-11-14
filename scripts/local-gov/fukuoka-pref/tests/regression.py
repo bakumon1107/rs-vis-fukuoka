@@ -198,6 +198,11 @@ def run_all(data, keep=None):
     return results
 
 
+def missed_steps(got, want):
+    """期待値に結果のあるのに、今回飛ばしたステップ（入力の欠け。書き出しの回帰テストが黙って抜けないよう失敗にする）"""
+    return [n for n, g in got.items() if "skipped" in g and n in want and "skipped" not in want[n]]
+
+
 def compare(got, want):
     diffs = []
     for name, w in want.items():
@@ -223,6 +228,10 @@ def main():
     keep = sys.argv[sys.argv.index("--keep") + 1] if "--keep" in sys.argv else None
     got = run_all(data, keep)
     if "--update" in sys.argv:
+        # 入力の欠けた環境で期待値を書き換えると、飛ばしたステップが期待値に「skipped」として入り、以後そのステップを比べなくなる
+        skipped_now = [n for n, g in got.items() if "skipped" in g]
+        if skipped_now and "--allow-skip" not in sys.argv:
+            sys.exit(f"飛ばしたステップがあるので期待値を書き換えない: {', '.join(skipped_now)}（入力を揃えるか --allow-skip）")
         os.makedirs(os.path.dirname(EXPECTED), exist_ok=True)
         with open(EXPECTED, "w", encoding="utf-8") as f:
             json.dump(got, f, ensure_ascii=False, indent=1)
@@ -240,7 +249,7 @@ def main():
     print(f"回帰テスト: {len(want)} ステップ、差分 {len(diffs)} 件、飛ばした {len(skipped)} 件", file=sys.stderr)
     # 期待値に結果のあるステップを飛ばしたら失敗にする（入力の一部が欠けた環境で、書き出しなどの回帰テストが抜けたまま通らないように）。
     # 原本の一部しかない環境で、分かっていて流すときは --allow-skip
-    missed = [n for n in skipped if n in want and "skipped" not in want[n]]
+    missed = missed_steps(got, want)
     if missed and "--allow-skip" not in sys.argv:
         print(f"FAIL 期待値のあるステップを飛ばした: {', '.join(missed)}（入力を揃えるか --allow-skip）", file=sys.stderr)
     sys.exit(1 if diffs or (missed and "--allow-skip" not in sys.argv) else 0)

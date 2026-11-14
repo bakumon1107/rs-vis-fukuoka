@@ -248,6 +248,10 @@ def ndl_mismatches(ocr: dict, ndl: dict) -> list:
             bad.append(k)
         elif "説明" not in fixed and [e["amount"] for e in m.get("説明", [])] != [e["amount"] for e in o.get("説明", [])]:
             bad.append(k)
+        elif "節" not in fixed and [s.get("amount") for s in m.get("節", [])] != [s.get("amount") for s in o.get("節", [])]:
+            # 節の名前（区分）も金額で対応させて候補にするので、節の金額も比べる（refill_missing.py で OCR の節の金額を補った後に
+            # 読み直しを忘れると、区分が別の金額に付く）
+            bad.append(k)
     return bad
 
 
