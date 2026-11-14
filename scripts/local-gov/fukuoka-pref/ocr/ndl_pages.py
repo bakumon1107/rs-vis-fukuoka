@@ -177,7 +177,8 @@ def merge_numbers(ocr_text: str, ndl_text: str) -> str:
     else:
         body = TAIL_RE.sub("", body)
     body = body.strip()
-    if not body or amount(body) is not None:
+    # 字（漢字・かな・英字）が残らない読み（「,,」「.」「{(」。R8 で 11件）・金額の形の読みも名前にしない
+    if not re.search(r"[^\W\d_]", body) or amount(body) is not None:
         return head + UNREAD
     return head + body
 

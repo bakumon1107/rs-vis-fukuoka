@@ -73,6 +73,9 @@ class TestMergeNumbers:
         assert nd.merge_numbers("管理事務費", "") == nd.UNREAD
         assert nd.merge_numbers("係費金", "1)") == nd.UNREAD and nd.merge_numbers("係費金", "|1|") == nd.UNREAD
         assert nd.merge_numbers("3管理費", "3") == "3" + nd.UNREAD
+        # 字の残らない読み（記号だけ）も名前にしない
+        assert nd.merge_numbers("選委", ",,") == nd.UNREAD and nd.merge_numbers("援金", "{(") == nd.UNREAD
+        assert nd.merge_numbers("12委料託", "12.") == "12" + nd.UNREAD
         # 括弧だけのものは名前の一部（外さない）
         assert nd.merge_numbers("○XX事業（地方創生推進）", "○XX事業（地方創生推進）") == "○XX事業（地方創生推進）"
         assert nd.merge_numbers("（仮称）YY", "（仮称）YY") == "（仮称）YY"

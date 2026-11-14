@@ -232,11 +232,14 @@ def main():
         # 入力の欠けた環境で期待値を書き換えると、飛ばしたステップが期待値に「skipped」として入り、以後そのステップを比べなくなる。
         # 前の期待値に結果のあるステップを飛ばしたら止める。--allow-skip のときは、そのステップは前の期待値を残す（「skipped」で上書きしない）
         old = json.load(open(EXPECTED, encoding="utf-8")) if os.path.exists(EXPECTED) else {}
-        missed = missed_steps(got, old)
-        if missed and "--allow-skip" not in sys.argv:
-            sys.exit(f"期待値のあるステップを飛ばしたので期待値を書き換えない: {', '.join(missed)}（入力を揃えるか --allow-skip）")
-        for n in missed:
-            if n in old:
+        # 今回飛ばしたステップ（新しく足したステップ・期待値のファイルがないときも含む）があれば、--allow-skip がない限り止める
+        skipped_now = [n for n, g in got.items() if "skipped" in g]
+        if skipped_now and "--allow-skip" not in sys.argv:
+            sys.exit(f"飛ばしたステップがあるので期待値を書き換えない: {', '.join(skipped_now)}（入力を揃えるか --allow-skip）")
+        # --allow-skip のとき: 今もあるステップで、前の期待値に結果のあるものは前の期待値を残す（今のステップの一覧にないもの・
+        # 名前を変えたものは残さない。残すと以後ずっと「流さなかった」として失敗する）
+        for n in skipped_now:
+            if n in old and "skipped" not in old[n]:
                 got[n] = old[n]
         os.makedirs(os.path.dirname(EXPECTED), exist_ok=True)
         with open(EXPECTED, "w", encoding="utf-8") as f:
