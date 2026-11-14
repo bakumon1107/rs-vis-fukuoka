@@ -22,6 +22,10 @@ def main():
         parsed = json.load(f)
     ocrdir = sys.argv[2]
     moku = [m for m in parsed if m.get('kind') == '目' and m['side'] == '歳出' and m.get('cell')]
+    # 欄の位置（cell）のない目は範囲を決められず、その金額は前の目に入ってしまう。数だけ知らせる（R8 は 0目）
+    no_cell = [m['目名'] for m in parsed if m.get('kind') == '目' and m['side'] == '歳出' and not m.get('cell')]
+    if no_cell:
+        print(f'WARN 欄の位置のない目 {len(no_cell)} 件（金額が前の目に入る）: {no_cell[:10]}', file=sys.stderr)
     starts = sorted(((m['cell']['page'], m['cell']['y0']), i) for i, m in enumerate(moku))
 
     def owner(page, y):
@@ -44,13 +48,13 @@ def main():
             lab = None
             for x in sorted(t['cols'][6], key=lambda x: (x['y0'], x['x0'])):
                 s = x['text'].replace(' ', '')
-                if re.fullmatch(r'[\d,]+', s):
+                if re.fullmatch(r'\d[\d,]*', s):
                     v = int(s.replace(',', ''))
                     i = owner(p, x['y0'])
                     if lab and i is not None:
                         out[i].append((lab, v, p))
-                    elif lab:
-                        orphan.append((p, lab, v))
+                    else:
+                        orphan.append((p, lab, v))  # 名前の読めない金額（lab が None）も捨てずに残す
                     lab = None
                 else:
                     k = NORM.get(s, s)

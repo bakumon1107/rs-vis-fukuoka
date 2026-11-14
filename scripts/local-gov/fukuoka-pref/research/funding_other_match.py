@@ -14,7 +14,7 @@ import itertools
 import json
 import sys
 
-CATS = {"財産収入": "財産収入", "諸収入": "諸収入", "使用料及び手数料": "使用料及び手数料", "寄附金": "寄附金"}
+CATS = ("財産収入", "諸収入", "使用料及び手数料", "寄附金")
 
 
 def revenue_entries(parsed, cat):
@@ -22,6 +22,9 @@ def revenue_entries(parsed, cat):
     out = []
     for m in parsed:
         if m.get("kind") != "目" or m["side"] != "歳入" or m.get("款_見出し") != cat:
+            continue
+        if m["本年度"] is None:
+            print(f"WARN 本年度の読めない目（突き合わせから除く）: {m['目名']}", file=sys.stderr)
             continue
         ex = [e for e in (m.get("説明") or []) if e.get("amount")]
         if ex and sum(e["amount"] for e in ex) == m["本年度"]:

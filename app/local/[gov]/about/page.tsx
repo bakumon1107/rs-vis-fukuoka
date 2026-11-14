@@ -6,7 +6,7 @@
  * 設計: docs/local-gov/tasks/20261106_1327_地方版サンキー図の画面とグラフの設計.md 4.2
  */
 import Link from 'next/link';
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
@@ -72,9 +72,12 @@ function LocalGovAboutContent() {
 
   // データを読み終えるまで節がないので、ブラウザの「#…」へのスクロールが効かない。読み終えてから該当の節へ動かす
   // （一般会計・全会計の見方の「調べた内訳はデータについて」は #funding へ案内する）
+  // 最初に読み終えたときだけ動かす（年度を変えて読み直したときに、読んでいた場所から「#…」へ戻さない）
   const ready = state.status === 'ready';
+  const scrolledToHash = useRef(false);
   useEffect(() => {
-    if (!ready || !window.location.hash) return;
+    if (!ready || scrolledToHash.current || !window.location.hash) return;
+    scrolledToHash.current = true;
     let id: string;
     try {
       id = decodeURIComponent(window.location.hash.slice(1));

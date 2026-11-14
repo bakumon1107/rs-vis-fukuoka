@@ -90,9 +90,13 @@ function LocalGovContent() {
   // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
   // 「選択中」の行のボタンを押したときだけ詳細まで動かす
   const detailRef = useRef<HTMLElement>(null);
-  const scrollToDetail = useCallback(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
+  // キーボード・読み上げで使う人が図の箱をすべてたどらずに済むよう、フォーカスも詳細へ移す
+  const scrollToDetail = useCallback(() => {
+    detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    detailRef.current?.focus({ preventScroll: true });
+  }, []);
   // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
-  // （スマートフォンの下からのシートの大きさを変えている間はページが描き直され続ける）
+  // （ウィンドウの幅を変えている間は、パネルの幅の計算でページが描き直され続ける）
   const sourceTitles = useMemo(() => {
     if (state.status !== 'ready') return '';
     const used = new Set(sourcesUsed(state.file));
@@ -219,7 +223,7 @@ function LocalGovContent() {
         </div>
 
         {row && !isNarrow && (
-          <section ref={detailRef} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft">
+          <section ref={detailRef} tabIndex={-1} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus:outline-none">
             <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
           </section>
         )}
