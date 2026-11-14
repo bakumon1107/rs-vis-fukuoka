@@ -23,6 +23,13 @@ def test_keep_dir_stale_outputs_are_not_reused(tmp_path):
     assert "skipped" in got["共通 JSON 形式の書き出し"]
 
 
+def test_missed_steps():
+    want = {"a": {"exit": 0, "summary": []}, "b": {"exit": 0, "summary": []}, "c": {"skipped": "x"}}
+    # 期待値に結果のあるステップを飛ばした・流さなかった（名前を変えた）ものを数える。期待値が skipped のものは数えない
+    assert reg.missed_steps({"a": {"skipped": "入力がない"}, "c": {"skipped": "x"}}, want) == ["a", "b"]
+    assert reg.missed_steps({"a": {"exit": 0}, "b": {"exit": 1}, "c": {"skipped": "x"}}, want) == []
+
+
 def test_export_deps_cover_work_files_and_sources():
     deps = reg.STEP_DEPS["共通 JSON 形式の書き出し"]
     assert "{out:cross.json}" in deps and "{out:yosansho.json}" in deps

@@ -287,8 +287,9 @@ class Exporter:
         ndl = {self.vote.key(m): m for m in self.vote.load(ndl_path)}
         bad = ndl_mismatches(self.raw[0], ndl)
         if bad:
-            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）が今の OCR と合わない（{len(bad)} 件。例: {bad[:3]}）。"
-                     f"OCR を流し直したら ocr/ndl_pages.py も流し直す（データの作り方）")
+            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）の目・金額が今の OCR と合わない（{len(bad)} 件。例: {bad[:3]}）。"
+                     f"OCR を流し直した後に ocr/ndl_pages.py を流し直していないか、読み直しが番号・金額を崩している"
+                     f"（流し直しても同じなら ndl_pages.py の数字の扱いを見る。データの作り方）")
         self.raw.append(ndl)
         # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
         return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]

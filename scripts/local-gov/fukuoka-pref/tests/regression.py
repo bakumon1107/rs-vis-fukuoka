@@ -199,8 +199,9 @@ def run_all(data, keep=None):
 
 
 def missed_steps(got, want):
-    """期待値に結果のあるのに、今回飛ばしたステップ（入力の欠け。書き出しの回帰テストが黙って抜けないよう失敗にする）"""
-    return [n for n, g in got.items() if "skipped" in g and n in want and "skipped" not in want[n]]
+    """期待値に結果があるのに、今回飛ばした・流さなかったステップ（入力の欠け・ステップの名前の変え忘れ。
+    書き出しの回帰テストが黙って抜けないよう失敗にする）"""
+    return [n for n, w in want.items() if "skipped" not in w and (n not in got or "skipped" in got[n])]
 
 
 def compare(got, want):
@@ -228,10 +229,15 @@ def main():
     keep = sys.argv[sys.argv.index("--keep") + 1] if "--keep" in sys.argv else None
     got = run_all(data, keep)
     if "--update" in sys.argv:
-        # 入力の欠けた環境で期待値を書き換えると、飛ばしたステップが期待値に「skipped」として入り、以後そのステップを比べなくなる
-        skipped_now = [n for n, g in got.items() if "skipped" in g]
-        if skipped_now and "--allow-skip" not in sys.argv:
-            sys.exit(f"飛ばしたステップがあるので期待値を書き換えない: {', '.join(skipped_now)}（入力を揃えるか --allow-skip）")
+        # 入力の欠けた環境で期待値を書き換えると、飛ばしたステップが期待値に「skipped」として入り、以後そのステップを比べなくなる。
+        # 前の期待値に結果のあるステップを飛ばしたら止める。--allow-skip のときは、そのステップは前の期待値を残す（「skipped」で上書きしない）
+        old = json.load(open(EXPECTED, encoding="utf-8")) if os.path.exists(EXPECTED) else {}
+        missed = missed_steps(got, old)
+        if missed and "--allow-skip" not in sys.argv:
+            sys.exit(f"期待値のあるステップを飛ばしたので期待値を書き換えない: {', '.join(missed)}（入力を揃えるか --allow-skip）")
+        for n in missed:
+            if n in old:
+                got[n] = old[n]
         os.makedirs(os.path.dirname(EXPECTED), exist_ok=True)
         with open(EXPECTED, "w", encoding="utf-8") as f:
             json.dump(got, f, ensure_ascii=False, indent=1)

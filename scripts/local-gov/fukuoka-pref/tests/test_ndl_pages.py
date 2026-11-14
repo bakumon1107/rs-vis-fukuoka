@@ -67,15 +67,24 @@ class TestMergeNumbers:
         assert nd.merge_numbers("人生100", "人生100") == "人生100"
         # 名前の途中の数字は残す（OCR が読めなかった数字を NDLOCR-Lite が読むことがある）
         assert nd.merge_numbers("第フ5回大会", "第75回大会") == "第75回大会"
-        # 金額の形の読み（2行目の1字「費」→「19」）・空の読みは使わない。OCR の字も写さない（写すと OCR の読み違いに裏付けが付く）
+        # 金額の形の読み（2行目の1字「費」→「19」）・空の読み・端を外すと空になる読みは使わない。OCR の字も写さない
+        # （写すと OCR の読み違いに裏付けが付く）。番号は OCR の読みのまま付ける（目・節の鍵）
         assert nd.merge_numbers("費", "19") == nd.UNREAD
         assert nd.merge_numbers("管理事務費", "") == nd.UNREAD
+        assert nd.merge_numbers("係費金", "1)") == nd.UNREAD and nd.merge_numbers("係費金", "|1|") == nd.UNREAD
+        assert nd.merge_numbers("3管理費", "3") == "3" + nd.UNREAD
+        # 括弧だけのものは名前の一部（外さない）
+        assert nd.merge_numbers("○XX事業（地方創生推進）", "○XX事業（地方創生推進）") == "○XX事業（地方創生推進）"
+        assert nd.merge_numbers("（仮称）YY", "（仮称）YY") == "（仮称）YY"
+        # OCR の行が数字で終わるときは、末尾の罫線・閉じ括弧だけを外す
+        assert nd.merge_numbers("人生100", "人生100)") == "人生100" and nd.merge_numbers("人生100", "人生100|") == "人生100"
 
 
 class TestLineAction:
     def test_total_short_and_names(self):
         assert nd.line_action("計") == "keep" and nd.line_action("合 計") == "keep" and nd.line_action("计") == "keep"
         assert nd.line_action("歳入合計") == "keep"
+        assert nd.line_action("合　計") == "keep" and nd.line_action("|計") == "keep"  # 全角の空白・罫線の読みが付いても
         # 1字の行は読み直さず UNREAD（OCR の字を写さない）
         assert nd.line_action("費") == "unread"
         # 計で終わる名前の行（2行の目の名前の1行目「事業特別会計」）は読み直す

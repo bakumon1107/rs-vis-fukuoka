@@ -45,13 +45,15 @@ INSET, PAD_Y = 6, 6
 EXTEND = 1.2
 # 名前の両端に付く罫線の読み（細節の内側の枠）
 FRAME_RE = re.compile(r"^[|｜丨]+|[|｜丨]+$")
-# 名前の両端の数字・罫線・括弧（NDLOCR-Lite が端の罫線・隣の番号を読んだもの）。頭だけ・両端
-_EDGE = r"[\d|｜丨()（）\[\]［］{}｛｝]+"
-HEAD_RE = re.compile(rf"^{_EDGE}")
-EDGE_RE = re.compile(rf"^{_EDGE}|{_EDGE}$")
+# 名前の端の、NDLOCR-Lite が端の罫線・隣の番号を読んだもの（数字・罫線と、それに付いた括弧「1)」「(1」）。
+# 括弧だけのもの（「（仮称）」「（地方創生推進）」）は名前の一部なので外さない
+HEAD_RE = re.compile(r"^[(（]?[\d|｜丨]+[)）]?")
+TAIL_RE = re.compile(r"[(（]?[\d|｜丨]+[)）]?$")
+# OCR の行が数字で終わるとき（「人生100」）に外す、末尾の数字でない端の字（罫線・閉じ括弧）
+TAIL_NONDIGIT_RE = re.compile(r"[|｜丨)）]+$")
 
 
-# 計の行の語（OCR が「计」（簡体字）・「合　計」と読んでも当たるよう、解釈と同じ norm_name で直してから比べる）
+# 計の行の語（OCR が「计」（簡体字）・「合　計」・「|計」と読んでも当たるよう、解釈と同じ norm_name で直し、全角の空白・罫線を外してから比べる）
 TOTAL_WORDS = {"計", "合計", "小計", "総計", "歳入合計", "歳出合計"}
 # 読み直さない1字の行に入れる字。NDLOCR-Lite の名前が OCR の読みと一致しないようにする（OCR の字を写すと、OCR が1字を読み違えたとき
 # NDLOCR-Lite の名前も同じになり、別の系統の一致として誤った名前に裏付けが付く）。解釈で金額・番号にならない字
@@ -61,7 +63,7 @@ UNREAD = "〓"
 def line_action(ocr_text: str) -> str:
     """名前の欄の行の扱い。"keep": OCR の文字枠のまま（計の行。解釈が計の行を見分けるのに使う。NDLOCR-Lite が「計」を「10」と読み、
     架空の目が 74件できた）/ "unread": 読み直さず UNREAD を入れる（1字の行。横に数倍引き伸ばすので「費」を「19」と読む）/ "read": 読み直す"""
-    name = norm_name(ocr_text)
+    name = re.sub(r"[\s　|｜丨.．、。]", "", norm_name(ocr_text))
     if name in TOTAL_WORDS:
         return "keep"
     return "unread" if len(name) <= 1 else "read"
@@ -84,7 +86,7 @@ class Parseq:
         if h > w * 0.8:
             img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
         # 縦横比を保たずに入力の大きさへ引き伸ばす（parseq.py と同じ）。短い行（1字の「計」）は横に数倍伸びて「10」と読むことがあるが、
-        # 縦横比を保って右を白で埋めると、目の名前の正解が 20件中 18 → 1件に落ちた（R8 p18〜30。2026-11-15）。1字の行・計の行は読み直さない（keep_ocr_line）
+        # 縦横比を保って右を白で埋めると、目の名前の正解が 20件中 18 → 1件に落ちた（R8 p18〜30。2026-11-15）。1字の行・計の行は読み直さない（line_action）
         x = cv2.resize(img, (self.w, self.h), interpolation=cv2.INTER_LINEAR)
         x = np.ascontiguousarray(x[:, :, ::-1]).astype(np.float32) / 127.5 - 1.0
         out = self.s.run(None, {self.inp.name: x.transpose(2, 0, 1)[None]})[0]
@@ -162,20 +164,22 @@ def name_lines(col: list[dict], left: float, right: float, full: bool = False) -
 
 def merge_numbers(ocr_text: str, ndl_text: str) -> str:
     """数字は OCR の読みを使う（NDLOCR-Lite は名前の読み直しにだけ使う。数字に弱い）。
-    - NDLOCR-Lite の読みの頭の数字を外し、OCR の行の頭の数字（目・節の番号）を付ける（「7林業改善…」と読んで、番号の印字のない前年度のみの目に
-      番号が付いた。R8 歳入 12-1）
-    - NDLOCR-Lite の読みが金額の形（数字だけ）になったら、OCR の読みのまま（2行の事項の2行目の1字「費」を「19」と読み、解釈が金額にした。R8 13目）"""
-    if not ndl_text or amount(ndl_text) is not None:
-        return UNREAD  # 金額の形の読み（崩れ）は使わない（OCR の字を写さない。line_action の UNREAD と同じ理由）
+    - NDLOCR-Lite の読みの頭・末尾の数字（と罫線・それに付いた括弧）を外し、OCR の行の頭の数字（目・節の番号）を付ける
+      （「7林業改善…」「林業改善資金1)」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）。名前の途中の数字（「第75回」）は残す
+    - 外した後が空・金額の形（数字だけ）なら名前は UNREAD（OCR の字を写さない。line_action と同じ理由）。番号は OCR の読みのまま付ける
+      （番号は目・節の鍵なので、落とすと OCR の読み取りと目が対応しなくなる）"""
     m = re.match(r"\s*(\d+)", ocr_text)
-    # 頭と末尾の数字・罫線・括弧は NDLOCR-Lite の読みから外す（右端の罫線を「1」「|1」「1)」と読み「林業改善資金1)」、解釈がそれを目の番号にして、
-    # 番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）。名前の途中の数字（「第75回」）は残す
-    body = EDGE_RE.sub("", ndl_text)
-    # 末尾の数字が本当に名前の一部（OCR の行も数字で終わる「人生100」）なら、NDLOCR-Lite の読みのまま
+    head = m.group(1) if m else ""
+    body = HEAD_RE.sub("", ndl_text or "")
     if re.search(r"\d\s*$", ocr_text):
-        body = HEAD_RE.sub("", ndl_text)
-    # 頭の番号は OCR の読みを使う
-    return (m.group(1) if m else "") + body
+        # 末尾の数字が本当に名前の一部（OCR の行も数字で終わる「人生100」）: 末尾は数字でない端の字（罫線・閉じ括弧）だけを外す
+        body = TAIL_NONDIGIT_RE.sub("", body)
+    else:
+        body = TAIL_RE.sub("", body)
+    body = body.strip()
+    if not body or amount(body) is not None:
+        return head + UNREAD
+    return head + body
 
 
 def replace_names(rec: dict, img, ndl) -> int:
