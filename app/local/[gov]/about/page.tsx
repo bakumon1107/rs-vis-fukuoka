@@ -22,7 +22,7 @@ import {
   valueSourceCounts,
   zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
-import type { Basis, ValueSource } from '@/types/local-gov';
+import type { Basis, MokuRow, ValueSource } from '@/types/local-gov';
 import {
   fundingReclassNotes,
   NAME_SOURCE_ORDER,
@@ -43,8 +43,9 @@ const NAME_LEVELS = [
 
 /** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
 /** 金額。欠測（null・ない）は 0 円と区別して「—」 */
-function amountOrDash(v: number | null | undefined) {
-  return v != null ? formatBudgetFromYen(v) : '—';
+/** 額（円）。なければ missing（既定は「—」） */
+function amountOrDash(v: number | null | undefined, missing = '—') {
+  return v != null ? formatBudgetFromYen(v) : missing;
 }
 
 function srcNote(src: ValueSource) {
@@ -118,6 +119,36 @@ function LocalGovAboutContent() {
   const fundingNotes = fundingReclassNotes(gov, file);
   const isSettlement = file.basis === 'settlement';
   const basisQuery = isSettlement ? '&basis=settlement' : '';
+  // 図に箱を出さない目（0 円の目・額の読めない目）の一覧の1行。会計 ／ 歳入出 ／ 款 ／ 項 ／ 目と、額・予算現額・不用額・説明
+  const rowLine = (r: MokuRow) => (
+    <li key={r.id}>
+      <span className="text-mirai-text-muted">
+        {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
+      </span>{' '}
+      {isSettlement ? (
+        <>
+          {r.moku.name}（支出済額 {amountOrDash(r.amount.v, '読めない')}・予算現額 {amountOrDash(r.budget_current?.v)}・不用額{' '}
+          {amountOrDash(r.unused?.v)}）
+          {/* 図に箱がないので、決算の内容・不用額の内容はここで読めるようにする（部局ごとの説明も） */}
+          {[r.explanation, ...(r.by_department ?? []).map(d => d.explanation)]
+            .filter((e): e is NonNullable<typeof e> => !!e && !!(e.content || e.unused))
+            .map((e, i) => (
+              <span key={i} className="block pl-3 text-mirai-text-muted">
+                {e.content && <>決算の内容: {e.content}</>}
+                {e.content && e.unused && '／'}
+                {e.unused && <>不用額の内容: {e.unused}</>}
+              </span>
+            ))}
+        </>
+      ) : (
+        <>
+          {r.moku.name}（本年度 {amountOrDash(r.amount.v, '読めない')}
+          {srcNote(r.amount.src)}・前年度 {amountOrDash(r.previous?.v)}
+          {r.previous && srcNote(r.previous.src)}）
+        </>
+      )}
+    </li>
+  );
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -336,16 +367,7 @@ function LocalGovAboutContent() {
             <p>
               {isSettlement ? '支出済額' : '本年度の額'}を資料から読めなかった目です（0 円とは限りません）。サンキー図には箱を出していません。
             </p>
-            <ul className="space-y-1 text-xs">
-              {summary.unread.map(r => (
-                <li key={r.id}>
-                  <span className="text-mirai-text-muted">
-                    {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
-                  </span>{' '}
-                  {r.moku.name}
-                </li>
-              ))}
-            </ul>
+            <ul className="space-y-1 text-xs">{summary.unread.map(rowLine)}</ul>
           </section>
         )}
 
@@ -359,37 +381,7 @@ function LocalGovAboutContent() {
                 ? '支出済額が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。予算現額・不用額とあわせて、ここに並べます。'
                 : '本年度が 0 円の目は、サンキー図には箱を出していません（高さのない箱になるため）。前年度の額とあわせて、ここに並べます。'}
             </p>
-            <ul className="space-y-1 text-xs">
-              {summary.zero.map(r => (
-                <li key={r.id}>
-                  <span className="text-mirai-text-muted">
-                    {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
-                  </span>{' '}
-                  {isSettlement ? (
-                    <>
-                      {r.moku.name}（支出済額 0円・予算現額{' '}
-                      {amountOrDash(r.budget_current?.v)}・不用額 {amountOrDash(r.unused?.v)}）
-                      {/* 図に箱がないので、決算の内容・不用額の内容はここで読めるようにする（部局ごとの説明も） */}
-                      {[r.explanation, ...(r.by_department ?? []).map(d => d.explanation)]
-                        .filter((e): e is NonNullable<typeof e> => !!e && !!(e.content || e.unused))
-                        .map((e, i) => (
-                          <span key={i} className="block pl-3 text-mirai-text-muted">
-                            {e.content && <>決算の内容: {e.content}</>}
-                            {e.content && e.unused && '／'}
-                            {e.unused && <>不用額の内容: {e.unused}</>}
-                          </span>
-                        ))}
-                    </>
-                  ) : (
-                    <>
-                      {r.moku.name}（本年度 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}
-                      {srcNote(r.amount.src)}・前年度 {r.previous?.v != null ? formatBudgetFromYen(r.previous.v) : '—'}
-                      {r.previous && srcNote(r.previous.src)}）
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <ul className="space-y-1 text-xs">{summary.zero.map(rowLine)}</ul>
           </section>
         )}
 
