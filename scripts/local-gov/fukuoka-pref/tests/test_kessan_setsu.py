@@ -49,3 +49,38 @@ class TestSpecialRows:
         # 一般会計の並び（支出済額の右端 501.9）では特別会計の読み方をしない
         page = _Page([_ch("9", 495.0, 501.9, 166), _ch("1", 640.0, 652.0, 166)])
         assert ks.special_shift(page) is None
+
+
+def _group(page, acc, budget, spent):
+    return {"pdf_page": page, "会計": acc, "節": [{"no": 1, "節の金額": budget, "支出済額": spent}]}
+
+
+class TestRevenuePagesExcluded:
+    # 歳入と歳出に、予算現額（節の金額）と支出済額が同じ額の区画がある会計（特別会計は会計ごとに歳入→歳出の順）
+    PAGES = [
+        "款項目予算現額調定額収入済額不納欠損額収入未済額",  # p1 歳入
+        "款項目予算現額支出済額翌年度繰越額不用額",  # p2 歳出
+        "歳入歳出決算総括表収入済額支出済額",  # p3 両方の見出し（総括）は歳入にしない
+    ]
+
+    def test_revenue_page_numbers(self):
+        assert ks.revenue_page_numbers(self.PAGES) == {1}
+
+    def test_expense_block_is_chosen_over_same_amount_revenue_block(self):
+        revenue = _group(1, "A", 1000, 900)
+        expense = _group(2, "A", 1000, 900)
+        groups = [revenue, expense, {"pdf_page": 2, "節": []}]
+        cand = ks.expense_candidates(groups, ks.revenue_page_numbers(self.PAGES))
+        # 歳入のページの区画と節のない区画は候補にならない
+        assert cand == [expense]
+        # 照合は歳出の区画を選ぶ（歳入の区画を候補から外さないと、先にある歳入の区画が同じ額で選ばれる）
+        assert ks.find_segment(cand, 0, len(cand), "A", 1000, 900) == (0, 1)
+        assert cand[0] is expense
+        assert ks.find_segment([revenue, expense], 0, 2, "A", 1000, 900) == (0, 1)  # 外さなかった場合（歳入を拾う）
+
+    def test_find_segment_joins_blocks_of_the_same_account_only(self):
+        a1, a2, b1 = _group(2, "A", 600, 500), _group(3, "A", 400, 400), _group(4, "B", 1000, 900)
+        # ページをまたぐ目は連続する区画をつないで照合する
+        assert ks.find_segment([a1, a2, b1], 0, 3, "A", 1000, 900) == (0, 2)
+        # 別の会計の区画は、額が同じでも選ばない
+        assert ks.find_segment([b1], 0, 1, "A", 1000, 900) is None
