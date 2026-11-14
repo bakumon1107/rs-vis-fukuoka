@@ -251,7 +251,7 @@ function LocalGovAboutContent() {
           </section>
         )}
 
-        {fundingNotes && (
+        {fundingNotes && fundingNotes.length > 0 && (
           <section
             id="funding"
             tabIndex={-1}
