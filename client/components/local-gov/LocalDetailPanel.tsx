@@ -200,17 +200,20 @@ export function LocalDetailPanel({
   );
 
   if (layout === 'below') {
-    // 図の下に横長で置く。左に名前・金額・財源内訳・出典、中に説明欄の事項、右に節（それぞれ縦に伸びる）
+    // 図の下に横長で置く。左に名前・金額・財源内訳・出典、中に説明欄の事項、右に節（それぞれ縦に伸びる）。
+    // 事項・節のない目（歳入の目など）は列を作らず、残りの列で幅を分ける
+    const cols = [itemList, setsuList].filter(Boolean);
     return (
-      <div className="grid gap-x-8 gap-y-4 p-4 text-sm text-mirai-text md:grid-cols-3">
+      <div className={`grid gap-x-8 gap-y-4 p-4 text-sm text-mirai-text ${cols.length === 2 ? 'md:grid-cols-3' : cols.length === 1 ? 'md:grid-cols-2' : ''}`}>
         <div className="space-y-4">
           {head}
           {amounts}
           {funding}
           {sourceList}
         </div>
-        <div>{itemList}</div>
-        <div>{setsuList}</div>
+        {cols.map((c, i) => (
+          <div key={i}>{c}</div>
+        ))}
       </div>
     );
   }

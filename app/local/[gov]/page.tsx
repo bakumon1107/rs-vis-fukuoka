@@ -92,7 +92,7 @@ function LocalGovContent() {
   const detailRef = useRef<HTMLElement>(null);
   const scrollToDetail = useCallback(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
   // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
-  // （パネルの幅を変えている間はページが描き直され続ける）
+  // （スマートフォンの下からのシートの大きさを変えている間はページが描き直され続ける）
   const sourceTitles = useMemo(() => {
     if (state.status !== 'ready') return '';
     const used = new Set(sourcesUsed(state.file));
@@ -112,6 +112,8 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
+  // 詳細に出す会計の名前（図の下・下からのシートの両方で使う）
+  const accountName = row ? file.accounts.find(a => a.id === row.account)?.name ?? row.account : '';
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -218,12 +220,7 @@ function LocalGovContent() {
 
         {row && !isNarrow && (
           <section ref={detailRef} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft">
-            <LocalDetailPanel
-              row={row}
-              index={index}
-              accountName={file.accounts.find(a => a.id === row.account)?.name ?? row.account}
-              layout="below"
-            />
+            <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
           </section>
         )}
 
@@ -246,11 +243,7 @@ function LocalGovContent() {
           isResizing={panel.isResizing}
           onResetWidth={panel.resetWidth}
         >
-          <LocalDetailPanel
-            row={row}
-            index={index}
-            accountName={file.accounts.find(a => a.id === row.account)?.name ?? row.account}
-          />
+          <LocalDetailPanel row={row} index={index} accountName={accountName} />
         </SidePanelChrome>
       )}
     </div>
