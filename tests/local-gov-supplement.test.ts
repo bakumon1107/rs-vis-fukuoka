@@ -188,6 +188,58 @@ test('composeLatest drops one-sided breakdowns and places new moku in their kou'
   assert.equal(get('general/expense/2-5-3').items?.[0].name, '県議会議員補欠選挙費');
 });
 
+test('composeLatest keeps nested initial items, drops ambiguous matches and negative funding', () => {
+  const init = file('initial', [
+    // 当初の入れ子（内訳の親 = 位置 0）。補正は入れ子のない別の事項に当たる
+    row('general/expense/7-1-1', 100, {
+      items: [
+        { name: '中小企業振興資金融資費', amount: v(60) },
+        { name: '内訳', amount: v(60), parent: 0 },
+        { name: '商工総務費', amount: v(40) },
+      ],
+    }),
+    // 同じ名前の事項が当初に2つ
+    row('general/revenue/9-2-6', 30, {
+      items: [
+        { name: '社会資本整備総合交付金', amount: v(10) },
+        { name: '社会資本整備総合交付金', amount: v(20) },
+      ],
+    }),
+    row('general/expense/8-2-1', 10, { funding: { national: v(5), bond: v(0), other: v(0), general: v(5) } }),
+  ]);
+  const s = file(
+    'supplementary',
+    [
+      row('general/expense/7-1-1', 15, {
+        items: [
+          { name: '商工総務費', amount: v(5) },
+          { name: '信用保証料補填費', amount: v(10) },
+        ],
+      }),
+      row('general/revenue/9-2-6', 3, { items: [{ name: '社会資本整備総合交付金', amount: v(3) }] }),
+      // 国の分を当初より多く減らして一般財源に振り替える（国の分が負になる）
+      row('general/expense/8-2-1', 0, { funding: { national: v(-8), bond: v(0), other: v(0), general: v(8) } }),
+    ],
+    '6月補正（第1号）',
+  );
+  const out = composeLatest(init, [s]);
+  const get = (id: string) => out.rows.find(x => x.id === id)!;
+  assert.deepEqual(
+    get('general/expense/7-1-1').items?.map(i => [i.name, i.amount.v, i.parent]),
+    [
+      ['中小企業振興資金融資費', 60, undefined],
+      ['内訳', 60, 0],
+      ['商工総務費', 45, undefined],
+      ['信用保証料補填費', 10, undefined],
+    ],
+  );
+  assert.equal(get('general/revenue/9-2-6').items, undefined);
+  assert.equal(get('general/expense/8-2-1').funding, undefined);
+  // 子のある当初の事項に補正が当たるときは出さない
+  const s2 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '中小企業振興資金融資費', amount: v(5) }] })], '9月');
+  assert.equal(composeLatest(init, [s2]).rows[0].items, undefined);
+});
+
 test('composeLatest rejects mismatched files', () => {
   const init = file('initial', [row('general/expense/2-6-4', 1)]);
   assert.throws(() => composeLatest(init, [file('initial', [], '6月')]), /補正予算のファイルではありません/);

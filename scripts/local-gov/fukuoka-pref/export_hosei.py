@@ -157,26 +157,10 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             fails.append(f"{r['id']} {rid}: 目の検算 {m.get('checks')}")
         rows.append(row)
     apply_name_corrections(r["id"], rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], fails)
-    # 補正後は事項・細節を名前の完全一致で当初に足し込む（supplement.ts）。字形だけ違う名前（橋りよう／橋りょう）は
-    # 別の事項として並んでしまうので止める（画像を見て名前の修正表で直す）
-    for x in rows:
-        base = init_rows.get(x["id"])
-        if base is None:
-            continue
-        pairs = [([i["name"] for i in base.get("items", [])], [i["name"] for i in x.get("items", [])], "事項")]
-        for s in x.get("setsu", []):
-            bs = next((b for b in base.get("setsu", []) if b.get("no") == s.get("no")), None)
-            if bs:
-                pairs.append(([y["name"] for y in bs.get("sub", [])], [y["name"] for y in s.get("sub", [])], f"{s.get('no')}節の細節"))
-        for base_names, names, what in pairs:
-            near = {norm_name(b): b for b in base_names}
-            for nm in names:
-                if nm not in base_names and norm_name(nm) in near:
-                    fails.append(f"{r['id']} {x['id']}: {what}「{nm}」が当初の「{near[norm_name(nm)]}」と字形だけ違う（名前の修正表で直す）")
     # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
     got = Counter()
     for x in rows:
-        got[(x["side"], x["kan"]["no"])] += x["amount"]["v"]
+        got[(x["side"], x["kan"]["no"])] += x["amount"]["v"] or 0
     for s_ja, s in SIDE.items():
         for k in gian_sk["総括"][s_ja]:
             if got[(s, k["no"])] != yen(k["補正額"]):
@@ -191,14 +175,37 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
     return out
 
 
+def breakdown_names(x: dict) -> dict:
+    """目の行の事項・細節の名前（字形の照合用）。キーは "事項" と (節の番号)"""
+    out = {"事項": {i["name"] for i in x.get("items", [])}}
+    for s in x.get("setsu", []):
+        out.setdefault(s.get("no"), set()).update(y["name"] for y in s.get("sub", []))
+    return out
+
+
+def check_glyphs(rid: str, x: dict, known: dict, fails: list[str]) -> None:
+    """補正後は事項・細節を名前の完全一致で足し込む（supplement.ts）。当初とそれより前の回の名前と字形だけ違う名前
+    （橋りよう／橋りょう）は別の事項として並んでしまうので止める（画像を見て名前の修正表で直す）"""
+    for key, names in breakdown_names(x).items():
+        prev = known.get(x["id"], {}).get(key, set())
+        near = {norm_name(b): b for b in prev}
+        what = "事項" if key == "事項" else f"{key}節の細節"
+        for nm in names:
+            if nm not in prev and norm_name(nm) in near:
+                fails.append(f"{rid} {x['id']}: {what}「{nm}」が前の「{near[norm_name(nm)]}」と字形だけ違う（名前の修正表で直す）")
+
+
 def build(work: str, initial: dict, rounds=ROUNDS):
     """返り値: [(ファイル名, データ, 検算が通ったか, 要約の行)]"""
     out = []
     # 目の鎖: 目の ID → 当初の額 + それより前の回の補正額（円）。各回の目の補正前の額がこれと一致すること
     cur = Counter()
+    # 目の ID → 当初とそれより前の回の事項・細節の名前（字形の照合）
+    known: dict[str, dict] = {}
     for x in initial["rows"]:
         if x["account"] == "general":
             cur[x["id"]] += x["amount"]["v"] or 0
+            known[x["id"]] = breakdown_names(x)
     for i, r in enumerate(rounds):
         fails: list[str] = []
         gp, sp = os.path.join(work, f"hosei-{r['id']}.json"), os.path.join(work, f"setsumeisho-hosei-{r['id']}.json")
@@ -210,14 +217,19 @@ def build(work: str, initial: dict, rounds=ROUNDS):
             break
         data = build_round(r, json.load(open(gp, encoding="utf-8")), json.load(open(sp, encoding="utf-8")), initial, fails)
         for x in data["rows"]:
-            if x["before"]["v"] != cur[x["id"]]:
-                fails.append(f"{r['id']} {x['id']}: 補正前 {x['before']['v']:,} ≠ 当初＋それまでの補正 {cur[x['id']]:,}")
+            b = x["before"]["v"]
+            if b != cur[x["id"]]:
+                # 補正前が読めない（None）ときも FAIL にする（書式で落ちないよう、None はそのまま出す）
+                fails.append(f"{r['id']} {x['id']}: 補正前 {b if b is None else format(b, ',')} ≠ 当初＋それまでの補正 {cur[x['id']]:,}")
+            check_glyphs(r["id"], x, known, fails)
         for x in data["rows"]:
             cur[x["id"]] += x["amount"]["v"] or 0
+            for key, names in breakdown_names(x).items():
+                known.setdefault(x["id"], {}).setdefault(key, set()).update(names)
         n = int(r["id"].rsplit("-", 1)[1])
         lines = [f"FAIL 補正 {f}" for f in fails] + [
             f"補正 {r['id']}: 目 {len(data['rows'])} 件（全検算一致 {data['checks']['all_ok']}）、補正額 歳出 "
-            f"{sum(x['amount']['v'] for x in data['rows'] if x['side'] == 'expense'):,} 円"]
+            f"{sum(x['amount']['v'] or 0 for x in data['rows'] if x['side'] == 'expense'):,} 円"]
         out.append((f"budget-{YEAR}-supplementary-{n}.json", data, not fails, lines))
     return out
 

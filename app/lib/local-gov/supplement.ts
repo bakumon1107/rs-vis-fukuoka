@@ -29,38 +29,54 @@ function oneSided<T>(base: T[] | undefined, sup: T[] | undefined, baseAmount: Va
   return undefined;
 }
 
+const hasNegative = (xs: { amount: Value }[]) => xs.some(x => (x.amount.v ?? 0) < 0);
+
 /**
- * 事項を足す（同じ名前の事項に足し、なければ added_in を付けて加える）。次のときは事項を出さない（合計の合わない・
- * 意味の取れない内訳を見せない）: 片方にしか事項がない（oneSided）、入れ子の事項がある（parent は元の配列の位置なので、
- * 並べ直すと親を指し違える。親だけ足すと子の合計が親と合わない）、足した結果が負の事項がある（帯を描けない）
+ * 事項を足す（同じ名前の事項に足し、なければ added_in を付けて末尾に加える）。次のときは事項を出さない（合計の合わない・
+ * どれに足すか決まらない内訳を見せない）:
+ * - 片方にしか事項がない（oneSided）
+ * - 補正の事項に入れ子がある（parent は補正の配列の位置なので、当初の後ろに付けると親を指し違える）
+ * - 子のある当初の事項に補正が当たる（親だけ足すと子の合計が親と合わない）
+ * - 同じ名前が当初に2つ以上ある、または当初に1つあって補正に2つ以上ある（どれに足すか決まらない）
+ * - 足した結果が負の事項がある（帯を描けない）
+ * 当初の入れ子はそのまま使える（補正の事項は末尾に加えるので、当初の事項の位置は変わらない。R8 の商業総務費）
  */
 function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: string, baseAmount: Value, supAmount: Value): Item[] | undefined {
-  const nested = (xs: Item[] | undefined) => !!xs?.some(it => it.parent !== undefined);
   const only = oneSided(base, sup, baseAmount, supAmount);
   if (only !== null) {
     if (only === sup && only !== undefined) {
-      if (nested(only) || only.some(it => (it.amount.v ?? 0) < 0)) return undefined;
+      if (only.some(it => it.parent !== undefined) || hasNegative(only)) return undefined;
       return only.map(it => ({ ...it, added_in: round }));
     }
     return only;
   }
-  if (nested(base) || nested(sup)) return undefined;
+  if (sup!.some(it => it.parent !== undefined)) return undefined;
   const out = base!.map(it => ({ ...it }));
-  // 突き合わせるのは足す前からある事項だけ。同じ回の中の同じ名前の事項（R8 9月第3号の「社会資本整備総合交付金」は
-  // 節ごとに3つ）は、それぞれ別の事項として加える
-  const before = out.slice();
+  const n = base!.length;
+  const count = (xs: Item[], name: string) => xs.filter(it => it.name === name).length;
   for (const s of sup!) {
-    const hit = before.find(it => it.name === s.name);
-    if (hit) hit.amount = add(hit.amount, s.amount);
-    else out.push({ ...s, added_in: round });
+    // 突き合わせるのは当初（それまでの回を足したもの）の事項だけ。同じ回の中の同じ名前の新しい事項（R8 9月第3号の
+    // 「社会資本整備総合交付金」は節ごとに3つ）は、それぞれ別の事項として加える
+    const idx = out.findIndex((it, i) => i < n && it.name === s.name);
+    if (idx < 0) {
+      out.push({ ...s, added_in: round });
+      continue;
+    }
+    if (count(base!, s.name) > 1 || count(sup!, s.name) > 1) return undefined;
+    if (base!.some(it => it.parent === idx)) return undefined;
+    out[idx].amount = add(out[idx].amount, s.amount);
   }
-  return out.some(it => (it.amount.v ?? 0) < 0) ? undefined : out;
+  return hasNegative(out) ? undefined : out;
 }
 
-/** 節を足す（同じ番号の節に足し、なければ加える）。片方にしか節がないときは oneSided */
+/** 節を足す（同じ番号の節に足し、なければ加える）。片方にしか節がないときは oneSided。負の節・細節が残れば節を出さない */
 function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: string, baseAmount: Value, supAmount: Value): Setsu[] | undefined {
+  const anyNegative = (xs: Setsu[]) => hasNegative(xs) || xs.some(s => !!s.sub && hasNegative(s.sub));
   const only = oneSided(base, sup, baseAmount, supAmount);
-  if (only !== null) return only === sup && only !== undefined ? only.map(s => ({ ...s, added_in: round })) : only;
+  if (only !== null) {
+    if (only === sup && only !== undefined) return anyNegative(only) ? undefined : only.map(s => ({ ...s, added_in: round }));
+    return only;
+  }
   const out: Setsu[] = base!.map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
   for (const s of sup!) {
     const hit = s.no !== null ? out.find(x => x.no === s.no) : out.find(x => x.name === s.name);
@@ -81,7 +97,7 @@ function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: 
       hit.sub = undefined;
     }
   }
-  return out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
+  return anyNegative(out) ? undefined : out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
 }
 
 /**
@@ -111,13 +127,21 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
         });
         // 図は行の順（款・項・目の順）に箱を並べるので、末尾ではなく同じ会計・款・項の最後の目の後ろに入れる
         const kou = `${sr.account}/${sr.side}/${sr.kan.no}-${sr.kou.no}-`;
-        const at = order.findLastIndex(id => id.startsWith(kou));
+        // （findLastIndex は ES2023。古いブラウザで落ちないよう後ろから探す）
+        let at = -1;
+        for (let i = order.length - 1; i >= 0; i--) {
+          if (order[i].startsWith(kou)) {
+            at = i;
+            break;
+          }
+        }
         if (at >= 0) order.splice(at + 1, 0, sr.id);
         else order.push(sr.id);
         continue;
       }
-      // 財源は両方にあれば足す。片方だけなら、もう片方の額が 0 のときだけ使う（でなければ補正後の額と合わないので出さない）
-      const funding =
+      // 財源は両方にあれば足す。片方だけなら、もう片方の額が 0 のときだけ使う（でなければ補正後の額と合わないので出さない）。
+      // 足した結果に負の区分が出たら（財源の振り替えで当初より多く減らした など）出さない（負の帯は描けない）
+      const merged =
         base.funding && sr.funding
           ? (Object.fromEntries(FUNDING_KEYS.map(k => [k, add(base.funding![k], sr.funding![k])])) as unknown as Funding)
           : base.funding
@@ -127,6 +151,7 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
             : sr.funding && base.amount.v === 0
               ? sr.funding
               : undefined;
+      const funding = merged && FUNDING_KEYS.some(k => (merged[k].v ?? 0) < 0) ? undefined : merged;
       rows.set(sr.id, {
         ...base,
         amount: add(base.amount, sr.amount),

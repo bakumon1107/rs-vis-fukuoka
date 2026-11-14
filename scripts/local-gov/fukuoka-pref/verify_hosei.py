@@ -9,8 +9,10 @@
 2. 目の鎖: 目の補正前の額 = 当初予算の目の額 + それより前の回のその目の補正額の合計（新設の目は 0）。
    目ごとの数字を、当初予算（別の資料）の値から確かめる。計 = 補正前 + 補正額 も見る
 3. 財源: 款ごとの財源内訳（国支出金・地方債・その他・一般財源）の合計 = 総括の款の財源内訳（総括に財源のある回）
-（款の補正前の鎖は check_hosei_chain.py が見る。目の鎖は export_hosei.py も書き出しのときに見て、状態に反映する。
-ここは書き出した公開データを読み直して、別の筋で確かめる）
+4. 款: 総括の款の補正前の額 = 当初 + それより前の回の公開データの目の補正額（款ごとに足す）。
+   check_hosei_chain.py は総括の補正額どうしをつなぐので、公開データの行が抜けた・余分にある（書き出しで落とした目など）
+   ことには気づけない。2 の目の鎖も、公開データにない目は比べないので、ここで款の合計として見る
+（目の鎖は export_hosei.py も書き出しのときに見て、状態に反映する。ここは書き出した公開データを読み直して確かめる）
 """
 import json
 import os
@@ -28,9 +30,11 @@ def main():
     initial_path, work, pubdir = sys.argv[1:4]
     initial = json.load(open(initial_path, encoding="utf-8"))
     cur = Counter()  # 目の ID → 当初 + それまでの補正額（円）
+    kan_cur = Counter()  # (歳入出, 款) → 当初 + それまでの補正額（円）
     for r in initial["rows"]:
         if r["account"] == "general":
             cur[r["id"]] += r["amount"]["v"] or 0
+            kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
     fails, n = [], Counter()
     for rd in export_hosei.ROUNDS:
         rid = rd["id"]
@@ -77,8 +81,15 @@ def main():
                 g = sum(r["funding"][en]["v"] for r in rows if r["side"] == "expense" and r["kan"]["no"] == k["no"])
                 if g != k["財源"][jp] * 1000:
                     fails.append(f"{rid} 歳出 {k['no']}款 {jp}: 目の合計 {g:,} ≠ 総括 {k['財源'][jp] * 1000:,}")
+        # 4. 総括の款の補正前（公開データの行から足した款の額と比べる）
+        for s_ja, s in SIDE.items():
+            for k in gs["総括"][s_ja]:
+                n["款"] += 1
+                if k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
+                    fails.append(f"{rid} 総括 {s_ja} {k['no']}款: 補正前 {k['補正前'] * 1000:,} ≠ 当初＋それまでの公開データの補正 {kan_cur[(s, k['no'])]:,}")
         for r in rows:
             cur[r["id"]] += r["amount"]["v"]
+            kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"]
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     print("照合した数: " + "・".join(f"{k} {v}" for k, v in n.items()), file=sys.stderr)
