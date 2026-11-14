@@ -33,7 +33,9 @@ STEPS = [
     ("決算 款項目別明細表", "extract_kessan_kmk.py", ["{pdf:272595}"], "kessan-kmk.json", [r"^件数", r"^合計行", r"FAIL="]),
     ("決算 部局別", "extract_kessan_bukyoku.py", ["{pdf:272595}", "{out:kessan-kmk.json}"], "kessan-bukyoku.json",
      [r"FAIL=", r"^部局 \d+"]),
-    ("決算 節", "extract_kessan_setsu.py", ["{pdf:272615}", "{out:kessan-kmk.json}"], "kessan-setsu.json", [r"^節", r"FAIL="]),
+    ("決算 特別会計", "extract_kessan_toku.py", ["{pdf:272595}"], "kessan-toku.json", [r"^会計 \d+", r"^WARN", r"FAIL="]),
+    ("決算 節", "extract_kessan_setsu.py", ["{pdf:272615}", "{out:kessan-kmk.json}", "--toku", "{out:kessan-toku.json}"],
+     "kessan-setsu.json", [r"^節", r"FAIL="]),
     # 引数の順: 歳入（277210）・歳出（277211）・特別会計（277212）・総括（277209）・決算の款項目（款名の照合）
     ("計上額調", "extract_keijougaku.py", ["{pdf:277210}", "{pdf:277211}", "{pdf:277212}", "{pdf:277209}",
                                          "{out:kessan-kmk.json}"], "keijougaku.json", [r"FAIL=", r"^総括", r"^(歳入|歳出|特別会計): \d+ 行"]),
@@ -88,7 +90,9 @@ STEPS = [
 def _export_deps():
     """書き出し（export_fukuoka_pref.py）が読む入力: 前のステップの出力と、sources.json の資料の PDF（SHA256 を確かめる）。
     引数は --work <dir> だけなので、ここで並べる（どれかが欠けたら、書き出しのステップを飛ばす）"""
-    outs = ["kessan-kmk.json", "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
+    # 決算の書き出し（export_settlement.build）が読む kessan-bukyoku・kessan-toku・kessan-setsu も入れる
+    outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
+            "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
             "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json",
             "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json"]
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:

@@ -17,16 +17,15 @@ PDF の癖（R6 で確認）:
 - 明細表のすべての目（予算現額が 0 でないもの）に対応が付く
 """
 import json
+import os
 import re
+import subprocess
 import sys
 
 import pdfplumber
 
-SETSU = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5: "災害補償費", 6: "恩給及び退職年金", 7: "報償費", 8: "旅費",
-         9: "交際費", 10: "需用費", 11: "役務費", 12: "委託料", 13: "使用料及び賃借料", 14: "工事請負費", 15: "原材料費",
-         16: "公有財産購入費", 17: "備品購入費", 18: "負担金、補助及び交付金", 19: "扶助費", 20: "貸付金",
-         21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
-         26: "公課費", 27: "繰出金"}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from kessan_common import SETSU_NAMES as SETSU  # noqa: E402  節の名前（番号で決まる）
 
 
 # 文字単位で列を組み立てる x の範囲（R6 実測）。単語単位だと、1文字ずつの層の数字（x≈352〜376）と
@@ -39,7 +38,30 @@ LABEL_BAND = (294.0, 318.5)   # 1語の層の節の区分（番号＋名称）
 MOKU_BAND = (40.0, 290.0)     # 款・項・目の行の予算現額の内訳（ここに数字があれば新しい款・項・目の行）
 
 
-def rows_of(page):
+# 特別会計の歳出のページ（R6 の PDF 262ページ〜）は、予算現額の内訳の列が多く、節の区分から右の列の位置が一般会計と違う。
+# 列の幅は一般会計と同じ 37.5pt 間隔で、見開きの左右のページで 9.7pt ずれる2通りがある（支出済額の右端 583.2 / 592.9。R6 実測）
+SPECIAL_BANDS = [("節の金額", 508.0, 546.5), ("支出済額", 546.5, 584.0), ("継続費逓次繰越", 584.0, 621.5),
+                 ("繰越明許費", 621.5, 659.0), ("事故繰越し", 659.0, 696.5), ("不用額", 696.5, 734.0)]
+SPECIAL_LABEL_BAND = (455.0, 508.0)
+SPECIAL_MOKU_BAND = (40.0, 440.0)
+
+
+def special_shift(page) -> float | None:
+    """特別会計の歳出の並びなら、列のずれ（0 か 9.7）。一般会計の並びなら None。支出済額の列の数字の右端で見分ける。"""
+    # 数字は文字コードなし（(cid:N)）で描かれることもある（digit_of と同じ範囲で数える）
+    ends = [c["x1"] for c in page.chars if digit_of(c["text"]) is not None and repr(c.get("non_stroking_color")) == "(0.0,)"]
+    a = sum(1 for x in ends if abs(x - 583.2) < 0.6)
+    b = sum(1 for x in ends if abs(x - 592.9) < 0.6)
+    general = sum(1 for x in ends if abs(x - 501.9) < 0.6)
+    if max(a, b) == 0 or general > max(a, b):
+        return None
+    return 0.0 if a >= b else 9.7
+
+
+def rows_of(page, special: bool = False):
+    shift = special_shift(page) if special else None
+    if shift is not None:
+        return rows_of_special(page, shift)
     # 2層で描かれていないページもある（R6 の p55・p156。1語の層の色 (0,) が無い）。
     # そのページでは色で層を選ばず、列の位置だけで読む（選ぶと節の金額が全行 None になり、行ごと捨てていた実例）
     # 判定は節の金額の列の数字に限る（ページの他の場所には 1層のページにも (0,) の文字がある。p55 で確認）
@@ -70,13 +92,98 @@ def rows_of(page):
     return out
 
 
+CID_RE = re.compile(r"\(cid:(\d+)\)")
+CID_ZERO = 19  # (cid:19) が 0、(cid:28) が 9（digit_of とラベルの番号の正規表現の、範囲の1か所の定義）
+CID_DIGIT = "|".join(str(CID_ZERO + d) for d in range(10))
+
+
+def digit_of(text: str) -> str | None:
+    """文字の数字。特別会計のページでは一部の数字が文字コードなし（(cid:N)）で描かれ、N − 19 がその数字
+    （(cid:20)=1・(cid:22)=3・(cid:26)=7。概要説明書の値と照らして確かめた。R6 公債管理 支出済額「5244(cid:22)(cid:20)(cid:22)88090」= 524,431,388,090）"""
+    if text.isdigit():
+        return text
+    m = CID_RE.fullmatch(text)
+    if m and CID_ZERO <= int(m.group(1)) <= CID_ZERO + 9:
+        return str(int(m.group(1)) - CID_ZERO)
+    return None
+
+
+def rows_of_special(page, shift: float):
+    """特別会計の歳出のページの行。右側の列は1つの層（(0.0,)）だけを読む。節の金額は呼び出し側で他の列から求め直す。"""
+    rows: dict[int, list] = {}
+    for c in page.chars:
+        rows.setdefault(round(c["top"] / 2) * 2, []).append(c)
+    out = []
+    la, lb = SPECIAL_LABEL_BAND
+    ma, mb = SPECIAL_MOKU_BAND
+    for _, cs in sorted(rows.items()):
+        cs = sorted(cs, key=lambda c: c["x0"])
+        one = [c for c in cs if repr(c.get("non_stroking_color")) == "(0.0,)"]
+        # 節の区分の番号も (cid:N) で描かれることがある（「(cid:20)(cid:20)需用費」= 11）。番号の部分だけ数字に直す
+        label = "".join(c["text"] for c in one if la + shift <= c["x0"] < lb + shift).strip()
+        # 数字の (cid:N) は digit_of と同じ範囲（CID_DIGIT）だけ
+        mlab = re.match(rf"^((?:\d|\(cid:(?:{CID_DIGIT})\))+)(.*)$", label)
+        if mlab:
+            label = "".join(digit_of(x) for x in re.findall(r"\d|\(cid:\d+\)", mlab.group(1))) + mlab.group(2)
+        rec = {"two_layers": False, "label": label,
+               "moku_digits": re.search(r"\d{4,}", "".join(digit_of(c["text"]) or "x" for c in cs if ma <= c["x0"] < mb))
+               is not None}
+        for name, a, b in SPECIAL_BANDS:
+            ds = "".join(digit_of(c["text"]) or "" for c in one if a + shift <= c["x0"] and c["x1"] <= b + shift)
+            rec[name] = int(ds) if ds else None
+        out.append(rec)
+    return out
+
+
+def revenue_page_numbers(page_text: list[str]) -> set[int]:
+    """歳入のページ（1 から数える）。列見出しに「収入済額」があり「支出済額」がないページ（空白を除いた pdftotext のページの文字）。
+    節の区画の照合は歳出の目だけなので、歳入のページの区画は候補にしない（予算現額・支出済額の欄の位置に、たまたま同じ額の
+    歳入の数字が並ぶ区画を拾わないため）。R6 で確認: 一般会計 p7〜p39 が歳入、特別会計は会計ごとに歳入→歳出。
+    両方の見出しのあるページは総括の p5 だけで、歳入と歳出が同じページに並ぶページはない"""
+    return {i for i, t in enumerate(page_text, 1) if "収入済額" in t and "支出済額" not in t}
+
+
+def expense_candidates(groups: list[dict], revenue_pages: set[int]) -> list[dict]:
+    """照合の候補の区画: 節があり、歳入のページで始まらないもの"""
+    return [g for g in groups if g["節"] and g["pdf_page"] not in revenue_pages]
+
+
+def find_segment(cand: list[dict], start: int, window: int, acc_name: str, budget: int, spent: int) -> tuple[int, int] | None:
+    """cand[start:start + window] から、同じ会計の連続する 1〜10 区画で、節の金額の合計 = 予算現額・支出済額の合計 = 支出済額に
+    なるものを探す（目はページ境界で複数の区画に分かれる）。返り値は (始まり, 区画の数)。なければ None"""
+    for j in range(start, min(start + window, len(cand))):
+        if cand[j]["会計"] != acc_name:
+            continue
+        for k in range(1, 11):  # 節の多い目は 5ページ以上にまたがる
+            seg = cand[j:j + k]
+            if len(seg) < k or seg[-1]["会計"] != acc_name:
+                break
+            ss = [s for g in seg for s in g["節"]]
+            if sum(s["節の金額"] for s in ss) == budget and sum(s["支出済額"] for s in ss) == spent:
+                return j, k
+    return None
+
+
 def main():
     pdf_path, kmk_path = sys.argv[1], sys.argv[2]
     kmk = json.load(open(kmk_path, encoding="utf-8"))
+    # --toku <kessan-toku.json>: 一般会計の後に続く特別会計の歳出の目にも対応させる（extract_kessan_toku.py の出力。会計の順に並ぶ）
+    toku = None
+    if "--toku" in sys.argv:
+        with open(sys.argv[sys.argv.index("--toku") + 1], encoding="utf-8") as f:
+            toku = json.load(f)
     groups: list[dict] = []  # 目の単位（目の行で区切る）
+    # 「…特別会計歳入歳出決算事項別明細書」の見出しのあるページ（会計の区切り）。pdfplumber の文字の取り出しでは見出しが
+    # 2層の重なりで崩れるので、pdftotext（-layout）のページごとの文字で探す（改ページ \f で区切る）
+    txt = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True, check=True).stdout
+    page_text = [re.sub(r"\s", "", t) for t in txt.split("\f")]
+    head_pages: list[int] = []
+    if toku is not None:
+        head_pages = [i for i, t in enumerate(page_text, 1) if "特別会計歳入歳出決算事項別明細書" in t]
+    revenue_pages = revenue_page_numbers(page_text)
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
-            for row in rows_of(page):
+            for row in rows_of(page, special=toku is not None):
                 if row["moku_digits"] and (row["節の金額"] is None or not row["two_layers"]):
                     groups.append({"pdf_page": pno, "節": []})
                     continue
@@ -103,7 +210,11 @@ def main():
         for kan in kmk[side]:
             for kou in kan["children"]:
                 for mo in kou["children"]:
-                    ref.append((side, kan["no"], kou["no"], mo["no"], mo))
+                    ref.append((side, kan["no"], kou["no"], mo["no"], mo, "一般会計"))
+    for acc in (toku or {}).get("会計", []):
+        for kou in acc["項"]:
+            for mo in kou["目"]:
+                ref.append(("expense", kou["款"], kou["項"], mo["no"], mo, acc["会計"]))
     fails = 0
 
     def fail(msg):
@@ -111,39 +222,53 @@ def main():
         fails += 1
         print("FAIL " + msg, file=sys.stderr)
 
-    cand = [g for g in groups if g["節"]]
+    cand = expense_candidates(groups, revenue_pages)
+    # 会計の区切り: 特別会計は会計ごとに見出しのページから始まる（R6 は特別会計全体の見出し p257 と 14会計の見出し p262〜p303）。
+    # 最後の「会計の数」個の見出しを、概要説明書（kessan-toku.json）の会計の順に当てる。区画はその会計のものだけを照合の候補にする
+    # （予算現額・支出済額がたまたま同じ別の会計の区画を拾わないため）。一般会計の区画は最初の会計の見出しより前
+    acc_names = [a["会計"] for a in (toku or {}).get("会計", [])]
+    starts = head_pages[-len(acc_names):] if acc_names else []
+    if acc_names and len(head_pages) < len(acc_names):
+        print(f"FAIL 特別会計の見出しのページが {len(head_pages)} 個しかない（会計 {len(acc_names)}）", file=sys.stderr)
+        sys.exit(1)
+
+    def acc_of(page: int) -> str:
+        i = sum(1 for s in starts if s <= page) - 1
+        return "一般会計" if i < 0 else acc_names[i]
+
+    for g in cand:
+        g["会計"] = acc_of(g["pdf_page"])
     out = []
     gi = 0
-    for side, ka, ko, mo_no, mo in ref:
+    prev_acc = None
+    last_failed = False
+    for side, ka, ko, mo_no, mo, acc_name in ref:
         if side != "expense":
             continue  # 歳入の節（現年課税分など）は名称が規則で決まっていないので今回は歳出のみ
         if mo["予算現額"] == 0 and mo["支出済額"] == 0:
             continue
         # 目はページ境界で複数の区画に分かれることがあるので、連続する 1〜4 区画をつないだ合計で照合する。
-        # 最初の歳出の目は、歳入の区画を飛ばす必要があるので探索範囲を広く取る
-        found = None
-        window = len(cand) if not out else 8
-        for j in range(gi, min(gi + window, len(cand))):
-            for k in range(1, 11):  # 節の多い目は 5ページ以上にまたがる
-                seg = cand[j:j + k]
-                if len(seg) < k:
-                    break
-                ss = [s for g in seg for s in g["節"]]
-                if sum(s["節の金額"] for s in ss) == mo["予算現額"] and sum(s["支出済額"] for s in ss) == mo["支出済額"]:
-                    found = (j, k)
-                    break
-            if found:
-                break
+        # 会計の最初の歳出の目は、その会計の歳入の区画を飛ばす必要があるので探索範囲を広く取る。
+        # 直前の目が対応しなかったときも広く取る（狭いままだと、その会計の残りの目がまとめて対応しなくなる。R6 国民健康保険で実例）。
+        # 予算現額と支出済額の両方がちょうど一致する区画だけを採るので、広く探しても取り違えにくい
+        window = len(cand) if (acc_name != prev_acc or last_failed) else 8
+        prev_acc = acc_name
+        found = find_segment(cand, gi, window, acc_name, mo["予算現額"], mo["支出済額"])
         if found is None:
-            fail(f"対応なし {ka}款{ko}項{mo_no}目 {mo['name']}（予算現額 {mo['予算現額']:,}、支出済額 {mo['支出済額']:,}）")
+            fail(f"対応なし {acc_name} {ka}款{ko}項{mo_no}目 {mo['name']}（予算現額 {mo['予算現額']:,}、支出済額 {mo['支出済額']:,}）")
+            last_failed = True
             continue
+        last_failed = False
         j, k = found
-        if j != gi and out:
-            print(f"WARN {ka}款{ko}項{mo_no}目 {mo['name']}: 区画を {j - gi} 個飛ばして対応", file=sys.stderr)
+        if j != gi and out and window == 8:
+            print(f"WARN {acc_name} {ka}款{ko}項{mo_no}目 {mo['name']}: 区画を {j - gi} 個飛ばして対応", file=sys.stderr)
         g = {"pdf_page": cand[j]["pdf_page"], "節": [s for x in cand[j:j + k] for s in x["節"]]}
         gi = j + k
-        out.append({"款": ka, "項": ko, "目": mo_no, "目名": mo["name"], "予算現額": mo["予算現額"], "支出済額": mo["支出済額"],
-                    "節": g["節"], "pdf_page": g["pdf_page"]})
+        rec = {"款": ka, "項": ko, "目": mo_no, "目名": mo["name"], "予算現額": mo["予算現額"], "支出済額": mo["支出済額"],
+               "節": g["節"], "pdf_page": g["pdf_page"]}
+        if acc_name != "一般会計":
+            rec["会計"] = acc_name  # 一般会計の行は今までどおり会計を書かない（既存の出力を変えない）
+        out.append(rec)
     all_s = [s for o in out for s in o["節"]]
     match = sum(s["節の金額_読み取り一致"] for s in all_s)
     print(f"節 {len(all_s)} 件のうち、節の金額の列から読めた値が計算値と一致: {match} 件", file=sys.stderr)
@@ -152,4 +277,5 @@ def main():
     sys.exit(1 if fails else 0)
 
 
-main()
+if __name__ == "__main__":
+    main()

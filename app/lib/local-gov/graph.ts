@@ -18,9 +18,10 @@ import {
 } from '@/types/local-gov';
 
 /**
- * 見方（列の組み合わせ）。
- * - general: 一般会計の歳出。財源 → 款 → 項 → 目 → 事項
- * - all: 全会計。歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）
+ * 見方（列の組み合わせ）。列はデータの種類（予算・決算）で変わる（COLUMNS / SETTLEMENT_COLUMNS）。
+ * - general: 一般会計の歳出。予算は 財源 → 款 → 項 → 目 → 事項、決算は 部局 → 款 → 項 → 目 → 節
+ * - all: 全会計（総計。会計間の繰入れの重複を含む）。予算は 歳入の款 → 会計 → 款 → 項 → 目、決算は 会計 → 款 → 項 → 目 → 節
+ *   （決算の歳入は図に描かない。R6 決算の設計 7章の2）
  */
 export type LocalGraphView = 'general' | 'all';
 
@@ -40,6 +41,11 @@ export interface LocalGraphFilter {
    * 'none' は財源内訳のない目（「財源の記載なし」の箱）
    */
   funding?: FundingKey | 'none';
+  /**
+   * 部局（決算の一般会計の見方だけ）。各目のこの部局の額（部局の内訳。資料の数字）で 部局 → 款 → 項 → 目 を組み立てる。
+   * 節は部局ごとに分かれていないので、節の列は作らない
+   */
+  department?: string;
 }
 
 export interface LocalGraphOptions {
@@ -75,6 +81,32 @@ const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
     { key: 'moku', label: '目' },
   ],
 };
+
+/** 決算の列（R6 決算の設計 4章・8章。歳入は描かない） */
+const SETTLEMENT_COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
+  general: [
+    { key: 'department', label: '部局' },
+    { key: 'kan', label: '款' },
+    { key: 'kou', label: '項' },
+    { key: 'moku', label: '目' },
+    { key: 'setsu', label: '節' },
+  ],
+  all: [
+    { key: 'account', label: '会計' },
+    { key: 'kan', label: '款' },
+    { key: 'kou', label: '項' },
+    { key: 'moku', label: '目' },
+    { key: 'setsu', label: '節' },
+  ],
+};
+
+/** 見方とデータの種類の列 */
+export function columnsOf(view: LocalGraphView, basis: LocalBudgetFile['basis']) {
+  return (basis === 'settlement' ? SETTLEMENT_COLUMNS : COLUMNS)[view];
+}
+
+/** 部局の内訳のない目（決算の一般会計で部局の表に出ない目。R6 は 0件）を流す箱の名前 */
+export const DEPARTMENT_NONE = '部局の記載なし';
 
 type Node = LocalGraph['nodes'][number];
 
@@ -166,6 +198,14 @@ function addHierarchy(b: GraphBuilder, r: MokuRow, cols: Set<string>, from: stri
   if (!cols.has('moku')) return;
   const moku = b.node(mokuId(r), 'moku', r.moku.name, { row: r.id, flags: nameFlags(r.moku.name_src) });
   b.edge(kou, moku, v);
+  // 節（決算）。名前は節番号で決まる節名。同じ目の節は配列の位置で区別する
+  if (cols.has('setsu') && r.setsu && value === undefined) {
+    r.setsu.forEach((s, i) => {
+      if (!s.amount.v) return;
+      const setsu = b.node(`setsu:${r.id}:${i}`, 'setsu', s.name, { row: r.id, flags: nameFlags(s.name_src) });
+      b.edge(moku, setsu, s.amount.v);
+    });
+  }
   if (!cols.has('item') || !r.items || value !== undefined) return;
   // 事項は親の事項だけ（入れ子の内訳は親に含まれる）。事項のない目（R8 の一般会計で水防費・予備費など4つ）は目で止まる。
   // ID は items の配列の位置（入れ子も数える）。名前で決めると、別の目の「職員費」などが1つの箱に混ざる
@@ -198,13 +238,44 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
   if (file.basis === 'supplementary') {
     throw new Error('補正（差分）のファイルからはグラフを組み立てません（当初 + 補正 の組み立ては未実装）');
   }
-  const columns = COLUMNS[opts.view].slice(0, opts.depth ?? undefined);
+  const columns = columnsOf(opts.view, file.basis).slice(0, opts.depth ?? undefined);
   const cols = new Set(columns.map(c => c.key));
   const b = new GraphBuilder();
   const rows = file.rows.filter(r => matches(r, opts.filter));
   let gross = 0;
 
-  if (opts.view === 'general') {
+  if (file.basis === 'settlement' && opts.view === 'general') {
+    // 決算の一般会計: 部局 → 款 → 項 → 目 → 節。部局 → 款 は目ごとの部局の内訳（資料の数字）をそのまま流す（按分しない）
+    const only = opts.filter?.department;
+    for (const r of rows) {
+      if (r.account !== 'general' || r.side !== 'expense' || amountOf(r) === 0) continue;
+      const deps: [string, Yen][] = r.by_department && r.by_department.length > 0
+        ? r.by_department.map(d => [d.name, d.amount.v ?? 0])
+        : [[DEPARTMENT_NONE, amountOf(r)]];
+      const picked = only !== undefined ? deps.filter(([n]) => n === only) : deps;
+      const v = only !== undefined ? picked.reduce((s, [, x]) => s + x, 0) : amountOf(r);
+      if (v === 0) continue;
+      gross += v;
+      if (cols.has('kan')) {
+        const kan = b.node(kanId(r), 'kan', r.kan.name, { flags: nameFlags(r.kan.name_src) });
+        for (const [n, x] of picked) if (x) b.edge(b.node(`department:${n}`, 'department', n), kan, x);
+      }
+      addHierarchy(b, r, cols, null, only !== undefined ? v : undefined);
+    }
+  } else if (file.basis === 'settlement') {
+    // 決算の全会計: 会計 → 款 → 項 → 目 → 節（歳入は描かない）
+    const dupKan = duplicatedExpenseKanNames(file);
+    const accountOf = new Map(file.accounts.map(a => [a.id, a]));
+    for (const r of rows) {
+      const acc = accountOf.get(r.account);
+      if (acc?.kind === 'enterprise' || r.side !== 'expense' || amountOf(r) === 0) continue;
+      gross += amountOf(r);
+      const accName = acc?.name ?? r.account;
+      addHierarchy(b, r, cols, b.node(`account:${r.account}`, 'account', accName));
+      const kn = b.nodes.get(kanId(r));
+      if (kn && dupKan.has(r.kan.name)) kn.name = `${r.kan.name}（${accName}）`;
+    }
+  } else if (opts.view === 'general') {
     const only = opts.filter?.funding;
     for (const r of rows) {
       if (r.account !== 'general' || r.side !== 'expense') continue;

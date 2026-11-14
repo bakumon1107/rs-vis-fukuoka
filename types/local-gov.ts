@@ -123,11 +123,46 @@ export interface MokuRow {
   items?: Item[];
   setsu?: Setsu[];
   department?: { name: string; via: string };
+  /**
+   * 部局ごとの内訳（決算。1つの目が複数の部局にまたがる。R6 で 234目のうち 6目）。4列の合計は目の値と一致する。
+   * 決算の内容・不用額の内容は部局ごとに資料にあるので、ここに持つ
+   */
+  by_department?: {
+    name: string;
+    amount: Value;
+    budget_current: Value;
+    carried_over: Value;
+    unused: Value;
+    explanation?: Explanation;
+  }[];
+  /** 決算の内容・不用額の内容（決算。部局の内訳がない目＝特別会計はここに持つ） */
+  explanation?: Explanation;
   /** 会計間の繰出し・繰入れ（純計で重複を除くための印） */
   transfer?: { to_account?: string; from_account?: string };
   /** 「○○課所管」「事業費支弁職員 2人」などの注記 */
   notes?: string[];
   pages: { source: string; page: number }[];
+}
+
+/** 決算の目の説明（概要説明書の「決算の内容」「不用額の内容」の文） */
+export interface Explanation {
+  /** 決算の内容（主な使い道。例「人件費 運営費 財産管理費」） */
+  content?: string;
+  /** 不用額の内容（主に何が余ったか。例「人件費 （120,825千円）」） */
+  unused?: string;
+}
+
+/** 決算の歳入（会計 × 款）。特別会計の歳入は資料に款までしかないので、一般会計もそろえて款の単位で持つ */
+export interface RevenueByKan {
+  account: string;
+  kan: NumberedName;
+  amount: Value; // 収入済額
+  budget_current: Value; // 予算現額
+  assessed: Value; // 調定額
+  deficit_loss: Value; // 不納欠損額
+  uncollected: Value; // 収入未済額
+  /** 過誤納金（収入済額の内数）。調定額 = 収入済額 − 過誤納金 + 不納欠損額 + 収入未済額 */
+  overpaid?: Value;
 }
 
 export interface CheckSummary {
@@ -153,6 +188,8 @@ export interface LocalBudgetFile {
   unit_source: '千円' | '円';
   accounts: Account[];
   rows: MokuRow[];
+  /** 決算の歳入（会計 × 款）。決算の行は歳出の目だけなので、歳入はここに持つ */
+  revenue_by_kan?: RevenueByKan[];
   checks: CheckSummary;
 }
 

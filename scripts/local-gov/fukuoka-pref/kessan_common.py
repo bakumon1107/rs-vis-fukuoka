@@ -12,6 +12,13 @@ import re
 import subprocess
 from dataclasses import dataclass, field
 
+# 節の名前（地方自治法施行規則の歳出の節。番号で決まる）。予算・決算の書き出しと決算の節の抽出が共通で使う
+SETSU_NAMES = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5: "災害補償費", 6: "恩給及び退職年金", 7: "報償費", 8: "旅費",
+               9: "交際費", 10: "需用費", 11: "役務費", 12: "委託料", 13: "使用料及び賃借料", 14: "工事請負費", 15: "原材料費",
+               16: "公有財産購入費", 17: "備品購入費", 18: "負担金、補助及び交付金", 19: "扶助費", 20: "貸付金",
+               21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
+               26: "公課費", 27: "繰出金"}
+
 NUM = r"▲?\s?[\d,]+"
 DATA_RE = re.compile(rf"^(?P<indent>\s*)(?P<label>.*?)\s+(?P<nums>(?:{NUM}\s+)*{NUM})\s*$")
 PAREN_RE = re.compile(r"\s*\(([\d,]+)\)\s*")
@@ -150,3 +157,73 @@ def assemble_rows(lines: list[str], want: int, *, split_income_col: int | None =
         buf, pending_no = [], None
         out.append(("row", row))
     return out
+
+
+EXPLAIN_KINDS = ("決算の内容", "不用額の内容")
+
+
+class ExplainReader:
+    """概要説明書の項ごとの「説明」の表（「（1）決算の内容」「（2）不用額の内容」）を読む。
+
+    表は「目 / 目の名称 / 主な内容」の3列で、目の番号の行から次の番号の行までが1つの目（内容は折り返す）。
+    内容の欄は目の名前の欄（見出しの「名称」の「称」まで）の右。見出しの「主」は欄の中ほどにあるので境目に使わない。
+    feed() に「説明」より後の行を1行ずつ渡し、result()（{"決算の内容": {目の番号: 文}, ...}）で受け取る。"""
+
+    def __init__(self):
+        self.kind: str | None = None
+        self.lines: list[str] = []
+        self.split: int | None = None
+        self.out: dict[str, dict[int, str]] = {}
+
+    def _flush(self):
+        if self.kind:
+            self.out[self.kind] = self._parse(self.lines, self.split)
+        self.kind, self.lines = None, []
+
+    @staticmethod
+    def _parse(lines: list[str], split: int | None) -> dict[int, str]:
+        out: dict[int, str] = {}
+        cur = None
+        for ln in lines:
+            m = re.match(r"^\s*(\d+)\s", ln)
+            if m and (split is None or m.start(1) < split):
+                cur = int(m.group(1))
+                out.setdefault(cur, "")
+            if cur is None:
+                continue
+            right = ln[split:] if split else ln
+            out[cur] = (out[cur] + " " + re.sub(r"\s+", " ", right).strip()).strip()
+        return out
+
+    def feed(self, ln: str, is_header) -> None:
+        f = flat(ln)
+        for kind in EXPLAIN_KINDS:
+            if re.match(rf"^（\d）{kind}", f):
+                self._flush()
+                self.kind = kind
+                return
+        if f.startswith("目目の名称"):
+            self.split = ln.index("称") + 2 if "称" in ln else None
+            return
+        if re.match(r"^（\d）", f):  # ほかの表（「（3）収入未済額の内容」など）
+            self._flush()
+            return
+        if self.kind and ln.strip() and not is_header(ln):
+            self.lines.append(ln)
+
+    def result(self) -> dict[str, dict[int, str]]:
+        self._flush()
+        return self.out
+
+
+def attach_explain(moku: list[dict], explain: dict[str, dict[int, str]]) -> None:
+    """ExplainReader の結果を目（{"no", "name", ...}）に付ける。
+    字間を空けた目の名前（「積 立 金」）の最後の字が内容の欄にはみ出るので、名前の最後の字と同じ1字が先頭にあれば除く。"""
+    for m in moku:
+        for kind in EXPLAIN_KINDS:
+            text = explain.get(kind, {}).get(m["no"])
+            if text is None:
+                continue
+            if len(text) >= 2 and text[1] == " " and m["name"].endswith(text[0]):
+                text = text[2:]
+            m[kind] = text

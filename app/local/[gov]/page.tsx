@@ -14,7 +14,8 @@ import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
-import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import { pickDataset, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import type { Basis } from '@/types/local-gov';
 import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
@@ -25,16 +26,30 @@ import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import { fundingReclassNotes } from '@/client/lib/local-gov-labels';
 
-// opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3）
-const VIEWS: { key: LocalGraphView; label: string; note: string; opens: string }[] = [
-  { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '財源・款を選ぶと目、項・目・事項を選ぶと事項まで開きます' },
-  {
-    key: 'all',
-    label: '全会計',
-    note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
-    opens: '会計を選ぶと項、款・項・目を選ぶと目まで開きます',
-  },
-];
+// opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3・R6 決算の設計 4章）
+type ViewInfo = { key: LocalGraphView; label: string; note: string; opens: string };
+const VIEWS: Record<Basis, ViewInfo[]> = {
+  initial: [
+    { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '財源・款を選ぶと目、項・目・事項を選ぶと事項まで開きます' },
+    {
+      key: 'all',
+      label: '全会計',
+      note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
+      opens: '会計を選ぶと項、款・項・目を選ぶと目まで開きます',
+    },
+  ],
+  supplementary: [],
+  settlement: [
+    { key: 'general', label: '一般会計', note: '部局 → 款 → 項 → 目 → 節（帯は支出済額＝実際に使った額）', opens: '部局・款を選ぶと目、項・目・節を選ぶと節まで開きます' },
+    {
+      key: 'all',
+      label: '全会計',
+      note: '会計 → 款 → 項 → 目 → 節（総計。会計間の繰入れの重複を含む。帯は支出済額）',
+      opens: '会計・款・項を選ぶと目、目・節を選ぶと節まで開きます',
+    },
+  ],
+};
+const BASIS_LABEL: Record<Basis, string> = { initial: '当初予算', supplementary: '補正予算', settlement: '決算' };
 
 export default function LocalGovPage() {
   return (
@@ -50,16 +65,24 @@ function LocalGovContent() {
   const router = useRouter();
   const view: LocalGraphView = searchParams.get('view') === 'all' ? 'all' : 'general';
   const selectedId = searchParams.get('sel');
-  // 年度（西暦）。なければ最新の年度
+  // 予算か決算か（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
+  const basis: Basis = searchParams.get('basis') === 'settlement' ? 'settlement' : 'initial';
   const year = yearFromQuery(searchParams.get('year'));
-  const state = useLocalBudget(gov, year);
+  const state = useLocalBudget(gov, year, basis);
   const panel = useSidePanel({ side: 'right' });
   const isNarrow = useIsNarrow();
 
   // 年度・見方・選択は URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
-    (next: { year?: number; view?: LocalGraphView; sel?: string | null }) => {
+    (next: { basis?: Basis; year?: number; view?: LocalGraphView; sel?: string | null }) => {
       const q = new URLSearchParams(searchParams.toString());
+      if (next.basis !== undefined) {
+        // 予算と決算は年度も箱の ID も違うので、年度と選択は外す（それぞれ最新の年度を開く）
+        if (next.basis === 'initial') q.delete('basis');
+        else q.set('basis', next.basis);
+        q.delete('year');
+        q.delete('sel');
+      }
       if (next.year !== undefined) {
         q.set('year', String(next.year));
         q.delete('sel');
@@ -118,9 +141,15 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
+  // 予算と決算の切り替え（その種類のデータがあるものだけ。それぞれ最新の年度のラベル）
+  const bases = (['initial', 'settlement'] as const)
+    .map(b => ({ basis: b, ds: pickDataset(index, b) }))
+    .filter((x): x is { basis: 'initial' | 'settlement'; ds: NonNullable<typeof x.ds> } => x.ds !== undefined);
+  const views = VIEWS[file.basis];
   // 「データについて」へのリンク。今の見方・選択（クエリ全体）を back で渡し、「← サンキー図に戻る」で同じ表示に戻れるようにする
   const aboutHref = (hash = '') =>
-    `/local/${gov}/about?year=${file.year}&back=${encodeURIComponent(searchParams.toString())}${hash}`;
+    `/local/${gov}/about?year=${file.year}${file.basis === 'settlement' ? '&basis=settlement' : ''}` +
+    `&back=${encodeURIComponent(searchParams.toString())}${hash}`;
   // 詳細に出す会計の名前（図の下・下からのシートの両方で使う）
   const accountName = row ? file.accounts.find(a => a.id === row.account)?.name ?? row.account : '';
 
@@ -133,17 +162,33 @@ function LocalGovContent() {
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}
-            {file.basis === 'initial' ? '当初予算' : ''}
+            {BASIS_LABEL[file.basis]}
           </h1>
           <span className="text-sm text-mirai-text-muted">
             {/* 公営企業会計は全会計の見方に描かない（歳入と歳出が一致しない様式。設計書 3.2）ので、いつも「除く」と示す */}
-            {view === 'general' ? '一般会計の歳出' : '全会計の歳出（総計・公営企業会計を除く）'}{' '}
+            {view === 'general' ? '一般会計の歳出' : '全会計の歳出（総計・公営企業会計を除く）'}
+            {file.basis === 'settlement' ? '（支出済額）' : ''}{' '}
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
+          {bases.length > 1 && (
+            <div role="group" aria-label="予算と決算" className="flex overflow-hidden rounded-full border border-mirai-border">
+              {bases.map(({ basis: b, ds }) => (
+                <button
+                  key={b}
+                  type="button"
+                  aria-pressed={file.basis === b}
+                  onClick={() => setQuery({ basis: b })}
+                  className={`px-3 py-1 text-sm ${file.basis === b ? 'bg-primary-accent font-bold text-white' : 'bg-card'}`}
+                >
+                  {BASIS_LABEL[b]}（{ds.label}）
+                </button>
+              ))}
+            </div>
+          )}
           {years.length > 1 && (
             <select
               aria-label="年度"
@@ -158,7 +203,7 @@ function LocalGovContent() {
               ))}
             </select>
           )}
-          {VIEWS.map(v => (
+          {views.map(v => (
             <button
               key={v.key}
               type="button"
@@ -170,8 +215,8 @@ function LocalGovContent() {
             </button>
           ))}
           <span className="text-xs text-mirai-text-muted">
-            {VIEWS.find(v => v.key === view)?.note}
-            {view === 'all' &&
+            {views.find(v => v.key === view)?.note}
+            {view === 'all' && file.basis === 'initial' &&
               '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
             {fundingReclassNotes(gov, file) && (
@@ -183,11 +228,19 @@ function LocalGovContent() {
                 ）
               </>
             )}
+            {file.basis === 'settlement' && (
+              <>
+                {view === 'all' ? '。公営企業会計は含みません' : ''}。歳入（収入済額・調定額など）は
+                <Link href={aboutHref('#revenue')} className="text-primary-accent underline">
+                  データについて
+                </Link>
+              </>
+            )}
           </span>
         </div>
 
         {/* 選択中の表示と、選択の解除（全部の流れを見る）を常に出す */}
-        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} />}
+        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} basis={file.basis} />}
 
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
           {display?.selected ? (
@@ -214,11 +267,14 @@ function LocalGovContent() {
               {display.note && <span className="text-xs text-mirai-text-muted">{display.note}</span>}
             </>
           ) : (
-            <span className="text-mirai-text-muted">四角を押すと、その流れに色を付けます（ほかは灰色。{VIEWS.find(v => v.key === view)?.opens}）</span>
+            <span className="text-mirai-text-muted">四角を押すと、その流れに色を付けます（ほかは灰色。{views.find(v => v.key === view)?.opens}）</span>
           )}
-          <span className="ml-auto text-xs text-mirai-text-muted">
-            <span className="text-amber-700">※</span> 名前は読み取り（資料で裏付けが取れていない）
-          </span>
+          {/* 凡例は、図に読み取りのみの名前があるときだけ（決算は名前がすべて資料のテキストなので出さない） */}
+          {shown?.graph.nodes.some(n => n.flags?.includes('name-ocr')) && (
+            <span className="ml-auto text-xs text-mirai-text-muted">
+              <span className="text-amber-700">※</span> 名前は読み取り（資料で裏付けが取れていない）
+            </span>
+          )}
         </div>
 
         <div className="overflow-x-auto rounded-2xl bg-card p-2 shadow-soft">

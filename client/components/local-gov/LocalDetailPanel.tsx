@@ -67,7 +67,83 @@ export function LocalDetailPanel({
       </div>
   );
 
-  const amounts = (
+  // 決算の目（予算現額がある）: 支出済額・予算現額・翌年度繰越額・不用額と執行率（支出済額 ÷ 予算現額）
+  const settlement = row.budget_current !== undefined;
+  const rate = settlement && row.budget_current?.v ? (row.amount.v ?? 0) / row.budget_current.v : null;
+  const settlementAmounts = settlement && (
+      <table className="w-full text-sm">
+        <tbody>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">支出済額</th>
+            <td className="text-right font-bold">{yen(row.amount)}<Mark v={row.amount} /></td>
+          </tr>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">予算現額</th>
+            <td className="text-right">{yen(row.budget_current)}<Mark v={row.budget_current} /></td>
+          </tr>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">翌年度繰越額</th>
+            <td className="text-right">{yen(row.carried_over)}<Mark v={row.carried_over} /></td>
+          </tr>
+          <tr>
+            <th className="py-0.5 text-left font-normal text-mirai-text-muted">不用額</th>
+            <td className="text-right">{yen(row.unused)}<Mark v={row.unused} /></td>
+          </tr>
+          {rate !== null && (
+            <tr>
+              <th className="py-0.5 text-left font-normal text-mirai-text-muted" title="支出済額 ÷ 予算現額">執行率</th>
+              <td className="text-right">{(rate * 100).toFixed(1)}%</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+  );
+
+  // 決算の内容・不用額の内容（概要説明書の文）。部局をまたぐ目は部局ごとに文がある
+  const explainLines = (e: { content?: string; unused?: string } | undefined) =>
+    e && (
+      <dl className="space-y-1 text-xs">
+        {e.content && (
+          <div>
+            <dt className="text-mirai-text-muted">決算の内容（主な使い道）</dt>
+            <dd>{e.content}</dd>
+          </div>
+        )}
+        {e.unused && (
+          <div>
+            <dt className="text-mirai-text-muted">不用額の内容（主に余ったもの）</dt>
+            <dd>{e.unused}</dd>
+          </div>
+        )}
+      </dl>
+    );
+  const departments = row.by_department ?? [];
+  const settlementExplain = settlement && (row.explanation || departments.length > 0) && (
+        <section>
+          <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">{departments.length > 0 ? '部局ごとの決算' : '決算の内容'}</h3>
+          {explainLines(row.explanation)}
+          {departments.length > 0 && (
+            <ul className="space-y-2">
+              {departments.map(d => (
+                <li key={d.name}>
+                  <div className="flex justify-between gap-2">
+                    <span className="font-bold">{d.name}</span>
+                    <span className="shrink-0">{yen(d.amount)}<Mark v={d.amount} /></span>
+                  </div>
+                  {departments.length > 1 && (
+                    <p className="text-[11px] text-mirai-text-muted">
+                      予算現額 {yen(d.budget_current)}・繰越 {yen(d.carried_over)}・不用額 {yen(d.unused)}
+                    </p>
+                  )}
+                  {explainLines(d.explanation)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+  );
+
+  const amounts = settlementAmounts || (
       <table className="w-full text-sm">
         <tbody>
           <tr>
@@ -145,7 +221,9 @@ export function LocalDetailPanel({
 
   const setsuList = row.setsu && row.setsu.length > 0 && (
         <section>
-          <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">節（{row.side === 'expense' ? '性質' : '内訳'}）</h3>
+          <h3 className="mb-1 text-xs font-bold text-mirai-text-muted">
+            節（{row.side === 'expense' ? '性質' : '内訳'}{settlement ? '。支出済額' : ''}）
+          </h3>
           <ul className="space-y-0.5">
             {row.setsu.map((s, i) => (
               <li key={i}>
@@ -200,9 +278,9 @@ export function LocalDetailPanel({
   );
 
   if (layout === 'below') {
-    // 図の下に横長で置く。左に名前・金額・財源内訳・出典、中に説明欄の事項、右に節（それぞれ縦に伸びる）。
+    // 図の下に横長で置く。左に名前・金額・財源内訳・出典、中に説明欄の事項（決算は部局ごとの決算・決算の内容）、右に節。
     // 事項・節のない目（歳入の目など）は列を作らず、残りの列で幅を分ける
-    const cols = [itemList, setsuList].filter(Boolean);
+    const cols = [settlementExplain || itemList, setsuList].filter(Boolean);
     return (
       <div className={`grid gap-x-8 gap-y-4 p-4 text-sm text-mirai-text ${cols.length === 2 ? 'md:grid-cols-3' : cols.length === 1 ? 'md:grid-cols-2' : ''}`}>
         <div className="space-y-4">
@@ -223,6 +301,7 @@ export function LocalDetailPanel({
       {head}
       {amounts}
       {funding}
+      {settlementExplain}
       {itemList}
       {setsuList}
       {sourceList}

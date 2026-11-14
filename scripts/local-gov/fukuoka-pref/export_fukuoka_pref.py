@@ -15,6 +15,7 @@
 
 書き出すもの:
     budget-2026-initial.json … R8 当初予算（一般会計・特別会計14会計）。金額は円（千円 ×1000）
+    settlement-2024.json     … R6 決算（一般会計・特別会計14会計の歳出の目と、歳入の款）。export_settlement.py が組み立てる
     index.json               … 自治体の情報・データの一覧・資料の一覧（URL・SHA256）
 公営企業会計は名前の文字層が崩れているので、名前を直してから足す（未対応）。
 
@@ -42,7 +43,9 @@ from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import export_settlement  # noqa: E402
 import name_evidence  # noqa: E402
+from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
 
 GOV_ID = "fukuoka-pref"
 YEAR, YEAR_LABEL = 2026, "令和8年度"
@@ -57,12 +60,6 @@ SPECIAL_SLUGS = {
     "県営埠頭施設整備運営事業": "kenei-futo-shisetsu", "住宅管理": "jutaku-kanri",
 }
 
-# 節の名前（地方自治法施行規則の歳出の節。番号で決まる）
-SETSU_NAMES = {1: "報酬", 2: "給料", 3: "職員手当等", 4: "共済費", 5: "災害補償費", 6: "恩給及び退職年金", 7: "報償費", 8: "旅費",
-               9: "交際費", 10: "需用費", 11: "役務費", 12: "委託料", 13: "使用料及び賃借料", 14: "工事請負費", 15: "原材料費",
-               16: "公有財産購入費", 17: "備品購入費", 18: "負担金、補助及び交付金", 19: "扶助費", 20: "貸付金",
-               21: "補償、補塡及び賠償金", 22: "償還金、利子及び割引料", 23: "投資及び出資金", 24: "積立金", 25: "寄附金",
-               26: "公課費", 27: "繰出金"}
 
 # 原本の一覧（URL・SHA256・取得日）。取得日はファイルの更新日時ではなく、この一覧に書いた日を使う
 # （ファイルをコピー・取り直すと更新日時が変わり、本当の取得日でなくなるため）
@@ -650,13 +647,22 @@ def main():
         json.dump(budget, f, ensure_ascii=False, indent=1)
         f.write("\n")
 
+    # R6 決算（export_settlement.py）。index.json をここ1か所で書くため、同じ main で組み立てる
+    settlement, settlement_ok, settlement_lines = export_settlement.build(a.work, SPECIAL_SLUGS)
+    settlement_file = f"settlement-{export_settlement.YEAR}.json"
+    with open(os.path.join(a.out, settlement_file), "w", encoding="utf-8") as f:
+        json.dump(settlement, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+
     sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
         "gov": {"id": GOV_ID, "name": "福岡県", "kind": "prefecture"},
         "datasets": [{"year": YEAR, "label": YEAR_LABEL, "basis": "initial", "file": f"budget-{YEAR}-initial.json",
                       # verified は、目の全検算と外部の資料との突き合わせがすべて一致したときだけ
-                      "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"}],
+                      "status": "verified" if stats["ng"] == 0 and not external_ng else "partial"},
+                     {"year": export_settlement.YEAR, "label": export_settlement.YEAR_LABEL, "basis": "settlement",
+                      "file": settlement_file, "status": "verified" if settlement_ok else "partial"}],
         "sources": sources,
     }
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
@@ -671,6 +677,8 @@ def main():
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
+    for line in settlement_lines:
+        print(line, file=sys.stderr)
     for level, o, n in ex.replaced:
         print(f"名前の置き換え（{level}）: {o} → {n}", file=sys.stderr)
     # 裏付けのない名前の一覧（款・項・目・節。画像で確かめて修正表に記録する）。作業ディレクトリに置く（リポジトリに入れない）

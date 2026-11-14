@@ -147,6 +147,38 @@ test('決算: 支出済 + 繰越 + 不用 = 予算現額', () => {
   const s = row({ amount: v(2_929_992_078, 'text'), budget_current: v(3_034_708_000, 'text'), carried_over: v(0, 'text'), unused: v(104_715_922, 'text'), funding: undefined, items: undefined, setsu: undefined, previous: undefined });
   assert.deepEqual(validateBudgetFile(file([s], { basis: 'settlement' })).errors, []);
   assert.ok(validateBudgetFile(file([{ ...s, unused: v(1, 'text') }], { basis: 'settlement' })).errors.some(e => e.includes('予算現額')));
+  // 歳入の行には当てない（歳入は繰越・不用額がない）
+  const rev = { ...s, id: 'general/revenue/2-1-1', side: 'revenue' as const, carried_over: undefined, unused: undefined };
+  assert.deepEqual(validateBudgetFile(file([rev], { basis: 'settlement' })).errors, []);
+});
+
+test('決算: 部局の内訳の4列の合計は目の値と一致する（R6 一般管理費は総務部 + 会計管理局）', () => {
+  const t = (n: number) => v(n, 'text');
+  const s = row({
+    amount: t(300), budget_current: t(400), carried_over: t(0), unused: t(100),
+    funding: undefined, items: undefined, setsu: undefined, previous: undefined,
+    by_department: [
+      { name: '総務部', amount: t(200), budget_current: t(260), carried_over: t(0), unused: t(60), explanation: { content: '人件費' } },
+      { name: '会計管理局', amount: t(100), budget_current: t(140), carried_over: t(0), unused: t(40) },
+    ],
+  });
+  assert.deepEqual(validateBudgetFile(file([s], { basis: 'settlement' })).errors, []);
+  const bad = { ...s, by_department: [s.by_department![0], { ...s.by_department![1], unused: t(39) }] };
+  assert.ok(validateBudgetFile(file([bad], { basis: 'settlement' })).errors.some(e => e.includes('部局の内訳の unused')));
+});
+
+test('決算の歳入（会計 × 款）: 調定額 = 収入済 − 過誤納 + 不納欠損 + 収入未済', () => {
+  const t = (n: number) => v(n, 'text');
+  const s = row({ amount: t(1), budget_current: t(1), carried_over: t(0), unused: t(0), funding: undefined, items: undefined, setsu: undefined, previous: undefined });
+  // R6 住宅管理 1款の形（過誤納金 177,125 円）
+  const rk = { account: 'general', kan: { no: 1, name: '県営住宅管理費収入', name_src: 'text' as const }, amount: t(6_763_349_180),
+    budget_current: t(6_771_663_000), assessed: t(7_001_698_543), deficit_loss: t(7_729_526), uncollected: t(230_796_962), overpaid: t(177_125) };
+  assert.deepEqual(validateBudgetFile(file([s], { basis: 'settlement', revenue_by_kan: [rk] })).errors, []);
+  assert.ok(validateBudgetFile(file([s], { basis: 'settlement', revenue_by_kan: [{ ...rk, overpaid: undefined }] })).errors
+    .some(e => e.includes('調定額')));
+  assert.ok(validateBudgetFile(file([s], { revenue_by_kan: [rk] })).errors.some(e => e.includes('決算のファイルだけ')));
+  assert.ok(validateBudgetFile(file([s], { basis: 'settlement', revenue_by_kan: [{ ...rk, account: 'special:x' }] })).errors
+    .some(e => e.includes('accounts にない')));
 });
 
 test('検算の要約の行数が実際の行数と合う', () => {
