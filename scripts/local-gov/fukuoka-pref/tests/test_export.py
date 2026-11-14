@@ -126,6 +126,34 @@ def test_name_corrections_apply_to_items():
         ex.apply_name_corrections([row], [{"id": "general/expense/12-1-2", "level": "item", "amount": 5, "name": "w"}], [])
 
 
+def test_name_corrections_sub_by_setsu_no_and_amount():
+    rows = [_row("general/expense/10-2-1", [(3, 50), (10, 50)])]
+    def sub(name, a):
+        return {"name": name, "name_src": "ocr", "name_evidence": ["x"], "amount": {"v": a * 1000}}
+    rows[0]["setsu"][0]["sub"] = [sub("き地手当", 29), sub("通勤手当", 21)]
+    rows[0]["setsu"][1]["sub"] = [sub("光热水費", 29)]
+    # 同じ金額の細節が別の節にあっても、節の番号で1件に絞る
+    assert ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 3, "amount": 29,
+                                             "name": "へき地手当"}], []) == 1
+    s0, s1 = rows[0]["setsu"]
+    assert (s0["sub"][0]["name"], s0["sub"][0]["name_src"]) == ("へき地手当", "correction")
+    assert "name_evidence" not in s0["sub"][0]
+    assert s0["sub"][1]["name"] == "通勤手当" and s1["sub"][0]["name"] == "光热水費"
+    with pytest.raises(SystemExit):   # 節の番号が合わない（修正表が古い）
+        ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 4, "amount": 29,
+                                          "name": "y"}], [])
+    with pytest.raises(SystemExit):   # 節の番号がない（KeyError ではなく、分かる言葉で止める）
+        ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "amount": 29, "name": "y"}], [])
+    # 同じ節に同じ金額の細節が2つ: 番号と金額だけでは止まり、今の名前（was）を添えると1件に絞れる
+    rows[0]["setsu"][1]["sub"].append(sub("その他役務費", 29))
+    with pytest.raises(SystemExit):
+        ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 10, "amount": 29,
+                                          "name": "光熱水費"}], [])
+    assert ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 10, "amount": 29,
+                                             "was": "光热水費", "name": "光熱水費"}], []) == 1
+    assert [x["name"] for x in rows[0]["setsu"][1]["sub"]] == ["光熱水費", "その他役務費"]
+
+
 def test_name_corrections_stop_when_stale():
     rows = [_row("general/revenue/8-1-3", [(2, 836), (3, 836)])]
     with pytest.raises(SystemExit):   # 同じ金額の節が2つで番号の指定なし → 1件に絞れない

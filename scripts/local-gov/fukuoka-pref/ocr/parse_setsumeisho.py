@@ -99,14 +99,26 @@ def lines_of(items, tol=0.6):
     return [sorted(r, key=lambda d: d["x0"]) for r in rows]
 
 
+# 説明欄の人数の注記「○事業費支弁職員 379人」。金額のない行なので、次の事項の名前の頭（または、金額のない見出しの事項と
+# その内訳の間）につながって読まれる（R8 で15件。「事業費支弁職員379人道路橋りよう事業事務費」p319、
+# 「苅田港新松山地区埠頭用地造成事業費事業費支弁職員24人工事費」特別会計 p100。画像で確認）。名前から外して目の注記にする
+STAFF_NOTE_RE = re.compile(r"○?(事業費支弁職員[\d,，]+人)")
+
+
+def split_staff_notes(name: str):
+    """名前から人数の注記を外す。(名前, 注記のリスト)"""
+    return STAFF_NOTE_RE.sub("", name), STAFF_NOTE_RE.findall(name)
+
+
 def parse_explanations(items):
-    """説明欄: 名前の断片を貯め、金額が出たら1件にする。"""
+    """説明欄: 名前の断片を貯め、金額が出たら1件にする。人数の注記は名前から外して "注記" に持たせる。"""
     out, buf, bx = [], [], None
     for row in lines_of(items):
         for d in row:
             a = amount(d["text"])
             if a is not None and (d["x1"] - d["x0"]) < 400:
-                out.append({"name": norm_name("".join(buf)), "amount": a, "y": d["y0"], "x": bx})
+                name, notes = split_staff_notes(norm_name("".join(buf)))
+                out.append({"name": name, "amount": a, "y": d["y0"], "x": bx, **({"注記": notes} if notes else {})})
                 buf, bx = [], None
             else:
                 if not buf:
@@ -509,6 +521,10 @@ def main():
                         m["財源"][k] += v
                         m.setdefault("財源の断片", {}).setdefault(k, []).extend(zaigen_parts[k])
                     m["pages"].append(page)
+                    if rest:
+                        # 続きのページの説明欄に、金額につながらない文字が残った（ページ末の人数の注記・名前の断片など）。
+                        # 前のページの「説明の残り」とはつなげないので、黙って捨てずに知らせる（R8 では 0 件）
+                        print(f"WARN p{page}: 続きのページの説明欄に金額のない文字が残った「{rest[:30]}」", file=sys.stderr)
                     continue
                 if is_total:
                     moku_list.append({"kind": "計", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
@@ -526,6 +542,11 @@ def main():
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
                              "x1": (rec.get("vlines") or [0, 0, 0])[2]}})
     apply_corrections(moku_list)
+    # 事項の名前から外した人数の注記を、目の注記にまとめる（金額の記載のない事項の注記は、下の検算で目の注記にする）
+    for m in moku_list:
+        notes = [n for e in m.get("説明", []) for n in e.pop("注記", [])]
+        if notes:
+            m["注記"] = m.get("注記", []) + notes
     # 目番号: 項の中で 1 からの連番。読めない（None）ものは並び順で補い、読めた番号が並び順と違えば知らせる
     # （目番号は名前の左に小さく印字され、名前が2行だと読めないことが多い。補わないと施策別資料の科目と対応しない）
     seq = defaultdict(int)
@@ -555,8 +576,7 @@ def main():
                     # 注記が同じ欄に並ぶことがある（画像で確認）: 「○事業費支弁職員 2人」（p292。続く「○漁港修築事業費」が事項）、
                     # 「○県営住宅課所管」（p407。事項ではなく所管の注記）、「○職員費 11,264人」（p365。人数は事項名に含めない）
                     rest_txt = m["説明の残り"]
-                    notes = re.findall(r"○?事業費支弁職員[\d,，]+人", rest_txt)
-                    rest_txt = re.sub(r"○?事業費支弁職員[\d,，]+人", "", rest_txt)
+                    rest_txt, notes = split_staff_notes(rest_txt)
                     mshokan = re.fullmatch(r"○?(\S+?所管)", rest_txt)
                     if mshokan:
                         notes.append(mshokan.group(1))

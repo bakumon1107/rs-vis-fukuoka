@@ -26,7 +26,7 @@
   "exit": 0,
   "summary": [
    "節 2321 件のうち、節の金額の列から読めた値が計算値と一致: 2291 件",
-   "節の区画 598 件、明細表の歳出の目に対応 284 件、FAIL=0"
+   "節の区画 468 件、明細表の歳出の目に対応 284 件、FAIL=0"
   ]
  },
  "計上額調": {
@@ -258,7 +258,7 @@
   "summary": [
    "目 495 件（全検算一致 495・不一致 0）。修正表 17 件。2通り以上の読み取りで一致 99.76%・1通り以下で画像で確認 14 件・1通り以下で未確認 0 件",
    "一般会計 歳入 2,300,027,028,000 円・歳出 2,300,027,028,000 円",
-   "名前の出典: {'item correction': 3, 'item ocr': 128, 'item readings': 631, 'item search': 345, 'kan correction': 6, 'kan readings': 53, 'kan search': 53, 'kan text': 383, 'kou correction': 1, 'kou readings': 61, 'kou reference': 374, 'kou search': 59, 'moku correction': 9, 'moku readings': 64, 'moku reference': 370, 'moku search': 52, 'setsu correction': 90, 'setsu readings': 291, 'setsu reference': 2180, 'setsu search': 208, 'sub ocr': 64, 'sub readings': 1002, 'sub search': 1050}（名前の修正表 108 件）"
+   "名前の出典: {'item correction': 140, 'item readings': 622, 'item search': 345, 'kan correction': 6, 'kan readings': 53, 'kan search': 53, 'kan text': 383, 'kou correction': 1, 'kou readings': 61, 'kou reference': 374, 'kou search': 59, 'moku correction': 9, 'moku readings': 64, 'moku reference': 370, 'moku search': 52, 'setsu correction': 91, 'setsu readings': 290, 'setsu reference': 2180, 'setsu search': 208, 'sub correction': 64, 'sub readings': 1002, 'sub search': 1050}（名前の修正表 310 件）"
   ]
  }
 }
