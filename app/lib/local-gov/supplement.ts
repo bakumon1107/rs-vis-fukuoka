@@ -30,6 +30,9 @@ function oneSided<T>(base: T[] | undefined, sup: T[] | undefined, baseAmount: Va
 }
 
 const hasNegative = (xs: { amount: Value }[]) => xs.some(x => (x.amount.v ?? 0) < 0);
+const anyNegativeSetsu = (xs: Setsu[]) => hasNegative(xs) || xs.some(s => !!s.sub && hasNegative(s.sub));
+/** 負の区分のある財源内訳は出さない（財源の振り替えで当初より多く減らした など。負の帯は描けない） */
+const noNegativeFunding = (f: Funding | undefined) => (f && FUNDING_KEYS.some(k => (f[k].v ?? 0) < 0) ? undefined : f);
 
 /**
  * 事項を足す（同じ名前の事項に足し、なければ added_in を付けて末尾に加える）。次のときは事項を出さない（合計の合わない・
@@ -37,9 +40,10 @@ const hasNegative = (xs: { amount: Value }[]) => xs.some(x => (x.amount.v ?? 0) 
  * - 片方にしか事項がない（oneSided）
  * - 補正の事項に入れ子がある（parent は補正の配列の位置なので、当初の後ろに付けると親を指し違える）
  * - 子のある当初の事項に補正が当たる（親だけ足すと子の合計が親と合わない）
- * - 同じ名前が当初に2つ以上ある、または当初に1つあって補正に2つ以上ある（どれに足すか決まらない）
+ * - 同じ名前が当初の上の段に2つ以上ある、または当初に1つあって補正に2つ以上ある（どれに足すか決まらない）
  * - 足した結果が負の事項がある（帯を描けない）
- * 当初の入れ子はそのまま使える（補正の事項は末尾に加えるので、当初の事項の位置は変わらない。R8 の商業総務費）
+ * 当初の入れ子はそのまま使える（補正の事項は末尾に加えるので、当初の事項の位置は変わらない。R8 の商業総務費）。
+ * 補正の事項はいつも上の段なので、当初の入れ子の子（「内訳」「その他」など）とは突き合わせない（同じ名前でも新しい事項として加える）
  */
 function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: string, baseAmount: Value, supAmount: Value): Item[] | undefined {
   const only = oneSided(base, sup, baseAmount, supAmount);
@@ -53,18 +57,19 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
   if (sup!.some(it => it.parent !== undefined)) return undefined;
   const out = base!.map(it => ({ ...it }));
   const n = base!.length;
-  const count = (xs: Item[], name: string) => xs.filter(it => it.name === name).length;
+  const top = (it: Item) => it.parent === undefined;
+  const count = (xs: Item[], name: string) => xs.filter(it => top(it) && it.name === name).length;
   for (const s of sup!) {
-    // 突き合わせるのは当初（それまでの回を足したもの）の事項だけ。同じ回の中の同じ名前の新しい事項（R8 9月第3号の
+    // 突き合わせるのは当初（それまでの回を足したもの）の上の段の事項だけ。同じ回の中の同じ名前の新しい事項（R8 9月第3号の
     // 「社会資本整備総合交付金」は節ごとに3つ）は、それぞれ別の事項として加える
-    const idx = out.findIndex((it, i) => i < n && it.name === s.name);
+    const idx = out.findIndex((it, i) => i < n && top(it) && it.name === s.name);
     if (idx < 0) {
       out.push({ ...s, added_in: round });
       continue;
     }
     if (count(base!, s.name) > 1 || count(sup!, s.name) > 1) return undefined;
-    // 子のある事項・入れ子の子の事項に当たると、親と子の合計が合わなくなる（図は子を描かないので、子に足した分も消える）
-    if (base!.some(it => it.parent === idx) || base![idx].parent !== undefined) return undefined;
+    // 子のある事項に当たると、親と子の合計が合わなくなる
+    if (base!.some(it => it.parent === idx)) return undefined;
     out[idx].amount = add(out[idx].amount, s.amount);
   }
   return hasNegative(out) ? undefined : out;
@@ -72,10 +77,9 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
 
 /** 節を足す（同じ番号の節に足し、なければ加える）。片方にしか節がないときは oneSided。負の節・細節が残れば節を出さない */
 function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: string, baseAmount: Value, supAmount: Value): Setsu[] | undefined {
-  const anyNegative = (xs: Setsu[]) => hasNegative(xs) || xs.some(s => !!s.sub && hasNegative(s.sub));
   const only = oneSided(base, sup, baseAmount, supAmount);
   if (only !== null) {
-    if (only === sup && only !== undefined) return anyNegative(only) ? undefined : only.map(s => ({ ...s, added_in: round }));
+    if (only === sup && only !== undefined) return anyNegativeSetsu(only) ? undefined : only.map(s => ({ ...s, added_in: round }));
     return only;
   }
   const out: Setsu[] = base!.map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
@@ -98,7 +102,7 @@ function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: 
       hit.sub = undefined;
     }
   }
-  return anyNegative(out) ? undefined : out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
+  return anyNegativeSetsu(out) ? undefined : out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
 }
 
 /**
@@ -118,17 +122,29 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
     for (const sr of s.rows) {
       const base = rows.get(sr.id);
       if (!base) {
-        // 補正で新しく設けた目: 当初の額は 0
+        // 補正で新しく設けた目: 当初の額は 0。内訳には足し合わせる目と同じ確かめ（入れ子・負の値）をする
+        const zero: Value = { v: 0, src: sr.amount.src };
         rows.set(sr.id, {
           ...sr,
-          before: { v: 0, src: sr.amount.src },
+          before: zero,
           after: undefined,
           added_in: round,
+          funding: noNegativeFunding(sr.funding),
+          items: sr.items && (sr.items.some(it => it.parent !== undefined) || hasNegative(sr.items)) ? undefined : sr.items,
+          setsu: sr.setsu && anyNegativeSetsu(sr.setsu) ? undefined : sr.setsu,
           supplements: [{ round, amount: sr.amount }],
         });
-        // 図は行の順（款・項・目の順）に箱を並べるので、末尾ではなく同じ会計・款・項の最後の目の後ろに入れる
+        // 図は行の順（款・項・目の順）に箱を並べるので、末尾ではなく同じ会計・款・項の最後の目の後ろに入れる。
+        // findLastIndex（ES2023）は使わない: Next.js は .at() には polyfill を入れるが findLastIndex には入れないので、
+        // 対象のブラウザ（Safari 15.4 より前など）で補正後の画面が落ちる
         const kou = `${sr.account}/${sr.side}/${sr.kan.no}-${sr.kou.no}-`;
-        const at = order.findLastIndex(id => id.startsWith(kou));
+        let at = -1;
+        for (let i = order.length - 1; i >= 0; i--) {
+          if (order[i].startsWith(kou)) {
+            at = i;
+            break;
+          }
+        }
         if (at >= 0) order.splice(at + 1, 0, sr.id);
         else order.push(sr.id);
         continue;
@@ -145,7 +161,7 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
             : sr.funding && base.amount.v === 0
               ? sr.funding
               : undefined;
-      const funding = merged && FUNDING_KEYS.some(k => (merged[k].v ?? 0) < 0) ? undefined : merged;
+      const funding = noNegativeFunding(merged);
       rows.set(sr.id, {
         ...base,
         amount: add(base.amount, sr.amount),

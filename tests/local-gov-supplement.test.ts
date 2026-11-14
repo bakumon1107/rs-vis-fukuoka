@@ -235,11 +235,36 @@ test('composeLatest keeps nested initial items, drops ambiguous matches and nega
   );
   assert.equal(get('general/revenue/9-2-6').items, undefined);
   assert.equal(get('general/expense/8-2-1').funding, undefined);
-  // 子のある当初の事項・入れ子の子の事項に補正が当たるときは出さない
+  // 子のある当初の事項に補正が当たるときは出さない
   const s2 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '中小企業振興資金融資費', amount: v(5) }] })], '9月');
   assert.equal(composeLatest(init, [s2]).rows[0].items, undefined);
+  // 補正の事項（いつも上の段）は、当初の入れ子の子と同じ名前でも子には足さず、新しい事項として加える
   const s3 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '内訳', amount: v(5) }] })], '9月');
-  assert.equal(composeLatest(init, [s3]).rows[0].items, undefined);
+  assert.deepEqual(
+    composeLatest(init, [s3]).rows[0].items?.map(i => [i.name, i.amount.v, i.parent]),
+    [
+      ['中小企業振興資金融資費', 60, undefined],
+      ['内訳', 60, 0],
+      ['商工総務費', 40, undefined],
+      ['内訳', 5, undefined],
+    ],
+  );
+  // 補正で新しく設けた目にも、入れ子・負の値の確かめをする
+  const s4 = file(
+    'supplementary',
+    [
+      row('general/expense/2-5-9', 10, {
+        funding: { national: v(-1), bond: v(0), other: v(0), general: v(11) },
+        items: [{ name: 'a', amount: v(10) }, { name: 'b', amount: v(3), parent: 0 }],
+        setsu: [{ no: 1, name: '報酬', amount: v(12) }, { no: 2, name: '給料', amount: v(-2) }],
+      }),
+    ],
+    '9月',
+  );
+  const added = composeLatest(init, [s4]).rows.find(r => r.id === 'general/expense/2-5-9')!;
+  assert.equal(added.funding, undefined);
+  assert.equal(added.items, undefined);
+  assert.equal(added.setsu, undefined);
 });
 
 test('composeLatest rejects mismatched files', () => {
@@ -250,13 +275,18 @@ test('composeLatest rejects mismatched files', () => {
 });
 
 // 書き出した実データがあれば、補正後の合計が最後の回の議案の総額（9月補正（第4号）後 2,313,266,114 千円）と一致することを確かめる
-test('composed real data matches the last bill total when files exist', () => {
-  const dir = path.join(__dirname, '../public/data/local-gov/fukuoka-pref');
-  const idxPath = path.join(dir, 'index.json');
-  if (!fs.existsSync(idxPath)) return;
-  const index = JSON.parse(fs.readFileSync(idxPath, 'utf8'));
-  const sups = index.datasets.filter((d: { basis: string; year: number }) => d.basis === 'supplementary' && d.year === 2026);
-  if (sups.length < 4) return;
+// 実データがない（.gz を展開していない）・補正が4回そろっていないときは、黙って通さず skip と出す
+const REAL_DIR = path.join(__dirname, '../public/data/local-gov/fukuoka-pref');
+const realIndex = fs.existsSync(path.join(REAL_DIR, 'index.json'))
+  ? JSON.parse(fs.readFileSync(path.join(REAL_DIR, 'index.json'), 'utf8'))
+  : null;
+const realSups: { file: string }[] =
+  realIndex?.datasets.filter((d: { basis: string; year: number }) => d.basis === 'supplementary' && d.year === 2026) ?? [];
+const realSkip = !realIndex ? '実データ（index.json）がない' : realSups.length < 4 ? 'R8 の補正のデータが4回そろっていない' : false;
+
+test('composed real data matches the last bill total when files exist', { skip: realSkip }, () => {
+  const dir = REAL_DIR;
+  const sups = realSups;
   const init = JSON.parse(fs.readFileSync(path.join(dir, 'budget-2026-initial.json'), 'utf8'));
   const files = sups.map((d: { file: string }) => JSON.parse(fs.readFileSync(path.join(dir, d.file), 'utf8')));
   const out = composeLatest(init, files);

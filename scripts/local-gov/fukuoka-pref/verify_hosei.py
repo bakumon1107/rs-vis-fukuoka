@@ -36,6 +36,9 @@ def main():
             cur[r["id"]] += r["amount"]["v"] or 0
             kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
     fails, n = [], Counter()
+    # 額の読めない行のあった目・款（それ以降の回の補正前は比べられない。1か所の欠けで後の回の FAIL が並ばないよう、照合を飛ばす）
+    tainted_moku: set[str] = set()
+    tainted_kan: set[tuple] = set()
     for rd in export_hosei.ROUNDS:
         rid = rd["id"]
         no = int(rid.rsplit("-", 1)[1])
@@ -52,7 +55,7 @@ def main():
             want = cur[r["id"]]
             if None in (b, a, s):
                 fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前・補正額・計に読めない値がある（{b}・{a}・{s}）")
-            else:
+            elif r["id"] not in tainted_moku:
                 if b != want:
                     fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前 {b:,} ≠ 当初＋それまでの補正 {want:,}")
                 if b + a != s:
@@ -81,7 +84,7 @@ def main():
                 continue
             n["財源"] += 1
             for jp, en in FUND.items():
-                g = sum((r.get("funding") or {}).get(en, {}).get("v") or 0
+                g = sum(((r.get("funding") or {}).get(en) or {}).get("v") or 0
                         for r in rows if r["side"] == "expense" and r["kan"]["no"] == k["no"])
                 if g != k["財源"][jp] * 1000:
                     fails.append(f"{rid} 歳出 {k['no']}款 {jp}: 目の合計 {g:,} ≠ 総括 {k['財源'][jp] * 1000:,}")
@@ -89,10 +92,13 @@ def main():
         for s_ja, s in SIDE.items():
             for k in gs["総括"][s_ja]:
                 n["款"] += 1
-                if k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
+                if (s, k["no"]) not in tainted_kan and k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
                     fails.append(f"{rid} 総括 {s_ja} {k['no']}款: 補正前 {k['補正前'] * 1000:,} ≠ 当初＋それまでの公開データの補正 {kan_cur[(s, k['no'])]:,}")
         for r in rows:
-            # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは 0 として足し、例外で止めない
+            # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは 0 として足し（例外で止めない）、後の回の照合から外す
+            if r["amount"]["v"] is None:
+                tainted_moku.add(r["id"])
+                tainted_kan.add((r["side"], r["kan"]["no"]))
             cur[r["id"]] += r["amount"]["v"] or 0
             kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
     for f in fails:
