@@ -31,14 +31,18 @@ def main():
     initial = json.load(open(initial_path, encoding="utf-8"))
     cur = Counter()  # 目の ID → 当初 + それまでの補正額（円）
     kan_cur = Counter()  # (歳入出, 款) → 当初 + それまでの補正額（円）
+    # 額の読めない行のあった目・款（それまでの額が分からないので、補正前と比べられない。1か所の欠けで後の回の FAIL が並ばないよう、
+    # その照合を飛ばす。読めた「計」があれば、そこから額をつなぎ直す）
+    tainted_moku: set[str] = set()
+    tainted_kan: set[tuple] = set()
     for r in initial["rows"]:
         if r["account"] == "general":
+            if r["amount"]["v"] is None:
+                tainted_moku.add(r["id"])
+                tainted_kan.add((r["side"], r["kan"]["no"]))
             cur[r["id"]] += r["amount"]["v"] or 0
             kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
     fails, n = [], Counter()
-    # 額の読めない行のあった目・款（それ以降の回の補正前は比べられない。1か所の欠けで後の回の FAIL が並ばないよう、照合を飛ばす）
-    tainted_moku: set[str] = set()
-    tainted_kan: set[tuple] = set()
     for rd in export_hosei.ROUNDS:
         rid = rd["id"]
         no = int(rid.rsplit("-", 1)[1])
@@ -55,11 +59,14 @@ def main():
             want = cur[r["id"]]
             if None in (b, a, s):
                 fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前・補正額・計に読めない値がある（{b}・{a}・{s}）")
-            elif r["id"] not in tainted_moku:
-                if b != want:
-                    fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前 {b:,} ≠ 当初＋それまでの補正 {want:,}")
-                if b + a != s:
-                    fails.append(f"{rid} {r['id']}: 補正前 + 補正額 ≠ 計")
+                continue
+            # 補正前 + 補正額 = 計 はその行だけで決まるので、それまでに欠けがあっても見る
+            if b + a != s:
+                fails.append(f"{rid} {r['id']}: 補正前 + 補正額 ≠ 計")
+            if r["id"] in tainted_moku:
+                continue
+            if b != want:
+                fails.append(f"{rid} {r['id']} {r['moku']['name']}: 補正前 {b:,} ≠ 当初＋それまでの補正 {want:,}")
             n["目の鎖"] += 1
         # 1. 項
         if gs.get("gian"):
@@ -91,16 +98,30 @@ def main():
         # 4. 総括の款の補正前（公開データの行から足した款の額と比べる）
         for s_ja, s in SIDE.items():
             for k in gs["総括"][s_ja]:
+                if (s, k["no"]) in tainted_kan:
+                    continue
                 n["款"] += 1
-                if (s, k["no"]) not in tainted_kan and k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
+                if k["補正前"] * 1000 != kan_cur[(s, k["no"])]:
                     fails.append(f"{rid} 総括 {s_ja} {k['no']}款: 補正前 {k['補正前'] * 1000:,} ≠ 当初＋それまでの公開データの補正 {kan_cur[(s, k['no'])]:,}")
         for r in rows:
-            # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは 0 として足し（例外で止めない）、後の回の照合から外す
-            if r["amount"]["v"] is None:
+            # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは例外で止めず、つなげるところまでつなぐ:
+            # 補正額が読めればそれを足す。補正額が読めず計が読めれば、目の額を計に合わせ（目は照合に戻す）、款は差が分かるときだけ足す。
+            # どちらも読めなければ、その目と款を後の回の照合から外す
+            key = (r["side"], r["kan"]["no"])
+            a, s = r["amount"]["v"], r["after"]["v"]
+            if a is not None:
+                cur[r["id"]] += a
+                kan_cur[key] += a
+            elif s is not None:
+                if r["id"] in tainted_moku:
+                    tainted_kan.add(key)
+                else:
+                    kan_cur[key] += s - cur[r["id"]]
+                cur[r["id"]] = s
+                tainted_moku.discard(r["id"])
+            else:
                 tainted_moku.add(r["id"])
-                tainted_kan.add((r["side"], r["kan"]["no"]))
-            cur[r["id"]] += r["amount"]["v"] or 0
-            kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
+                tainted_kan.add(key)
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     print("照合した数: " + "・".join(f"{k} {v}" for k, v in n.items()), file=sys.stderr)

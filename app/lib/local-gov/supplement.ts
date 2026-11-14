@@ -31,6 +31,14 @@ function oneSided<T>(base: T[] | undefined, sup: T[] | undefined, baseAmount: Va
 
 const hasNegative = (xs: { amount: Value }[]) => xs.some(x => (x.amount.v ?? 0) < 0);
 const anyNegativeSetsu = (xs: Setsu[]) => hasNegative(xs) || xs.some(s => !!s.sub && hasNegative(s.sub));
+/**
+ * 補正の事項をそのまま使うとき（当初に事項がない目・補正で新しく設けた目）の確かめ。配列をそのまま使うので入れ子の parent は
+ * 正しい位置を指す（親が前・1段まで）。負の事項・指し先のおかしい入れ子があれば出さない
+ */
+const supOnlyItems = (xs: Item[]) =>
+  hasNegative(xs) || xs.some((it, i) => it.parent !== undefined && !(it.parent < i && xs[it.parent]?.parent === undefined))
+    ? undefined
+    : xs;
 /** 負の区分のある財源内訳は出さない（財源の振り替えで当初より多く減らした など。負の帯は描けない） */
 const noNegativeFunding = (f: Funding | undefined) => (f && FUNDING_KEYS.some(k => (f[k].v ?? 0) < 0) ? undefined : f);
 
@@ -42,15 +50,16 @@ const noNegativeFunding = (f: Funding | undefined) => (f && FUNDING_KEYS.some(k 
  * - 子のある当初の事項に補正が当たる（親だけ足すと子の合計が親と合わない）
  * - 同じ名前が当初の上の段に2つ以上ある、または当初に1つあって補正に2つ以上ある（どれに足すか決まらない）
  * - 足した結果が負の事項がある（帯を描けない）
- * 当初の入れ子はそのまま使える（補正の事項は末尾に加えるので、当初の事項の位置は変わらない。R8 の商業総務費）。
- * 補正の事項はいつも上の段なので、当初の入れ子の子（「内訳」「その他」など）とは突き合わせない（同じ名前でも新しい事項として加える）
+ * - 補正の事項が、当初の上の段にはなく入れ子の子（「内訳」「その他」など）と同じ名前（どの親の分か決まらない。
+ *   上の段に加えると、意味の取れない「その他」が1つ並ぶ）
+ * 当初の入れ子はそのまま使える（補正の事項は末尾に加えるので、当初の事項の位置は変わらない。R8 の商業総務費）
  */
 function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: string, baseAmount: Value, supAmount: Value): Item[] | undefined {
   const only = oneSided(base, sup, baseAmount, supAmount);
   if (only !== null) {
     if (only === sup && only !== undefined) {
-      if (only.some(it => it.parent !== undefined) || hasNegative(only)) return undefined;
-      return only.map(it => ({ ...it, added_in: round }));
+      const ok = supOnlyItems(only);
+      return ok && ok.map(it => ({ ...it, added_in: round }));
     }
     return only;
   }
@@ -64,6 +73,7 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
     // 「社会資本整備総合交付金」は節ごとに3つ）は、それぞれ別の事項として加える
     const idx = out.findIndex((it, i) => i < n && top(it) && it.name === s.name);
     if (idx < 0) {
+      if (base!.some(it => !top(it) && it.name === s.name)) return undefined;
       out.push({ ...s, added_in: round });
       continue;
     }
@@ -130,7 +140,7 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
           after: undefined,
           added_in: round,
           funding: noNegativeFunding(sr.funding),
-          items: sr.items && (sr.items.some(it => it.parent !== undefined) || hasNegative(sr.items)) ? undefined : sr.items,
+          items: sr.items && supOnlyItems(sr.items),
           setsu: sr.setsu && anyNegativeSetsu(sr.setsu) ? undefined : sr.setsu,
           supplements: [{ round, amount: sr.amount }],
         });

@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { composeLatest } from '../app/lib/local-gov/supplement';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import type { LocalBudgetFile, MokuRow, Value } from '../types/local-gov';
+import { supplementDatasets } from '../client/hooks/useLocalBudget';
+import type { LocalBudgetFile, LocalGovIndex, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number, src: Value['src'] = 'ocr'): Value => ({ v: n, src });
 
@@ -238,24 +239,28 @@ test('composeLatest keeps nested initial items, drops ambiguous matches and nega
   // 子のある当初の事項に補正が当たるときは出さない
   const s2 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '中小企業振興資金融資費', amount: v(5) }] })], '9月');
   assert.equal(composeLatest(init, [s2]).rows[0].items, undefined);
-  // 補正の事項（いつも上の段）は、当初の入れ子の子と同じ名前でも子には足さず、新しい事項として加える
+  // 補正の事項が、当初の入れ子の子だけと同じ名前（どの親の分か決まらない）なら事項を出さない
   const s3 = file('supplementary', [row('general/expense/7-1-1', 5, { items: [{ name: '内訳', amount: v(5) }] })], '9月');
+  assert.equal(composeLatest(init, [s3]).rows[0].items, undefined);
+  // 補正で新しく設けた目: 入れ子はそのまま使える（配列をそのまま使うので親の位置が正しい）。負の値は出さない
+  const nested = file(
+    'supplementary',
+    [row('general/expense/2-5-9', 10, { items: [{ name: 'a', amount: v(10) }, { name: 'b', amount: v(3), parent: 0 }] })],
+    '9月',
+  );
   assert.deepEqual(
-    composeLatest(init, [s3]).rows[0].items?.map(i => [i.name, i.amount.v, i.parent]),
+    composeLatest(init, [nested]).rows.find(r => r.id === 'general/expense/2-5-9')!.items?.map(i => [i.name, i.parent]),
     [
-      ['中小企業振興資金融資費', 60, undefined],
-      ['内訳', 60, 0],
-      ['商工総務費', 40, undefined],
-      ['内訳', 5, undefined],
+      ['a', undefined],
+      ['b', 0],
     ],
   );
-  // 補正で新しく設けた目にも、入れ子・負の値の確かめをする
   const s4 = file(
     'supplementary',
     [
       row('general/expense/2-5-9', 10, {
         funding: { national: v(-1), bond: v(0), other: v(0), general: v(11) },
-        items: [{ name: 'a', amount: v(10) }, { name: 'b', amount: v(3), parent: 0 }],
+        items: [{ name: 'a', amount: v(13) }, { name: 'b', amount: v(-3) }],
         setsu: [{ no: 1, name: '報酬', amount: v(12) }, { no: 2, name: '給料', amount: v(-2) }],
       }),
     ],
@@ -276,13 +281,20 @@ test('composeLatest rejects mismatched files', () => {
 
 // 書き出した実データがあれば、補正後の合計が最後の回の議案の総額（9月補正（第4号）後 2,313,266,114 千円）と一致することを確かめる
 // 実データがない（.gz を展開していない）・補正が4回そろっていないときは、黙って通さず skip と出す
+// 回の順は画面と同じ supplementDatasets（ファイル名の回の番号の順）で決める。index.json が読めなくても、このファイルのほかのテストは動かす
 const REAL_DIR = path.join(__dirname, '../public/data/local-gov/fukuoka-pref');
-const realIndex = fs.existsSync(path.join(REAL_DIR, 'index.json'))
-  ? JSON.parse(fs.readFileSync(path.join(REAL_DIR, 'index.json'), 'utf8'))
-  : null;
-const realSups: { file: string }[] =
-  realIndex?.datasets.filter((d: { basis: string; year: number }) => d.basis === 'supplementary' && d.year === 2026) ?? [];
-const realSkip = !realIndex ? '実データ（index.json）がない' : realSups.length < 4 ? 'R8 の補正のデータが4回そろっていない' : false;
+let realIndex: LocalGovIndex | null = null;
+let realSkip: string | false = '実データ（index.json）がない';
+try {
+  if (fs.existsSync(path.join(REAL_DIR, 'index.json'))) {
+    realIndex = JSON.parse(fs.readFileSync(path.join(REAL_DIR, 'index.json'), 'utf8')) as LocalGovIndex;
+    realSkip = false;
+  }
+} catch (e) {
+  realSkip = `index.json が読めない（${e instanceof Error ? e.message : String(e)}）`;
+}
+const realSups = realIndex && Array.isArray(realIndex.datasets) ? supplementDatasets(realIndex, 2026) : [];
+if (realSkip === false && realSups.length < 4) realSkip = 'R8 の補正のデータが4回そろっていない';
 
 test('composed real data matches the last bill total when files exist', { skip: realSkip }, () => {
   const dir = REAL_DIR;
