@@ -41,13 +41,12 @@ const NAME_LEVELS = [
 ] as const;
 
 
-/** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
-/** 金額。欠測（null・ない）は 0 円と区別して「—」 */
-/** 額（円）。なければ missing（既定は「—」） */
+/** 額（円）。欠測（null・ない）は 0 円と区別して missing（既定は「—」。目の額は「読めない」） */
 function amountOrDash(v: number | null | undefined, missing = '—') {
   return v != null ? formatBudgetFromYen(v) : missing;
 }
 
+/** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
 function srcNote(src: ValueSource) {
   return <ValueSourceMark src={src} className="text-amber-700" />;
 }
