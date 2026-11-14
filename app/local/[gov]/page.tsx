@@ -75,7 +75,7 @@ function LocalGovContent() {
 
   // 年度・見方・選択は URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
-    (next: { basis?: BasisChoice; year?: number; view?: LocalGraphView; sel?: string | null }) => {
+    (next: { basis?: BasisChoice; year?: number | null; view?: LocalGraphView; sel?: string | null }) => {
       const q = new URLSearchParams(searchParams.toString());
       if (next.basis !== undefined) {
         if (next.basis === 'initial') q.delete('basis');
@@ -88,7 +88,10 @@ function LocalGovContent() {
           q.delete('sel');
         }
       }
-      if (next.year !== undefined) {
+      if (next.year === null) {
+        // 年度を外す（その種類で最新の年度を開く。選択は残す）
+        q.delete('year');
+      } else if (next.year !== undefined) {
         q.set('year', String(next.year));
         q.delete('sel');
       }
@@ -145,7 +148,12 @@ function LocalGovContent() {
   }
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
-  const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
+  // 補正後の見方では、補正のデータがある年度だけ（ない年度を選ぶと組み立てられない）
+  const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))].filter(
+    y => !file.composed || supplementDatasets(index, y).length > 0
+  );
+  // 補正後に足した補正のデータのどれかが「検算が一部合わない」なら、当初が検算済みでも注意を出す
+  const partial = dataset.status === 'partial' || (!!file.composed && supplementDatasets(index, file.year).some(d => d.status === 'partial'));
   // 当初・補正後・決算の切り替え（その種類のデータがあるものだけ。それぞれ最新の年度のラベル）。
   // 補正後は、当初予算の最新の年度に補正のデータがあるときだけ
   const latestInitial = pickDataset(index, 'initial');
@@ -197,7 +205,12 @@ function LocalGovContent() {
                   key={b}
                   type="button"
                   aria-pressed={basis === b}
-                  onClick={() => setQuery({ basis: b })}
+                  onClick={() =>
+                    // 補正のない年度を見ているときに補正後を選んだら、年度を外して補正のある最新の年度を開く
+                    b === 'latest' && supplementDatasets(index, file.year).length === 0
+                      ? setQuery({ basis: b, year: null })
+                      : setQuery({ basis: b })
+                  }
                   className={`px-3 py-1 text-sm ${basis === b ? 'bg-primary-accent font-bold text-white' : 'bg-card'}`}
                 >
                   {b === 'latest' ? '補正後予算' : BASIS_LABEL[b]}（{ds.label}）
@@ -256,7 +269,7 @@ function LocalGovContent() {
         </div>
 
         {/* 選択中の表示と、選択の解除（全部の流れを見る）を常に出す */}
-        {dataset.status === 'partial' && <PartialNotice govId={gov} year={file.year} basis={file.basis} />}
+        {partial && <PartialNotice govId={gov} year={file.year} basis={file.basis} />}
 
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
           {display?.selected ? (

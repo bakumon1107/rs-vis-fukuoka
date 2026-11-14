@@ -82,6 +82,8 @@ test('composeLatest adds supplement amounts, funding, items and setsu by id/name
       [18, 1_604_006, '6月補正（第1号）'],
     ],
   );
+  // 細節は当初（食糧費）と補正（その他需用費）の両方にあるので足す（当初の細節の合計 1,000 は節 33,000 と合わないが、
+  // これはテストの当初データの都合。実データでは細節の合計 = 節の額）
   assert.deepEqual(r.setsu?.[0].sub?.map(x => x.name), ['食糧費', 'その他需用費']);
   // 当初にない目は加わり、当初の額 0・その回の印
   const added = out.rows.find(x => x.id === 'general/expense/2-5-3')!;
@@ -93,6 +95,37 @@ test('composeLatest adds supplement amounts, funding, items and setsu by id/name
   assert.equal(out.basis, 'initial');
   // 元のデータは書き換えない
   assert.equal(init.rows[0].amount.v, 33_000);
+});
+
+test('composeLatest drops breakdowns that would not add up', () => {
+  const init = file('initial', [
+    row('general/revenue/15-1-7', 100, {
+      items: [{ name: '道路事業債', amount: v(100) }],
+      setsu: [{ no: 13, name: '道路事業債', amount: v(100) }],
+    }),
+    row('general/expense/8-3-2', 500, { setsu: [{ no: 10, name: '需用費', amount: v(500) }] }),
+  ]);
+  const s = file(
+    'supplementary',
+    [
+      // 事項を載せなかった歳入の目（事項の合計が目の額と合わない）: 当初の事項だけでは補正後の額にならない
+      row('general/revenue/15-1-7', 20, { before: v(100), after: v(120), setsu: [{ no: 3, name: '河川事業債', amount: v(20) }] }),
+      // 当初の節には細節がなく、補正の節に細節がある: 細節を出さない
+      row('general/expense/8-3-2', 7, {
+        before: v(500),
+        after: v(507),
+        setsu: [{ no: 10, name: '需用費', amount: v(7), sub: [{ name: 'その他需用費', amount: v(7) }] }],
+      }),
+    ],
+    '9月補正（第3号）',
+  );
+  const out = composeLatest(init, [s]);
+  const rev = out.rows.find(x => x.id === 'general/revenue/15-1-7')!;
+  assert.equal(rev.amount.v, 120);
+  assert.equal(rev.items, undefined);
+  const ex = out.rows.find(x => x.id === 'general/expense/8-3-2')!;
+  assert.equal(ex.setsu?.[0].amount.v, 507);
+  assert.equal(ex.setsu?.[0].sub, undefined);
 });
 
 test('composeLatest rejects mismatched files', () => {

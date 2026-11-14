@@ -10,10 +10,12 @@
 款・項の名前は当初の名前（出典も当初のまま）。目の名前は、当初にある目は当初の名前、補正で新しく設けた目は説明書の名前。
 検算: 目ごとの検算（parse_setsumeisho の A〜D）と、目の補正額の合計 = 総括の款の補正額（歳入・歳出の全部の款）。
 """
+import difflib
 import json
 import os
 import re
 import sys
+import unicodedata
 from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +31,34 @@ ROUNDS = [
 ]
 SIDE = {"歳入": "revenue", "歳出": "expense"}
 FUND = {"国庫支出金": "national", "地方債": "bond", "その他": "other", "一般財源": "general"}
+# 画像の回の名前の修正表（画像で確かめた名前。形式は表の「説明」）
+NAME_CORRECTIONS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ocr", "corrections", "r8-hosei-names.json")
+
+
+def apply_name_corrections(rid: str, rows: list[dict], fixes: list[dict], fails: list[str]) -> None:
+    """その回の修正を当てる。1件に当たらない・今の名前が was と違うものは FAIL（黙って当てずに済ませない）"""
+    by_id = {x["id"]: x for x in rows}
+    for fx in fixes:
+        if fx["round"] != rid:
+            continue
+        r = by_id.get(fx["id"])
+        amt = fx["amount"] * 1000
+        if r is None:
+            hits = []
+        elif fx["level"] == "item":
+            hits = [i for i in r.get("items", []) if i["amount"]["v"] == amt]
+        elif fx["level"] == "setsu":
+            hits = [s for s in r.get("setsu", []) if s["amount"]["v"] == amt]
+        elif fx["level"] == "sub":
+            hits = [x for s in r.get("setsu", []) if s["no"] == fx["no"] for x in s.get("sub", []) if x["amount"]["v"] == amt]
+        else:
+            fails.append(f"{rid} 名前の修正表: 知らない level {fx['level']}")
+            continue
+        if len(hits) != 1 or hits[0]["name"] != fx["was"]:
+            fails.append(f"{rid} 名前の修正表: {fx['id']} {fx['level']} {fx['amount']:,}「{fx['was']}」に当たるものが "
+                         f"{len(hits)} 件（今の名前 {[h['name'] for h in hits]}）")
+            continue
+        hits[0]["name"], hits[0]["name_src"] = fx["name"], "correction"
 
 
 def yen(v):
@@ -37,6 +67,11 @@ def yen(v):
 
 def val(v, src):
     return {"v": yen(v), "src": src}
+
+
+def norm_name(s: str) -> str:
+    """名前の比較用（全角半角・小書きの「ょ」と並字の「よ」をそろえる。「橋りよう」と「橋りょう」）"""
+    return unicodedata.normalize("NFKC", s).replace("よ", "ょ").replace("ゃ", "や")
 
 
 def clean(s: str) -> str:
@@ -52,7 +87,11 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
     kou_name = {(x["side"], x["kan"]["no"], x["kou"]["no"]): x["kou"] for x in initial["rows"] if x["account"] == "general"}
     rows, all_ok = [], 0
     for m in parsed:
-        if m.get("kind") != "目" or m.get("会計") != "一般会計":
+        if m.get("kind") != "目":
+            continue
+        if m.get("会計") != "一般会計":
+            # 特別会計の補正は、まだ書き出しの対象にしていない（R8 の4回は一般会計だけ）。黙って捨てず止める
+            fails.append(f"{r['id']}: 特別会計の目がある（{m.get('会計')} {m.get('目名')}）。特別会計の補正の書き出しは未対応")
             continue
         side = SIDE[m["side"]]
         kou_no = (m["項"] or [None])[0]
@@ -61,12 +100,23 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             fails.append(f"{r['id']}: 目・項の番号が読めない目 {m['目名']}")
             continue
         base = init_rows.get(rid)
-        new_moku = base is None or m["前年度"] == 0 and m.get("空欄を0とみなした") == "前年度"
-        if base is not None and not new_moku and yen(m["前年度"]) is not None:
-            # 補正前の額は「当初 + それより前の補正」なので、当初の額とは限らない。名前のずれだけ知らせる
-            if clean(m["目名"]) and clean(m["目名"]) != base["moku"]["name"]:
-                print(f"WARN {r['id']} {rid}: 目の名前 当初「{base['moku']['name']}」/ 補正の説明書「{clean(m['目名'])}」（当初の名前を使う）",
-                      file=sys.stderr)
+        new_moku = m["前年度"] == 0 and m.get("空欄を0とみなした") == "前年度"
+        if base is not None and new_moku:
+            # 補正で新しく設けた目（補正前が空欄）なのに、当初に同じ ID の目がある＝番号の読み違いか ID の取り違え。
+            # 足すと別の目の補正後の額になるので止める（前年度のみの目の ID を p<n> にする前は、R8 8月専決で起きた）
+            fails.append(f"{r['id']} {rid}: 補正で新設の目「{clean(m['目名'])}」が当初の目「{base['moku']['name']}」と ID がぶつかる")
+            continue
+        if base is not None and clean(m["目名"]):
+            # 名前で当初の目と同じかを確かめる（ID は読んだ目番号から作るので、番号の読み違いで別の目に足さないため）。
+            # 字形の違い（りよう／りょう、OCR の崩れ）は許し、似ていなければ止める
+            a, b = norm_name(clean(m["目名"])), norm_name(base["moku"]["name"])
+            if a != b:
+                ratio = difflib.SequenceMatcher(None, a, b).ratio()
+                if ratio < 0.6:
+                    fails.append(f"{r['id']} {rid}: 目の名前が当初と違う（当初「{base['moku']['name']}」/ 補正「{clean(m['目名'])}」）")
+                    continue
+                print(f"WARN {r['id']} {rid}: 目の名前 当初「{base['moku']['name']}」/ 補正の説明書「{clean(m['目名'])}」"
+                      f"（似ている {ratio:.2f}。当初の名前を使う）", file=sys.stderr)
         kan = kan_name.get((side, m["款"]))
         kou = kou_name.get((side, m["款"], kou_no))
         if kan is None or kou is None:
@@ -106,6 +156,7 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
         else:
             fails.append(f"{r['id']} {rid}: 目の検算 {m.get('checks')}")
         rows.append(row)
+    apply_name_corrections(r["id"], rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], fails)
     # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
     got = Counter()
     for x in rows:

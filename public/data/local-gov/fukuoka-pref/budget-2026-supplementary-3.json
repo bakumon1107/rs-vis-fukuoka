@@ -119,8 +119,8 @@
    },
    "items": [
     {
-     "name": "橋りよう補修費補助金",
-     "name_src": "ocr",
+     "name": "橋りょう補修費補助金",
+     "name_src": "correction",
      "amount": {
       "v": 340101000,
       "src": "ocr"
@@ -195,8 +195,8 @@
     {
      "no": 2,
      "no_src": "ocr",
-     "name": "道路橋りよう費補助金",
-     "name_src": "ocr",
+     "name": "道路橋りょう費補助金",
+     "name_src": "correction",
      "amount": {
       "v": 414251000,
       "src": "ocr"
@@ -1141,8 +1141,8 @@
    },
    "items": [
     {
-     "name": "道路橋りよう事業事務費",
-     "name_src": "ocr",
+     "name": "道路橋りょう事業事務費",
+     "name_src": "correction",
      "amount": {
       "v": 38334000,
       "src": "ocr"
@@ -1162,8 +1162,8 @@
      },
      "sub": [
       {
-       "name": "普通旅",
-       "name_src": "ocr",
+       "name": "普通旅費",
+       "name_src": "correction",
        "amount": {
         "v": 2060000,
         "src": "ocr"
@@ -1260,8 +1260,8 @@
    },
    "items": [
     {
-     "name": "舖装道補修費",
-     "name_src": "ocr",
+     "name": "舗装道補修費",
+     "name_src": "correction",
      "amount": {
       "v": 148300000,
       "src": "ocr"
@@ -1349,8 +1349,8 @@
    },
    "items": [
     {
-     "name": "橋りよう補修費",
-     "name_src": "ocr",
+     "name": "橋りょう補修費",
+     "name_src": "correction",
      "amount": {
       "v": 618374000,
       "src": "ocr"

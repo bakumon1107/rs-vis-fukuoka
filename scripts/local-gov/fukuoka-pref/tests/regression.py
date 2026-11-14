@@ -109,6 +109,9 @@ STEPS = [
     ("補正 回の鎖", "check_hosei_chain.py",
      ["{tmp:export}/budget-2026-initial.json", "{out:hosei-R8-06-1.json}", "{out:hosei-R8-08-2.json}",
       "{out:hosei-R8-09-3.json}", "{out:hosei-R8-09-4.json}"], None, [r"^R8-", r"FAIL="]),
+    # 書き出した補正のデータの照合（目の補正前 = 当初＋それまでの補正、項 = 議案、款の財源 = 総括）
+    ("補正 書き出しの照合", "verify_hosei.py",
+     ["{tmp:export}/budget-2026-initial.json", "{outdir}", "{tmp:export}"], None, [r"^照合した数", r"^FAIL"]),
 ]
 
 

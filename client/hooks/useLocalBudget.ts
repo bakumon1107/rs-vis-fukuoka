@@ -77,11 +77,15 @@ export function useLocalBudget(gov: string, year?: number, basis: BasisChoice = 
           if (f.schema_version !== LOCAL_GOV_SCHEMA_VERSION) throw new Error(VERSION_ERROR);
           return f;
         };
-        let file = await load(ds.file);
+        let file: LocalBudgetFile;
         if (basis === 'latest') {
           const sups = supplementDatasets(index, ds.year);
           if (sups.length === 0) throw new Error('この年度の補正予算のデータはありません');
-          file = composeLatest(file, await Promise.all(sups.map(s => load(s.file))));
+          // 当初と補正のファイルは一覧から分かるので、まとめて読む
+          const [init, ...supFiles] = await Promise.all([ds, ...sups].map(d => load(d.file)));
+          file = composeLatest(init, supFiles);
+        } else {
+          file = await load(ds.file);
         }
         if (!cancelled) setState({ status: 'ready', index, dataset: ds, file });
       } catch (e) {

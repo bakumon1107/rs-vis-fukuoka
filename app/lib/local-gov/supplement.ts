@@ -15,8 +15,17 @@ const add = (a: Value, b: Value | undefined): Value =>
 
 const FUNDING_KEYS: (keyof Funding)[] = ['national', 'bond', 'other', 'general'];
 
-function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: string): Item[] | undefined {
-  if (!sup || sup.length === 0) return base;
+/**
+ * 事項を足す。補正の行に事項がない（歳入の説明欄の合計が合わず載せなかった目など）のに額が動いたときは、
+ * 当初の事項だけでは補正後の額にならないので事項を出さない（合計の合わない内訳を見せない）
+ */
+function mergeItems(
+  base: Item[] | undefined,
+  sup: Item[] | undefined,
+  round: string,
+  supAmount: Value,
+): Item[] | undefined {
+  if (!sup || sup.length === 0) return supAmount.v === 0 ? base : undefined;
   const out = (base ?? []).map(it => ({ ...it }));
   for (const s of sup) {
     const hit = out.find(it => it.name === s.name && it.parent === undefined);
@@ -26,8 +35,14 @@ function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: st
   return out;
 }
 
-function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: string): Setsu[] | undefined {
-  if (!sup || sup.length === 0) return base;
+function mergeSetsu(
+  base: Setsu[] | undefined,
+  sup: Setsu[] | undefined,
+  round: string,
+  supAmount: Value,
+): Setsu[] | undefined {
+  // 補正の行に節がないのに額が動いたときは、当初の節だけでは補正後の額にならないので節を出さない
+  if (!sup || sup.length === 0) return supAmount.v === 0 ? base : undefined;
   const out: Setsu[] = (base ?? []).map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
   for (const s of sup) {
     const hit = s.no !== null ? out.find(x => x.no === s.no) : out.find(x => x.name === s.name);
@@ -36,10 +51,16 @@ function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: 
       continue;
     }
     hit.amount = add(hit.amount, s.amount);
-    for (const sb of s.sub ?? []) {
-      const h2 = hit.sub?.find(x => x.name === sb.name);
-      if (h2) h2.amount = add(h2.amount, sb.amount);
-      else hit.sub = [...(hit.sub ?? []), { ...sb }];
+    // 細節は、当初と補正の両方にあるときだけ足す。片方だけにあると細節の合計が節の額にならない（当初の節 33,000 に
+    // 細節がなく、補正の細節「その他需用費 112」だけを付けると 33,112 の節の細節が 112 になる）ので、細節を出さない
+    if (hit.sub && s.sub) {
+      for (const sb of s.sub) {
+        const h2 = hit.sub.find(x => x.name === sb.name);
+        if (h2) h2.amount = add(h2.amount, sb.amount);
+        else hit.sub.push({ ...sb });
+      }
+    } else if (hit.sub || s.sub) {
+      hit.sub = undefined;
     }
   }
   return out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
@@ -81,8 +102,8 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
         ...base,
         amount: add(base.amount, sr.amount),
         funding,
-        items: mergeItems(base.items, sr.items, round),
-        setsu: mergeSetsu(base.setsu, sr.setsu, round),
+        items: mergeItems(base.items, sr.items, round, sr.amount),
+        setsu: mergeSetsu(base.setsu, sr.setsu, round, sr.amount),
         notes: sr.notes ? [...new Set([...(base.notes ?? []), ...sr.notes])] : base.notes,
         pages: [...base.pages, ...sr.pages],
         supplements: [...(base.supplements ?? []), { round, amount: sr.amount }],

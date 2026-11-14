@@ -153,9 +153,9 @@ def parse_gian_scan(pdf: str, prev_sk: dict, fails: list[str]):
             ws = page.extract_words(x_tolerance=1.5, y_tolerance=2)
             text = flat("".join(w["text"] for w in ws))
             if out["追加額"] is None:
-                m = re.search(r"([\d,]+)千円を追加し", text)
+                m = re.search(r"([\d,]+)千円を(追加|減額)し", text)
                 if m:
-                    out["追加額"] = to_int(m.group(1))
+                    out["追加額"] = to_int(m.group(1)) * (1 if m.group(2) == "追加" else -1)
             rows = defaultdict(list)
             for w in ws:
                 rows[round(w["top"] / 6)].append(w)
@@ -168,8 +168,11 @@ def parse_gian_scan(pdf: str, prev_sk: dict, fails: list[str]):
                 vals = {}
                 for c, (lo, hi) in SCAN_COLS.items():
                     s = "".join(w["text"] for w in r if lo <= w["x1"] <= hi).replace(".", ",")
+                    # 減額は数字の左に離れて △ が印字される（語の右端が列の範囲より左に来る）。列の左 80pt までの △ を符号にする
+                    neg = s[:1] in "△▲" or any(w["text"].strip() in ("△", "▲") and lo - 80 <= w["x1"] < lo for w in r)
+                    s = s.lstrip("△▲")
                     if re.fullmatch(r"[\d,]+", s or "-"):
-                        vals[c] = to_int(s)
+                        vals[c] = -to_int(s) if neg else to_int(s)
                 if len(vals) != 3 or side is None:
                     continue
                 if f.startswith(f"{side}合計"):
