@@ -238,14 +238,19 @@ export interface LocalBudgetFile {
   checks: CheckSummary;
   /**
    * 一般会計の歳出の財源内訳の「一般財源」の中身（当初予算。組み替えを調べた年度だけ。一般財源の中身の設計）。
-   * 補正後（composed）にも当初のまま残る（説明文のため）が、表は当初の内訳なので画面は composed のとき出さない
+   * 補正後（composed）では外す（一般財源の額が変わる）。説明文だけ composed.funding_notes に残る
    */
   general_fund?: GeneralFund;
   /**
    * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
    * basis は 'initial' のまま（図の組み立ては当初と同じ）。rows の amount は補正後の額、before は当初の額
    */
-  composed?: { through: string; rounds: { round: string; kind: string }[] };
+  composed?: {
+    through: string;
+    rounds: { round: string; kind: string }[];
+    /** 当初の general_fund.notes（財源内訳と歳入の款の違いの説明。補正後でも当てはまる。general_fund 自体は外す） */
+    funding_notes?: string[];
+  };
 }
 
 export interface SourceDocument {

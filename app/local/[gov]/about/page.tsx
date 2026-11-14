@@ -270,7 +270,8 @@ function LocalGovAboutContent() {
               ))}
             </ul>
             <p className="text-xs text-mirai-text-muted">
-              サンキー図の一般会計の見方で「一般財源」の箱を押すと、一般財源の中身を表で見られます（{file.general_fund?.checked_on} に説明書で確認）。
+              サンキー図の当初予算・一般会計の見方で「一般財源」の箱を押すと、一般財源の中身を表で見られます（{file.general_fund?.checked_on}{' '}
+              に説明書で確認。補正後予算の見方では、補正で一般財源の額が変わるので表を出しません）。
             </p>
           </section>
         )}
