@@ -44,6 +44,9 @@ def main():
             rec = json.load(f)
         for t in rec['tables']:
             if len(t['cols']) != 11:
+                # 歳出の表は11列。列数の違う表（総括・歳入など）は読まないが、財源の欄に数字があれば落としたことを知らせる
+                if len(t['cols']) > 6 and any(re.fullmatch(r'\d[\d,]*', x['text'].replace(' ', '')) for x in t['cols'][6]):
+                    print(f'WARN p{p}: {len(t["cols"])} 列の表を読まない（財源の欄に数字あり）', file=sys.stderr)
                 continue
             lab = None
             for x in sorted(t['cols'][6], key=lambda x: (x['y0'], x['x0'])):

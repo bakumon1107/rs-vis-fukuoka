@@ -92,7 +92,9 @@ function LocalGovContent() {
   const detailRef = useRef<HTMLElement>(null);
   // キーボード・読み上げで使う人が図の箱をすべてたどらずに済むよう、フォーカスも詳細へ移す
   const scrollToDetail = useCallback(() => {
-    detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 動きを減らす設定の人には、なめらかに動かさずに跳ぶ
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    detailRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     detailRef.current?.focus({ preventScroll: true });
   }, []);
   // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
@@ -116,6 +118,9 @@ function LocalGovContent() {
   const { index, dataset, file } = state;
   // 年度の切り替え（同じ基準のデータが2年度以上あるときだけ出す）
   const years = [...new Set(index.datasets.filter(d => d.basis === dataset.basis).map(d => d.year))];
+  // 「データについて」へのリンク。今の見方・選択（クエリ全体）を back で渡し、「← サンキー図に戻る」で同じ表示に戻れるようにする
+  const aboutHref = (hash = '') =>
+    `/local/${gov}/about?year=${file.year}&back=${encodeURIComponent(searchParams.toString())}${hash}`;
   // 詳細に出す会計の名前（図の下・下からのシートの両方で使う）
   const accountName = row ? file.accounts.find(a => a.id === row.account)?.name ?? row.account : '';
 
@@ -172,7 +177,7 @@ function LocalGovContent() {
             {fundingReclassNotes(gov, file) && (
               <>
                 {view === 'all' ? '（調べた内訳は' : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（調べた内訳は'}
-                <Link href={`/local/${gov}/about?year=${file.year}#funding`} className="text-primary-accent underline">
+                <Link href={aboutHref('#funding')} className="text-primary-accent underline">
                   データについて
                 </Link>
                 ）
@@ -223,7 +228,7 @@ function LocalGovContent() {
         </div>
 
         {row && !isNarrow && (
-          <section ref={detailRef} tabIndex={-1} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus:outline-none">
+          <section ref={detailRef} tabIndex={-1} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent">
             <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
           </section>
         )}
@@ -231,7 +236,7 @@ function LocalGovContent() {
         <p className="mt-3 text-xs text-mirai-text-muted">
           出典: {sourceTitles}（{index.gov.name}）。
           {file.unit_source === '千円' ? '金額は資料に印字された数字（千円単位）を円に直したもの。' : '金額は資料に印字された数字（円単位）。'}帯は推計せず、印字された数字の合計で描いています。{' '}
-          <Link href={`/local/${gov}/about?year=${file.year}`}className="text-primary-accent underline">
+          <Link href={aboutHref()} className="text-primary-accent underline">
             データについて（検算の方法と結果・資料の一覧）
           </Link>
         </p>

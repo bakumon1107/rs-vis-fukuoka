@@ -56,7 +56,10 @@ export default function LocalGovAboutPage() {
 function LocalGovAboutContent() {
   const { gov } = useParams<{ gov: string }>();
   // 年度はサンキー図のページと同じクエリ（year）で受け取る。なければ最新の年度
-  const year = yearFromQuery(useSearchParams().get('year'));
+  const searchParams = useSearchParams();
+  const year = yearFromQuery(searchParams.get('year'));
+  // 来たときのサンキー図のクエリ（見方・選択）。クエリとして解釈し直してから使う（パスや「#」は付けさせない）
+  const back = searchParams.get('back');
   const state = useLocalBudget(gov, year);
   const summary = useMemo(() => {
     if (state.status !== 'ready') return null;
@@ -108,7 +111,10 @@ function LocalGovAboutContent() {
       <AppHeader current="/" />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-sm text-mirai-text">
         <div>
-          <Link href={`/local/${gov}?year=${file.year}`} className="text-xs text-primary-accent underline">
+          <Link
+            href={back ? `/local/${gov}?${new URLSearchParams(back).toString()}` : `/local/${gov}?year=${file.year}`}
+            className="text-xs text-primary-accent underline"
+          >
             ← サンキー図に戻る
           </Link>
           <h1 className="mt-1 text-xl font-bold">
