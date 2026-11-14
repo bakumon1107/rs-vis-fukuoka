@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { composeLatest } from '../app/lib/local-gov/supplement';
+import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import type { LocalBudgetFile, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number, src: Value['src'] = 'ocr'): Value => ({ v: n, src });
@@ -156,6 +157,37 @@ test('composeLatest keeps same-named items of one round separate', () => {
   );
 });
 
+test('composeLatest drops one-sided breakdowns and places new moku in their kou', () => {
+  const init = file('initial', [
+    row('general/revenue/7-2-3', 1_000),
+    row('general/expense/2-5-1', 100, { funding: { national: v(0), bond: v(0), other: v(0), general: v(100) } }),
+    row('general/expense/2-5-2', 50),
+    row('general/expense/3-1-1', 10),
+  ]);
+  const s = file(
+    'supplementary',
+    [
+      // 当初に事項のない目に、補正の事項だけ（補正の分だけの内訳になる）
+      row('general/revenue/7-2-3', 39, { items: [{ name: '港湾局部改良事業費負担金', amount: v(39) }] }),
+      // 当初に財源があり、補正に財源がない
+      row('general/expense/2-5-1', 5),
+      // 補正で新しく設けた目（同じ項の最後の目の後ろに入る）
+      row('general/expense/2-5-3', 7, { items: [{ name: '県議会議員補欠選挙費', amount: v(7) }] }),
+    ],
+    '8月専決補正（第2号）',
+  );
+  const out = composeLatest(init, [s]);
+  const get = (id: string) => out.rows.find(x => x.id === id)!;
+  assert.equal(get('general/revenue/7-2-3').amount.v, 1_039);
+  assert.equal(get('general/revenue/7-2-3').items, undefined);
+  assert.equal(get('general/expense/2-5-1').funding, undefined);
+  assert.deepEqual(
+    out.rows.map(r => r.id),
+    ['general/revenue/7-2-3', 'general/expense/2-5-1', 'general/expense/2-5-2', 'general/expense/2-5-3', 'general/expense/3-1-1'],
+  );
+  assert.equal(get('general/expense/2-5-3').items?.[0].name, '県議会議員補欠選挙費');
+});
+
 test('composeLatest rejects mismatched files', () => {
   const init = file('initial', [row('general/expense/2-6-4', 1)]);
   assert.throws(() => composeLatest(init, [file('initial', [], '6月')]), /補正予算のファイルではありません/);
@@ -178,4 +210,22 @@ test('composed real data matches the last bill total when files exist', () => {
     .filter(r => r.account === 'general' && r.side === 'expense')
     .reduce((s, r) => s + (r.amount.v ?? 0), 0);
   assert.equal(total, 2_313_266_114_000);
+  // 補正後の図: 帯はすべて正（減額の事項を残すと負の帯になる）、箱の入り = 出、内訳を出す目は内訳の合計 = 目の額
+  for (const view of ['general', 'all'] as const) {
+    const g = buildLocalGraph(out, { view });
+    assert.deepEqual(g.edges.filter(e => e.value <= 0), [], `${view} に正でない帯`);
+    const into = new Map<string, number>();
+    const outs = new Map<string, number>();
+    for (const e of g.edges) {
+      into.set(e.target, (into.get(e.target) ?? 0) + e.value);
+      outs.set(e.source, (outs.get(e.source) ?? 0) + e.value);
+    }
+    for (const n of g.nodes) if (into.has(n.id) && outs.has(n.id)) assert.equal(outs.get(n.id), into.get(n.id), `${view} ${n.id}`);
+  }
+  for (const r of out.rows.filter(x => x.supplements)) {
+    const sum = (xs: { amount: Value; parent?: number }[]) => xs.filter(x => x.parent === undefined).reduce((s, x) => s + (x.amount.v ?? 0), 0);
+    if (r.setsu) assert.equal(sum(r.setsu), r.amount.v, `${r.id} 節`);
+    if (r.items && !r.items.some(i => i.no_amount_printed)) assert.equal(sum(r.items), r.amount.v, `${r.id} 事項`);
+    if (r.funding) assert.equal(sum(Object.values(r.funding).map(amount => ({ amount }))), r.amount.v, `${r.id} 財源`);
+  }
 });

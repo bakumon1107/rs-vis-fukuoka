@@ -194,13 +194,26 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
 def build(work: str, initial: dict, rounds=ROUNDS):
     """返り値: [(ファイル名, データ, 検算が通ったか, 要約の行)]"""
     out = []
-    for r in rounds:
+    # 目の鎖: 目の ID → 当初の額 + それより前の回の補正額（円）。各回の目の補正前の額がこれと一致すること
+    cur = Counter()
+    for x in initial["rows"]:
+        if x["account"] == "general":
+            cur[x["id"]] += x["amount"]["v"] or 0
+    for i, r in enumerate(rounds):
         fails: list[str] = []
         gp, sp = os.path.join(work, f"hosei-{r['id']}.json"), os.path.join(work, f"setsumeisho-hosei-{r['id']}.json")
         if not (os.path.exists(gp) and os.path.exists(sp)):
-            print(f"WARN 補正 {r['id']}: 入力がない（{os.path.basename(gp)}・{os.path.basename(sp)}）。この回は書き出さない", file=sys.stderr)
-            continue
+            # 回が抜けると、後の回を足した補正後の額が誤る（抜けた回の補正額が入らない）。後の回も書き出さない
+            later = ", ".join(x["id"] for x in rounds[i + 1:])
+            print(f"WARN 補正 {r['id']}: 入力がない（{os.path.basename(gp)}・{os.path.basename(sp)}）。この回"
+                  + (f"とそれより後の回（{later}）" if later else "") + "は書き出さない", file=sys.stderr)
+            break
         data = build_round(r, json.load(open(gp, encoding="utf-8")), json.load(open(sp, encoding="utf-8")), initial, fails)
+        for x in data["rows"]:
+            if x["before"]["v"] != cur[x["id"]]:
+                fails.append(f"{r['id']} {x['id']}: 補正前 {x['before']['v']:,} ≠ 当初＋それまでの補正 {cur[x['id']]:,}")
+        for x in data["rows"]:
+            cur[x["id"]] += x["amount"]["v"] or 0
         n = int(r["id"].rsplit("-", 1)[1])
         lines = [f"FAIL 補正 {f}" for f in fails] + [
             f"補正 {r['id']}: 目 {len(data['rows'])} 件（全検算一致 {data['checks']['all_ok']}）、補正額 歳出 "

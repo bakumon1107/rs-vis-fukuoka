@@ -16,38 +16,53 @@ const add = (a: Value, b: Value | undefined): Value =>
 const FUNDING_KEYS: (keyof Funding)[] = ['national', 'bond', 'other', 'general'];
 
 /**
- * 事項を足す。補正の行に事項がない（歳入の説明欄の合計が合わず載せなかった目など）のに額が動いたときは、
- * 当初の事項だけでは補正後の額にならないので事項を出さない（合計の合わない内訳を見せない）
+ * 片方にしか内訳（事項・節）がないとき: もう片方の額が 0 ならそのまま使い、0 でなければ内訳を出さない
+ * （当初に事項のない歳入の目に補正の事項だけを付けると、補正の分だけの内訳が目の内訳に見える。合計の合わない内訳は見せない）。
+ * 戻り値 null は「両方にあるので足し合わせる」
  */
-function mergeItems(
-  base: Item[] | undefined,
-  sup: Item[] | undefined,
-  round: string,
-  supAmount: Value,
-): Item[] | undefined {
-  if (!sup || sup.length === 0) return supAmount.v === 0 ? base : undefined;
-  const out = (base ?? []).map(it => ({ ...it }));
+function oneSided<T>(base: T[] | undefined, sup: T[] | undefined, baseAmount: Value, supAmount: Value): T[] | undefined | null {
+  const hasBase = !!base && base.length > 0;
+  const hasSup = !!sup && sup.length > 0;
+  if (hasBase && hasSup) return null;
+  if (hasBase) return supAmount.v === 0 ? base : undefined;
+  if (hasSup) return baseAmount.v === 0 ? sup : undefined;
+  return undefined;
+}
+
+/**
+ * 事項を足す（同じ名前の事項に足し、なければ added_in を付けて加える）。次のときは事項を出さない（合計の合わない・
+ * 意味の取れない内訳を見せない）: 片方にしか事項がない（oneSided）、入れ子の事項がある（parent は元の配列の位置なので、
+ * 並べ直すと親を指し違える。親だけ足すと子の合計が親と合わない）、足した結果が負の事項がある（帯を描けない）
+ */
+function mergeItems(base: Item[] | undefined, sup: Item[] | undefined, round: string, baseAmount: Value, supAmount: Value): Item[] | undefined {
+  const nested = (xs: Item[] | undefined) => !!xs?.some(it => it.parent !== undefined);
+  const only = oneSided(base, sup, baseAmount, supAmount);
+  if (only !== null) {
+    if (only === sup && only !== undefined) {
+      if (nested(only) || only.some(it => (it.amount.v ?? 0) < 0)) return undefined;
+      return only.map(it => ({ ...it, added_in: round }));
+    }
+    return only;
+  }
+  if (nested(base) || nested(sup)) return undefined;
+  const out = base!.map(it => ({ ...it }));
   // 突き合わせるのは足す前からある事項だけ。同じ回の中の同じ名前の事項（R8 9月第3号の「社会資本整備総合交付金」は
   // 節ごとに3つ）は、それぞれ別の事項として加える
   const before = out.slice();
-  for (const s of sup) {
-    const hit = before.find(it => it.name === s.name && it.parent === undefined);
+  for (const s of sup!) {
+    const hit = before.find(it => it.name === s.name);
     if (hit) hit.amount = add(hit.amount, s.amount);
     else out.push({ ...s, added_in: round });
   }
-  return out;
+  return out.some(it => (it.amount.v ?? 0) < 0) ? undefined : out;
 }
 
-function mergeSetsu(
-  base: Setsu[] | undefined,
-  sup: Setsu[] | undefined,
-  round: string,
-  supAmount: Value,
-): Setsu[] | undefined {
-  // 補正の行に節がないのに額が動いたときは、当初の節だけでは補正後の額にならないので節を出さない
-  if (!sup || sup.length === 0) return supAmount.v === 0 ? base : undefined;
-  const out: Setsu[] = (base ?? []).map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
-  for (const s of sup) {
+/** 節を足す（同じ番号の節に足し、なければ加える）。片方にしか節がないときは oneSided */
+function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: string, baseAmount: Value, supAmount: Value): Setsu[] | undefined {
+  const only = oneSided(base, sup, baseAmount, supAmount);
+  if (only !== null) return only === sup && only !== undefined ? only.map(s => ({ ...s, added_in: round })) : only;
+  const out: Setsu[] = base!.map(s => ({ ...s, sub: s.sub?.map(x => ({ ...x })) }));
+  for (const s of sup!) {
     const hit = s.no !== null ? out.find(x => x.no === s.no) : out.find(x => x.name === s.name);
     if (!hit) {
       out.push({ ...s, added_in: round });
@@ -94,19 +109,30 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
           added_in: round,
           supplements: [{ round, amount: sr.amount }],
         });
-        order.push(sr.id);
+        // 図は行の順（款・項・目の順）に箱を並べるので、末尾ではなく同じ会計・款・項の最後の目の後ろに入れる
+        const kou = `${sr.account}/${sr.side}/${sr.kan.no}-${sr.kou.no}-`;
+        const at = order.findLastIndex(id => id.startsWith(kou));
+        if (at >= 0) order.splice(at + 1, 0, sr.id);
+        else order.push(sr.id);
         continue;
       }
+      // 財源は両方にあれば足す。片方だけなら、もう片方の額が 0 のときだけ使う（でなければ補正後の額と合わないので出さない）
       const funding =
         base.funding && sr.funding
           ? (Object.fromEntries(FUNDING_KEYS.map(k => [k, add(base.funding![k], sr.funding![k])])) as unknown as Funding)
-          : base.funding ?? sr.funding;
+          : base.funding
+            ? sr.amount.v === 0
+              ? base.funding
+              : undefined
+            : sr.funding && base.amount.v === 0
+              ? sr.funding
+              : undefined;
       rows.set(sr.id, {
         ...base,
         amount: add(base.amount, sr.amount),
         funding,
-        items: mergeItems(base.items, sr.items, round, sr.amount),
-        setsu: mergeSetsu(base.setsu, sr.setsu, round, sr.amount),
+        items: mergeItems(base.items, sr.items, round, base.amount, sr.amount),
+        setsu: mergeSetsu(base.setsu, sr.setsu, round, base.amount, sr.amount),
         notes: sr.notes ? [...new Set([...(base.notes ?? []), ...sr.notes])] : base.notes,
         pages: [...base.pages, ...sr.pages],
         supplements: [...(base.supplements ?? []), { round, amount: sr.amount }],

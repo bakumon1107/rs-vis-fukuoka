@@ -50,16 +50,22 @@ def side_of(line: str) -> str | None:
     return ("歳入" if m.group(1) == "入" else "歳出") if m else None
 
 
+ARTICLE1 = re.compile(r"第1条歳入歳出予算の総額に歳入歳出それぞれ([\d,]+)千円を(追加|減額)し、歳入歳出予算の総額を歳入歳出それぞれ([\d,]+)千円とする")
+
+
+def article1(body: str) -> tuple[int | None, int | None]:
+    """第1条の追加額（減額は負）と補正後の総額（千円）。読めなければ (None, None)"""
+    m = ARTICLE1.search(body)
+    if not m:
+        return None, None
+    return to_int(m.group(1)) * (1 if m.group(2) == "追加" else -1), to_int(m.group(3))
+
+
 def parse_gian(text: str, fails: list[str]):
     """議案の第1条と第1表（別表）。"""
-    body = flat(text)
-    m = re.search(r"第1条歳入歳出予算の総額に歳入歳出それぞれ([\d,]+)千円を(追加|減額)し、歳入歳出予算の総額を歳入歳出それぞれ([\d,]+)千円とする", body)
-    if not m:
+    add, total = article1(flat(text))
+    if add is None:
         fails.append("議案: 第1条の追加額・総額が読めない")
-        add = total = None
-    else:
-        add = to_int(m.group(1)) * (1 if m.group(2) == "追加" else -1)
-        total = to_int(m.group(3))
     out = {"追加額": add, "総額": total, "歳入": [], "歳出": [], "合計": {}}
     side, in_table = None, False
     for ln in text.splitlines():
@@ -153,9 +159,8 @@ def parse_gian_scan(pdf: str, prev_sk: dict, fails: list[str]):
             ws = page.extract_words(x_tolerance=1.5, y_tolerance=2)
             text = flat("".join(w["text"] for w in ws))
             if out["追加額"] is None:
-                m = re.search(r"([\d,]+)千円を(追加|減額)し", text)
-                if m:
-                    out["追加額"] = to_int(m.group(1)) * (1 if m.group(2) == "追加" else -1)
+                # 第1条はテキストの議案と同じ文で、文字層でも崩れずに読める（R8 9月第3号）。総額も取り、表の合計と照合する
+                out["追加額"], out["総額"] = article1(text)
             rows = defaultdict(list)
             for w in ws:
                 rows[round(w["top"] / 6)].append(w)
@@ -274,8 +279,8 @@ def main():
             prev_sk = json.load(f)["総括"]
         gian = parse_gian_scan(a.gian_scan, prev_sk, fails)
         sk = derive_soukatsu(prev_sk, gian)
-        if gian["合計"].get("歳出") and gian["総額"] is None:
-            gian["総額"] = gian["合計"]["歳出"]["計"]
+        if gian["追加額"] is None:
+            fails.append("議案（画像）: 第1条の追加額・総額が読めない")
     else:
         if not a.setsumeisho:
             sys.exit("--setsumeisho が要る")

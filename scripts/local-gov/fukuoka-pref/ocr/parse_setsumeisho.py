@@ -661,16 +661,19 @@ def main():
             if not m.get("補正"):
                 checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
                                and abs(h - m["前年度"]) == abs(m["比較"]))
+            prev_match = m["比較"] is not None and m["前年度"] is not None and abs(m["比較"]) == m["前年度"]
             if not m.get("補正") and (h is None and m["前年度"] is not None and not m["説明"] and not m["節"]
-                    and m["比較"] is not None and abs(m["比較"]) == m["前年度"]):
-                # 本年度の計上がない目（例: 知事選挙費）。「比較 = 前年度」が成り立つときだけ本年度 = 0 とみなす。
-                # 成り立たないとき（繰越金: 前年度 34,237・比較 34,236 → 本年度は 1）は読み取り失敗として残す
+                    and (prev_match or m.get("前年度のみ"))):
+                # 本年度の計上がない目（例: 知事選挙費）。「比較 = 前年度」が成り立つか、前年度のみの印（番号なし・中身が空。
+                # 上の目番号の処理で付ける）があるときに本年度 = 0 とみなす。どちらもないとき
+                # （繰越金: 前年度 34,237・比較 34,236 → 本年度は 1）は読み取り失敗として残す。
                 # 推定した値なので印を付けて数える（書き出しでは出典 blank-as-zero）。検算は一括で成功にせず、
-                # C（比較）は推定の条件そのものなので成功、B（財源）は推定後の本年度 0 で検算し直す。A はそのまま
+                # C（比較）は比較が前年度と合うときだけ成功（前年度のみの印だけで 0 にした目は、比較の読み違いを C の失敗で残す）、
+                # B（財源）は推定後の本年度 0 で検算し直す。A はそのまま
                 h = m["本年度"] = 0
                 m["空欄を0とみなした"] = "本年度"
                 stat["C空欄"] += 1
-                checks["C"] = True
+                checks["C"] = prev_match
                 if side == "歳出":
                     checks["B"] = sum(m["財源"].values()) == h
             setsu_top = [s for s in m["節"] if s.get("top", s["no"] is not None)]
