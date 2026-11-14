@@ -8,7 +8,7 @@ import {
   selectionToFilter, windowColumns,
 } from '../app/lib/local-gov/graph-view';
 import {
-  nameSourceCounts, noAmountPrintedCount, sourcesUsed, valueNotes, valueSourceCounts, zeroAmountRows,
+  nameSourceCounts, noAmountPrintedCount, sourcesUsed, unreadAmountRows, valueNotes, valueSourceCounts, zeroAmountRows,
 } from '../app/lib/local-gov/summary';
 import { pickDataset } from '../client/hooks/useLocalBudget';
 import type { LocalBudgetFile, LocalGovIndex, LocalGraph, MokuRow, Value } from '../types/local-gov';
@@ -630,4 +630,17 @@ test('決算 表示: 節を選ぶと 款 → 項 → 目 → 節 にその節の
   // 全会計の見方では断り書きなし（部局の列がない・歳入を描かない）
   assert.equal(composeDisplay(SFILE, 'all', 'setsu:general/expense/2-1-1:1').note, null);
   assert.equal(composeDisplay(SFILE, 'all', 'kan:general:expense:2').note, null);
+});
+
+test('0 円の目と額の読めない目を分ける（読めない目を「支出のなかった目」に数えない）', () => {
+  const f: LocalBudgetFile = {
+    ...FILE,
+    rows: [
+      row('general/expense/2-1-1', { amount: v(0) }),
+      row('general/expense/2-1-2', { amount: { v: null, src: 'ocr' } }),
+      row('general/expense/3-1-1', { amount: v(30) }),
+    ],
+  };
+  assert.deepEqual(zeroAmountRows(f).map(r => r.id), ['general/expense/2-1-1']);
+  assert.deepEqual(unreadAmountRows(f).map(r => r.id), ['general/expense/2-1-2']);
 });

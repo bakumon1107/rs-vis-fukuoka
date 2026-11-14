@@ -146,10 +146,15 @@ def main():
     groups: list[dict] = []  # 目の単位（目の行で区切る）
     # 「…特別会計歳入歳出決算事項別明細書」の見出しのあるページ（会計の区切り）。pdfplumber の文字の取り出しでは見出しが
     # 2層の重なりで崩れるので、pdftotext（-layout）のページごとの文字で探す（改ページ \f で区切る）
+    txt = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True, check=True).stdout
+    page_text = [re.sub(r"\s", "", t) for t in txt.split("\f")]
     head_pages: list[int] = []
     if toku is not None:
-        txt = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True, check=True).stdout
-        head_pages = [i for i, t in enumerate(txt.split("\f"), 1) if "特別会計歳入歳出決算事項別明細書" in re.sub(r"\s", "", t)]
+        head_pages = [i for i, t in enumerate(page_text, 1) if "特別会計歳入歳出決算事項別明細書" in t]
+    # 歳入のページ（列見出しに「収入済額」があり「支出済額」がない）。節の区画の照合は歳出の目だけなので、歳入のページの区画は
+    # 候補にしない（予算現額・支出済額の欄の位置に、たまたま同じ額の歳入の数字が並ぶ区画を拾わないため。R6 で歳入・歳出の
+    # ページを見分けられることを確認: 一般会計 p7〜p39 が歳入、特別会計は会計ごとに歳入→歳出）
+    revenue_pages = {i for i, t in enumerate(page_text, 1) if "収入済額" in t and "支出済額" not in t}
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
             for row in rows_of(page, special=toku is not None):
@@ -191,7 +196,7 @@ def main():
         fails += 1
         print("FAIL " + msg, file=sys.stderr)
 
-    cand = [g for g in groups if g["節"]]
+    cand = [g for g in groups if g["節"] and g["pdf_page"] not in revenue_pages]
     # 会計の区切り: 特別会計は会計ごとに見出しのページから始まる（R6 は特別会計全体の見出し p257 と 14会計の見出し p262〜p303）。
     # 最後の「会計の数」個の見出しを、概要説明書（kessan-toku.json）の会計の順に当てる。区画はその会計のものだけを照合の候補にする
     # （予算現額・支出済額がたまたま同じ別の会計の区画を拾わないため）。一般会計の区画は最初の会計の見出しより前

@@ -97,9 +97,17 @@ export function nameSourceCounts(file: LocalBudgetFile): NameSourceCounts {
   return c;
 }
 
-/** 本年度の計上がない目（0 円・空欄）。図には箱を出さないので、「データについて」に一覧で出す（設計書 3.2） */
+/**
+ * 本年度の計上がない目（0 円。空欄を 0 とみなしたものを含む）。図には箱を出さないので、「データについて」に一覧で出す（設計書 3.2）。
+ * 額が読めない目（null）は 0 円と区別して unreadAmountRows に分ける（決算で「支出のなかった目」に数えない）
+ */
 export function zeroAmountRows(file: LocalBudgetFile): MokuRow[] {
-  return file.rows.filter(r => (r.amount.v ?? 0) === 0);
+  return file.rows.filter(r => r.amount.v === 0);
+}
+
+/** 額が読めない目（amount.v が null）。図には箱を出さないので、0 円の目とは別に一覧で出す */
+export function unreadAmountRows(file: LocalBudgetFile): MokuRow[] {
+  return file.rows.filter(r => r.amount.v === null);
 }
 
 /** 目の行の出典（pages[].source）に出てくる資料の id（出てきた順）。画面の「出典」に出す資料を、年度に依らず決める */

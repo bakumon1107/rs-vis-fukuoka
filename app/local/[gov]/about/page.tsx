@@ -18,6 +18,7 @@ import {
   nameSourceCounts,
   noAmountPrintedCount,
   valueNotes,
+  unreadAmountRows,
   valueSourceCounts,
   zeroAmountRows,
 } from '@/app/lib/local-gov/summary';
@@ -75,6 +76,7 @@ function LocalGovAboutContent() {
       names: nameSourceCounts(f),
       values: valueSourceCounts(f),
       zero: zeroAmountRows(f),
+      unread: unreadAmountRows(f),
       noAmount: noAmountPrintedCount(f),
     };
   }, [state]);
@@ -328,6 +330,25 @@ function LocalGovAboutContent() {
           </section>
         )}
 
+        {summary && summary.unread.length > 0 && (
+          <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+            <h2 className="font-bold">額が読めない目（{summary.unread.length} 件）</h2>
+            <p>
+              {isSettlement ? '支出済額' : '本年度の額'}を資料から読めなかった目です（0 円とは限りません）。サンキー図には箱を出していません。
+            </p>
+            <ul className="space-y-1 text-xs">
+              {summary.unread.map(r => (
+                <li key={r.id}>
+                  <span className="text-mirai-text-muted">
+                    {accountName.get(r.account) ?? r.account} ／ {r.side === 'revenue' ? '歳入' : '歳出'} ／ {r.kan.name} ／ {r.kou.name} ／
+                  </span>{' '}
+                  {r.moku.name}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {summary && summary.zero.length > 0 && (
           <section className="space-y-2 rounded-2xl bg-card p-4 shadow-soft">
             <h2 className="font-bold">
@@ -346,7 +367,7 @@ function LocalGovAboutContent() {
                   </span>{' '}
                   {isSettlement ? (
                     <>
-                      {r.moku.name}（支出済額 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}・予算現額{' '}
+                      {r.moku.name}（支出済額 0円・予算現額{' '}
                       {amountOrDash(r.budget_current?.v)}・不用額 {amountOrDash(r.unused?.v)}）
                       {/* 図に箱がないので、決算の内容・不用額の内容はここで読めるようにする（部局ごとの説明も） */}
                       {[r.explanation, ...(r.by_department ?? []).map(d => d.explanation)]
