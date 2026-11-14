@@ -521,6 +521,10 @@ def main():
                         m["財源"][k] += v
                         m.setdefault("財源の断片", {}).setdefault(k, []).extend(zaigen_parts[k])
                     m["pages"].append(page)
+                    if rest:
+                        # 続きのページの説明欄に、金額につながらない文字が残った（ページ末の人数の注記・名前の断片など）。
+                        # 前のページの「説明の残り」とはつなげないので、黙って捨てずに知らせる（R8 では 0 件）
+                        print(f"WARN p{page}: 続きのページの説明欄に金額のない文字が残った「{rest[:30]}」", file=sys.stderr)
                     continue
                 if is_total:
                     moku_list.append({"kind": "計", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",

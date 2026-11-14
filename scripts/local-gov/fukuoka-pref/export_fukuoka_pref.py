@@ -505,9 +505,13 @@ def apply_name_corrections(rows, fixes, unresolved):
                        if it["amount"]["v"] == yen(fx["amount"])
                        and ("was" not in fx or it["name"] == clean_name(fx["was"]))]
         elif lv == "sub":
-            # 細節は、節の番号（"no"。必須）と節の中の細節の金額（千円）で特定する
+            # 細節は、節の番号（"no"。必須）と節の中の細節の金額（千円）で特定する。同じ節に同じ金額の細節が2つあるときは、
+            # 事項と同じく今の名前（"was"）も合わせる
+            if "no" not in fx:
+                sys.exit(f"名前の修正表: {fid} の sub「{fx['name']}」に節の番号（no）がない")
             targets = [sb for r in rows if r["id"] == fid for s in r.get("setsu", []) if s["no"] == fx["no"]
-                       for sb in s.get("sub", []) if sb["amount"]["v"] == yen(fx["amount"])]
+                       for sb in s.get("sub", []) if sb["amount"]["v"] == yen(fx["amount"])
+                       and ("was" not in fx or sb["name"] == clean_name(fx["was"]))]
         else:
             sys.exit(f"名前の修正表: level が不正（{lv}）")
         if not targets or (lv in ("moku", "setsu", "item", "sub") and len(targets) != 1):

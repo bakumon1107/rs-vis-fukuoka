@@ -142,6 +142,16 @@ def test_name_corrections_sub_by_setsu_no_and_amount():
     with pytest.raises(SystemExit):   # 節の番号が合わない（修正表が古い）
         ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 4, "amount": 29,
                                           "name": "y"}], [])
+    with pytest.raises(SystemExit):   # 節の番号がない（KeyError ではなく、分かる言葉で止める）
+        ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "amount": 29, "name": "y"}], [])
+    # 同じ節に同じ金額の細節が2つ: 番号と金額だけでは止まり、今の名前（was）を添えると1件に絞れる
+    rows[0]["setsu"][1]["sub"].append(sub("その他役務費", 29))
+    with pytest.raises(SystemExit):
+        ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 10, "amount": 29,
+                                          "name": "光熱水費"}], [])
+    assert ex.apply_name_corrections(rows, [{"id": "general/expense/10-2-1", "level": "sub", "no": 10, "amount": 29,
+                                             "was": "光热水費", "name": "光熱水費"}], []) == 1
+    assert [x["name"] for x in rows[0]["setsu"][1]["sub"]] == ["光熱水費", "その他役務費"]
 
 
 def test_name_corrections_stop_when_stale():
