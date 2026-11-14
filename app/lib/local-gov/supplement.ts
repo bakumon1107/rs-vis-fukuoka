@@ -8,7 +8,7 @@
  * - 行の before に当初の額、supplements に回ごとの補正額を残す（詳細パネルで「当初 → 補正後」を見せる）
  * 値の出典（src）は当初の値のものを残す（足した額は議案・総括との照合と回の鎖で確かめてある）。
  */
-import type { Funding, Item, LocalBudgetFile, MokuRow, Setsu, Value } from '@/types/local-gov';
+import type { Funding, Item, LocalBudgetFile, LocalGovIndex, MokuRow, Setsu, Value } from '@/types/local-gov';
 
 const add = (a: Value, b: Value | undefined): Value =>
   b === undefined ? a : { ...a, v: a.v === null || b.v === null ? null : a.v + b.v };
@@ -36,7 +36,12 @@ const anyNegativeSetsu = (xs: Setsu[]) => hasNegative(xs) || xs.some(s => !!s.su
  * 正しい位置を指す（親が前・1段まで）。負の事項・指し先のおかしい入れ子があれば出さない
  */
 const supOnlyItems = (xs: Item[]) =>
-  hasNegative(xs) || xs.some((it, i) => it.parent !== undefined && !(it.parent < i && xs[it.parent]?.parent === undefined))
+  hasNegative(xs) ||
+  xs.some(
+    (it, i) =>
+      it.parent !== undefined &&
+      !(Number.isInteger(it.parent) && it.parent >= 0 && it.parent < i && xs[it.parent].parent === undefined),
+  )
     ? undefined
     : xs;
 /** 負の区分のある財源内訳は出さない（財源の振り替えで当初より多く減らした など。負の帯は描けない） */
@@ -113,6 +118,15 @@ function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: 
     }
   }
   return anyNegativeSetsu(out) ? undefined : out.sort((a, b) => (a.no ?? 99) - (b.no ?? 99));
+}
+
+/**
+ * 補正後（latest）に使う、当初と同じ年度の補正のファイルの一覧（古い順）。回の順はファイル名の末尾の番号
+ * （budget-<年度>-supplementary-<回>.json）で決める（index.json の並び順には頼らない）
+ */
+export function supplementDatasets(index: LocalGovIndex, year: number): LocalGovIndex['datasets'] {
+  const no = (d: LocalGovIndex['datasets'][number]) => Number(/-(\d+)\.json$/.exec(d.file)?.[1] ?? 0);
+  return index.datasets.filter(d => d.basis === 'supplementary' && d.year === year).sort((a, b) => no(a) - no(b));
 }
 
 /**

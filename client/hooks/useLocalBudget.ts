@@ -7,7 +7,7 @@
  * グラフはデータから画面で組み立てる（app/lib/local-gov/graph.ts。設計書 2章の案 B）。
  */
 import { useEffect, useState } from 'react';
-import { composeLatest } from '@/app/lib/local-gov/supplement';
+import { composeLatest, supplementDatasets } from '@/app/lib/local-gov/supplement';
 import { LOCAL_GOV_SCHEMA_VERSION, type Basis, type LocalBudgetFile, type LocalGovIndex } from '@/types/local-gov';
 
 /** 画面で選ぶ基準。latest は 当初 + Σ補正（ファイルはなく、当初と同じ年度の補正のファイルから組み立てる） */
@@ -37,14 +37,8 @@ export function pickDataset(index: LocalGovIndex, basis: Basis, year?: number): 
   return candidates.reduce<LocalDataset | undefined>((best, d) => (!best || d.year > best.year ? d : best), undefined);
 }
 
-/**
- * 補正後（latest）に使う、当初と同じ年度の補正のファイルの一覧（古い順）。回の順はファイル名の末尾の番号
- * （budget-<年度>-supplementary-<回>.json）で決める（index.json の並び順には頼らない）
- */
-export function supplementDatasets(index: LocalGovIndex, year: number): LocalDataset[] {
-  const no = (d: LocalDataset) => Number(/-(\d+)\.json$/.exec(d.file)?.[1] ?? 0);
-  return index.datasets.filter(d => d.basis === 'supplementary' && d.year === year).sort((a, b) => no(a) - no(b));
-}
+// 回の順の決まり（ドメインの規則）は app/lib に置き、画面から使いやすいようにここからも出す
+export { supplementDatasets };
 
 /** 自治体 ID は英小文字・数字・ハイフンだけ（URL から来るのでパスに使う前に確かめる） */
 const GOV_ID = /^[a-z0-9-]+$/;

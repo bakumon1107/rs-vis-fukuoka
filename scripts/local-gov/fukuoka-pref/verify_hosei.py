@@ -105,23 +105,23 @@ def main():
                     fails.append(f"{rid} 総括 {s_ja} {k['no']}款: 補正前 {k['補正前'] * 1000:,} ≠ 当初＋それまでの公開データの補正 {kan_cur[(s, k['no'])]:,}")
         for r in rows:
             # 額の読めない行（None）は 2 の目の鎖で FAIL になる。ここでは例外で止めず、つなげるところまでつなぐ:
-            # 補正額が読めればそれを足す。補正額が読めず計が読めれば、目の額を計に合わせ（目は照合に戻す）、款は差が分かるときだけ足す。
-            # どちらも読めなければ、その目と款を後の回の照合から外す
+            # - 目: 計が読めれば、目の額を計に合わせる（それまでに欠けがあっても、次の回から照合に戻る）。計が読めなければ補正額を足す
+            # - 款: この回の増減（補正額、読めなければ 計 − 補正前）を足す。増減が分からなければ、その款を後の回の照合から外す
+            #   （款は目の額の合計なので、一度欠けた款はつなぎ直せない）
             key = (r["side"], r["kan"]["no"])
-            a, s = r["amount"]["v"], r["after"]["v"]
-            if a is not None:
-                cur[r["id"]] += a
-                kan_cur[key] += a
-            elif s is not None:
-                if r["id"] in tainted_moku:
-                    tainted_kan.add(key)
-                else:
-                    kan_cur[key] += s - cur[r["id"]]
+            b, a, s = r["before"]["v"], r["amount"]["v"], r["after"]["v"]
+            delta = a if a is not None else (s - b if s is not None and b is not None else None)
+            if delta is None:
+                tainted_kan.add(key)
+            else:
+                kan_cur[key] += delta
+            if s is not None:
                 cur[r["id"]] = s
                 tainted_moku.discard(r["id"])
+            elif a is not None and r["id"] not in tainted_moku:
+                cur[r["id"]] += a
             else:
                 tainted_moku.add(r["id"])
-                tainted_kan.add(key)
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     print("照合した数: " + "・".join(f"{k} {v}" for k, v in n.items()), file=sys.stderr)

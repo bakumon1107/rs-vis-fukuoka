@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { composeLatest } from '../app/lib/local-gov/supplement';
+import { composeLatest, supplementDatasets } from '../app/lib/local-gov/supplement';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { supplementDatasets } from '../client/hooks/useLocalBudget';
 import type { LocalBudgetFile, LocalGovIndex, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number, src: Value['src'] = 'ocr'): Value => ({ v: n, src });
@@ -294,7 +293,9 @@ try {
   realSkip = `index.json が読めない（${e instanceof Error ? e.message : String(e)}）`;
 }
 const realSups = realIndex && Array.isArray(realIndex.datasets) ? supplementDatasets(realIndex, 2026) : [];
-if (realSkip === false && realSups.length < 4) realSkip = 'R8 の補正のデータが4回そろっていない';
+if (realSkip === false && !Array.isArray(realIndex?.datasets)) realSkip = 'index.json に datasets がない';
+else if (realSkip === false && realSups.length < 4) realSkip = 'R8 の補正のデータが4回そろっていない';
+else if (realSkip === false && !fs.existsSync(path.join(REAL_DIR, 'budget-2026-initial.json'))) realSkip = '当初予算のデータがない';
 
 test('composed real data matches the last bill total when files exist', { skip: realSkip }, () => {
   const dir = REAL_DIR;
