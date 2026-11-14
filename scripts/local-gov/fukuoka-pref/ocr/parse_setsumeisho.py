@@ -391,6 +391,11 @@ def main():
     # 特別会計の説明書（281299.pdf）: 会計ごとに「令和8年度福岡県○○特別会計歳入歳出予算事項別明細書 1 総括」で始まる。
     # 会計の並びは計上額調の特別会計予算額調と同じなので、見出しが出るたびに次の会計へ進む（会計名は OCR で崩れるため名前では引かない）
     tokubetsu = "--tokubetsu" in sys.argv
+    # 補正予算の説明書（--hosei）: 列1〜3 が「補正前の額・補正額・計」。出力の「本年度」に補正額、「前年度」に補正前の額、
+    # 「比較」に計を入れ（キーは当初と同じ。後の処理を共通にするため）、出力の目に "補正": true を付ける。
+    # 検算 C は 補正前 + 補正額 = 計。説明欄・節・財源内訳の合計は補正額と比べる（当初の本年度と同じ位置）
+    hosei = "--hosei" in sys.argv
+    col_now, col_prev = (2, 1) if hosei else (1, 2)
     kaikei_names = [k["会計名"] for k in keijou["特別会計"]["会計"]] if (tokubetsu and keijou) else []
     a, b = (int(x) for x in rng.split("-"))
     moku_list: list[dict] = []
@@ -414,6 +419,10 @@ def main():
             print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
             continue
         page_rec = json.load(open(path, encoding="utf-8"))
+        if hosei and re.search(r"債務負担行為|地方債", page_title_text(page_rec)):
+            # 補正の説明書の「第2 債務負担行為…の調書」「地方債の…調書」は目の表ではない。ここから後は読まない
+            print(f"INFO p{page}: 補正の説明書の調書のページ（ここで終わる）", file=sys.stderr)
+            break
         if tokubetsu:
             pt = page_title_text(page_rec)
             if KAIKEI_RE.search(pt) and re.search(r"[総总稔公]?括", pt):
@@ -487,7 +496,7 @@ def main():
                 cy0, cy1 = cell_bounds[ci]
                 mno_val, name_body = moku_name(cell[0])
                 name_txt = "".join(d["text"] for row in lines_of(cell[0]) for d in row)
-                honnen = first_amount(cell[1])
+                honnen = first_amount(cell[col_now])
                 is_total = norm_name(name_txt) in ("計", "合計") or "計" == norm_name(name_txt)[-1:] and honnen is not None and not re.search(r"\d", name_txt)
                 expl, rest = parse_explanations(cell[10])
                 vl = rec.get("vlines") or []
@@ -529,14 +538,16 @@ def main():
                 if is_total:
                     moku_list.append({"kind": "計", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
                                       "款": cur_kan, "項": cur_kou,
-                                      "本年度": honnen, "前年度": first_amount(cell[2]), "pages": [page]})
+                                      "本年度": honnen, "前年度": first_amount(cell[col_prev]), "pages": [page],
+                                      **({"比較": first_amount(cell[3]), "補正": True} if hosei else {})})
                     continue
                 moku_list.append({
                     "kind": "目", "会計": cur_kaikei, "side": "歳入" if t.get("revenue") else "歳出",
                     "款": cur_kan, "項": cur_kou, "目番号": mno_val,
                     "款_見出し": cur_kan_title, "項_見出し": cur_kou_title,
                     "目名": norm_name(name_body),
-                    "本年度": honnen, "前年度": first_amount(cell[2]), "比較": first_amount(cell[3]),
+                    "本年度": honnen, "前年度": first_amount(cell[col_prev]), "比較": first_amount(cell[3]),
+                    **({"補正": True} if hosei else {}),
                     "財源": zaigen, "財源の断片": zaigen_parts, "節": setsu, "説明": expl, "説明の残り": rest, "pages": [page],
                     "節の欄の文字数": len(cell[8]) + len(cell[9]),
                     "cell": {"page": page, "y0": cy0, "y1": cy1, "x0": (rec.get("vlines") or [0, 0, 0])[1],
@@ -555,6 +566,12 @@ def main():
             continue
         key = (m["会計"], m["side"], m["款"], (m["項"] or (None,))[0])
         seq[key] += 1
+        if hosei:
+            # 補正の説明書は補正のある目だけが載るので、並び順は目番号にならない。読めた番号を使い、読めなければ止めずに知らせる
+            # （書き出しで当初の目と名前で突き合わせる）
+            if m["目番号"] is None:
+                print(f"WARN 目番号 {key}: 補正の目の番号が読めない（{m['目名']}、p{m['pages'][0]}）", file=sys.stderr)
+            continue
         if m["目番号"] is None:
             m["目番号"], m["目番号_補完"] = seq[key], True
         elif m["目番号"] != seq[key]:
@@ -615,15 +632,24 @@ def main():
                 checks["B"] = h is not None and sum(m["財源"].values()) == h
             # 新設の目は前年度が空欄、増減のない目は比較が空欄（R8 p88・p89・p287 などで確認）。
             # 空欄を 0 とみなすのは、そうすると |本年度 − 前年度| = |比較| が成り立つときだけ（印を付ける）
-            if h is not None and m["前年度"] is None and m["比較"] is not None and abs(m["比較"]) == h:
+            if m.get("補正"):
+                # 補正: 補正前（前年度の位置）+ 補正額（本年度）= 計（比較）。補正で新しく設けた目は補正前が空欄
+                # （R8 8月専決の県議会議員補欠選挙費・9月追加提案の商工費国庫補助金）。補正額 = 計 のときだけ 0 とみなす（印を付ける）
+                if h is not None and m["前年度"] is None and m["比較"] == h:
+                    m["前年度"], m["空欄を0とみなした"] = 0, "前年度"
+                    stat["C空欄"] += 1
+                checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
+                               and m["前年度"] + h == m["比較"])
+            elif h is not None and m["前年度"] is None and m["比較"] is not None and abs(m["比較"]) == h:
                 m["前年度"], m["空欄を0とみなした"] = 0, "前年度"
                 stat["C空欄"] += 1
             elif h is not None and m["比較"] is None and m["前年度"] is not None and m["前年度"] == h:
                 m["比較"], m["空欄を0とみなした"] = 0, "比較"
                 stat["C空欄"] += 1
-            checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
-                           and abs(h - m["前年度"]) == abs(m["比較"]))
-            if (h is None and m["前年度"] is not None and not m["説明"] and not m["節"]
+            if not m.get("補正"):
+                checks["C"] = (h is not None and m["前年度"] is not None and m["比較"] is not None
+                               and abs(h - m["前年度"]) == abs(m["比較"]))
+            if not m.get("補正") and (h is None and m["前年度"] is not None and not m["説明"] and not m["節"]
                     and m["比較"] is not None and abs(m["比較"]) == m["前年度"]):
                 # 本年度の計上がない目（例: 知事選挙費）。「比較 = 前年度」が成り立つときだけ本年度 = 0 とみなす。
                 # 成り立たないとき（繰越金: 前年度 34,237・比較 34,236 → 本年度は 1）は読み取り失敗として残す
