@@ -87,7 +87,10 @@ function LocalGovAboutContent() {
     } catch {
       return; // 壊れた「#…」（%E0 など）は無視する
     }
-    document.getElementById(id)?.scrollIntoView();
+    // 読み上げの位置も移すため、フォーカスも移す（移動先の節は tabIndex={-1}。タブ順には入れない）
+    const el = document.getElementById(id);
+    el?.scrollIntoView();
+    el?.focus({ preventScroll: true });
   }, [ready]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
@@ -143,7 +146,11 @@ function LocalGovAboutContent() {
         </section>
 
         {fundingNotes && (
-          <section id="funding" className="scroll-mt-24 space-y-2 rounded-2xl bg-card p-4 shadow-soft">
+          <section
+            id="funding"
+            tabIndex={-1}
+            className="scroll-mt-24 space-y-2 rounded-2xl bg-card p-4 shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent"
+          >
             <h2 className="font-bold">財源内訳と歳入の款の違い</h2>
             <p>
               一般会計の見方の左端は歳出の財源内訳（国庫支出金・地方債・その他・一般財源）、全会計の見方の左端は歳入の款（県税・国庫支出金・県債・繰入金など）です。
