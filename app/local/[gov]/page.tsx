@@ -119,8 +119,11 @@ function LocalGovContent() {
     [state, display]
   );
   // 一般会計の見方で「一般財源」の箱を選んだときは、目の詳細の代わりに一般財源の中身の表を出す（当初予算で中身を調べた年度だけ。
-  // 補正後は一般財源の額が変わるので composeLatest が general_fund を外す）
-  const fund = state.status === 'ready' && view === 'general' && selectedId === 'funding:general' ? state.file.general_fund ?? null : null;
+  // 補正後（composed）は一般財源の額が変わり、表は当初の内訳なので出さない）
+  const fund =
+    state.status === 'ready' && !state.file.composed && view === 'general' && selectedId === 'funding:general'
+      ? state.file.general_fund ?? null
+      : null;
   const hasDetail = !!row || !!fund;
   // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
   // 「選択中」の行のボタンを押したときだけ詳細まで動かす
@@ -256,7 +259,7 @@ function LocalGovContent() {
               <>
                 {view === 'all'
                   ? '（調べた内訳は'
-                  : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（「一般財源」の箱を押すと中身を表で見られます。調べた内訳は'}
+                  : `。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（${file.composed ? '' : '「一般財源」の箱を押すと中身を表で見られます。'}調べた内訳は`}
                 <Link href={aboutHref('#funding')} className="text-primary-accent underline">
                   データについて
                 </Link>

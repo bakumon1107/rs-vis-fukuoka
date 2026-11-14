@@ -201,9 +201,9 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
   }
   const last = supplements[supplements.length - 1];
   return {
+    // 一般財源の中身（general_fund）は当初のまま残す（財源内訳と歳入の款の違いの説明文 notes は補正後でも当てはまる）。
+    // 中身の表は当初の一般財源の内訳なので、補正後（composed）では画面が表を出さない
     ...initial,
-    // 一般財源の中身は当初予算の財源内訳の内訳。補正で一般財源の額が変わるので、補正後には出さない
-    general_fund: undefined,
     rows: order.map(id => rows.get(id)!),
     composed: {
       through: last ? last.supplementary!.round : '当初予算',

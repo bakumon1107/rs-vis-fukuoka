@@ -236,7 +236,10 @@ export interface LocalBudgetFile {
   /** 決算の歳入（会計 × 款）。決算の行は歳出の目だけなので、歳入はここに持つ */
   revenue_by_kan?: RevenueByKan[];
   checks: CheckSummary;
-  /** 一般会計の歳出の財源内訳の「一般財源」の中身（予算。組み替えを調べた年度だけ。一般財源の中身の設計） */
+  /**
+   * 一般会計の歳出の財源内訳の「一般財源」の中身（当初予算。組み替えを調べた年度だけ。一般財源の中身の設計）。
+   * 補正後（composed）にも当初のまま残る（説明文のため）が、表は当初の内訳なので画面は composed のとき出さない
+   */
   general_fund?: GeneralFund;
   /**
    * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
