@@ -128,6 +128,34 @@ test('composeLatest drops breakdowns that would not add up', () => {
   assert.equal(ex.setsu?.[0].sub, undefined);
 });
 
+test('composeLatest keeps same-named items of one round separate', () => {
+  const init = file('initial', [row('general/revenue/9-2-6', 100, { items: [{ name: '橋りょう補修費補助金', amount: v(100) }] })]);
+  const s = file(
+    'supplementary',
+    [
+      row('general/revenue/9-2-6', 60, {
+        before: v(100),
+        after: v(160),
+        items: [
+          { name: '社会資本整備総合交付金', amount: v(10) },
+          { name: '橋りょう補修費補助金', amount: v(20) },
+          { name: '社会資本整備総合交付金', amount: v(30) },
+        ],
+      }),
+    ],
+    '9月補正（第3号）',
+  );
+  const r = composeLatest(init, [s]).rows[0];
+  assert.deepEqual(
+    r.items?.map(i => [i.name, i.amount.v]),
+    [
+      ['橋りょう補修費補助金', 120],
+      ['社会資本整備総合交付金', 10],
+      ['社会資本整備総合交付金', 30],
+    ],
+  );
+});
+
 test('composeLatest rejects mismatched files', () => {
   const init = file('initial', [row('general/expense/2-6-4', 1)]);
   assert.throws(() => composeLatest(init, [file('initial', [], '6月')]), /補正予算のファイルではありません/);

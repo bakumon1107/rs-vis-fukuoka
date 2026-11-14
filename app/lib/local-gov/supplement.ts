@@ -27,8 +27,11 @@ function mergeItems(
 ): Item[] | undefined {
   if (!sup || sup.length === 0) return supAmount.v === 0 ? base : undefined;
   const out = (base ?? []).map(it => ({ ...it }));
+  // 突き合わせるのは足す前からある事項だけ。同じ回の中の同じ名前の事項（R8 9月第3号の「社会資本整備総合交付金」は
+  // 節ごとに3つ）は、それぞれ別の事項として加える
+  const before = out.slice();
   for (const s of sup) {
-    const hit = out.find(it => it.name === s.name && it.parent === undefined);
+    const hit = before.find(it => it.name === s.name && it.parent === undefined);
     if (hit) hit.amount = add(hit.amount, s.amount);
     else out.push({ ...s, added_in: round });
   }

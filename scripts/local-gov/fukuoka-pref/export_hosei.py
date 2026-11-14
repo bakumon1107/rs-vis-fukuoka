@@ -71,7 +71,7 @@ def val(v, src):
 
 def norm_name(s: str) -> str:
     """名前の比較用（全角半角・小書きの「ょ」と並字の「よ」をそろえる。「橋りよう」と「橋りょう」）"""
-    return unicodedata.normalize("NFKC", s).replace("よ", "ょ").replace("ゃ", "や")
+    return unicodedata.normalize("NFKC", s).replace("よ", "ょ").replace("ゃ", "や").replace("舖", "舗")
 
 
 def clean(s: str) -> str:
@@ -157,6 +157,22 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             fails.append(f"{r['id']} {rid}: 目の検算 {m.get('checks')}")
         rows.append(row)
     apply_name_corrections(r["id"], rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], fails)
+    # 補正後は事項・細節を名前の完全一致で当初に足し込む（supplement.ts）。字形だけ違う名前（橋りよう／橋りょう）は
+    # 別の事項として並んでしまうので止める（画像を見て名前の修正表で直す）
+    for x in rows:
+        base = init_rows.get(x["id"])
+        if base is None:
+            continue
+        pairs = [([i["name"] for i in base.get("items", [])], [i["name"] for i in x.get("items", [])], "事項")]
+        for s in x.get("setsu", []):
+            bs = next((b for b in base.get("setsu", []) if b.get("no") == s.get("no")), None)
+            if bs:
+                pairs.append(([y["name"] for y in bs.get("sub", [])], [y["name"] for y in s.get("sub", [])], f"{s.get('no')}節の細節"))
+        for base_names, names, what in pairs:
+            near = {norm_name(b): b for b in base_names}
+            for nm in names:
+                if nm not in base_names and norm_name(nm) in near:
+                    fails.append(f"{r['id']} {x['id']}: {what}「{nm}」が当初の「{near[norm_name(nm)]}」と字形だけ違う（名前の修正表で直す）")
     # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
     got = Counter()
     for x in rows:
