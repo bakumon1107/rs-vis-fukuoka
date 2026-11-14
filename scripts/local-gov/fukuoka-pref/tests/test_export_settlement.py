@@ -22,7 +22,7 @@ def _write(tmp_path, kmk=None, bukyoku=None, toku=None, setsu=None):
         {"部局": "会計管理局", "款": [{"no": 2, "項": [{"no": 1, "目": [
             {"no": 1, "name": "一般管理費", "予算現額": 140, "支出済額": 100, "翌年度繰越額": 0, "不用額": 40}]}]}]},
     ]}
-    toku = toku or {"fail": 0, "会計": [{"会計": "福岡県住宅管理特別会計", "pdf_page": 250,
+    toku = toku or {"fail": 0, "過誤納金の印字": 1, "会計": [{"会計": "福岡県住宅管理特別会計", "pdf_page": 250,
                              "歳入": [{"no": 1, "name": "県営住宅管理費収入", "予算現額": 10, "調定額": 9, "収入済額": 10,
                                       "不納欠損額": 0, "収入未済額": 0, "過誤納金": 1}],
                              "款項": [{"款": 1, "款名": "県営住宅管理費", "項": 1, "項名": "県営住宅管理費", "決算額": 50}], "款項の計": 50,
@@ -59,6 +59,8 @@ def test_build_rows_and_checks(tmp_path):
     # 歳入は会計 × 款（過誤納金を含む）
     rk = {(r["account"], r["kan"]["no"]): r for r in f["revenue_by_kan"]}
     assert rk[("special:jutaku-kanri", 1)]["overpaid"]["v"] == 1 and "overpaid" not in rk[("general", 1)]
+    # 特別会計の過誤納金は差額から求めた値。印字の合計と照合できたので出典は text（根拠を note に残す）
+    assert rk[("special:jutaku-kanri", 1)]["overpaid"]["src"] == "text" and "印字" in rk[("special:jutaku-kanri", 1)]["overpaid"]["note"]
     assert f["checks"]["all_ok"] == 2
 
 
@@ -78,6 +80,22 @@ def test_special_account_extraction_must_pass(tmp_path):
         p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
         _, ok, _ = es.build(str(tmp_path), {"住宅管理": "jutaku-kanri"})
         assert not ok, toku_patch
+
+
+def test_inferred_overpaid_and_missing_department_are_not_verified(tmp_path):
+    # 過誤納金の印字と照合できない（印字なし）→ 推定（inferred）として出し、検算済みにしない
+    _write(tmp_path)
+    p = tmp_path / "kessan-toku.json"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    d.pop("過誤納金の印字")
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    f, ok, _ = es.build(str(tmp_path), {"住宅管理": "jutaku-kanri"})
+    t = next(r for r in f["revenue_by_kan"] if r["account"] == "special:jutaku-kanri")
+    assert not ok and t["overpaid"]["src"] == "inferred"
+    # 一般会計の目の部局の内訳が欠けた → 検算済みにしない
+    _write(tmp_path, bukyoku={"部局": []})
+    _, ok, _ = es.build(str(tmp_path), {"住宅管理": "jutaku-kanri"})
+    assert not ok
 
 
 def test_department_sum_mismatch_is_ng(tmp_path):

@@ -76,12 +76,15 @@ class TestVerify:
                 "項": [{"款": 1, "項": 1, "項名": "x", "目": [{"no": 1, "name": "x", "予算現額": 100, "支出済額": 90,
                                                           "翌年度繰越額": 0, "不用額": 10}], "計": None}]}
 
-    def test_overpayment_is_warning(self):
-        # 収入済額 + 不納欠損額 + 収入未済額 が調定額より多い分は過誤納金（R6 住宅管理 1款 177,125 円）。FAIL にしない
+    def test_overpayment_needs_printed_total(self):
+        # 収入済額 + 不納欠損額 + 収入未済額 が調定額より多い分は過誤納金（R6 住宅管理 1款 177,125 円）。
+        # 差額から求めた値なので、概要説明書に印字された特別会計の過誤納金の合計と一致したときだけ FAIL にしない
+        ich = [{"合計": False, "予算現額": 100, "歳入決算額": 90, "歳出決算額": 90},
+               {"合計": True, "予算現額": 100, "歳入決算額": 90, "歳出決算額": 90}]
         acc = self._acc(103)
-        n = kt.verify([acc], [], [{"合計": False, "予算現額": 100, "歳入決算額": 90, "歳出決算額": 90},
-                                  {"合計": True, "予算現額": 100, "歳入決算額": 90, "歳出決算額": 90}])
-        assert n == 0 and acc["歳入"][0]["過誤納金"] == 2
+        assert kt.verify([acc], [], ich, printed_over=2) == 0 and acc["歳入"][0]["過誤納金"] == 2
+        assert kt.verify([self._acc(103)], [], ich, printed_over=3) == 1   # 印字と合わない
+        assert kt.verify([self._acc(103)], [], ich, printed_over=None) == 1   # 印字が読めない（裏付けなし）
 
     def test_choutei_too_large_fails(self):
         acc = self._acc(110)

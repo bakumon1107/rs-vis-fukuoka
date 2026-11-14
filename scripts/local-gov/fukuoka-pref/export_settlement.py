@@ -95,6 +95,13 @@ def build(work: str, special_slugs: dict[str, str]):
     for kan in kmk["revenue"]:
         revenue.append(revenue_row("general", kan["no"], kan["name"], kan, kan.get("過誤納金（内数）")))
 
+    # 特別会計の過誤納金は款の表になく、差額（収入済額 + 不納欠損額 + 収入未済額 − 調定額）から求めた値。
+    # 抽出（extract_kessan_toku.py）が概要説明書の印字（特別会計の過誤納金の合計）と照合して FAIL なしなら印字で裏付けられた値、
+    # そうでなければ推定（inferred）として出す
+    printed = toku.get("過誤納金の印字")
+    over_note = ({"src": "text", "note": f"差額から求めた値。特別会計の過誤納金の合計は概要説明書の印字 {printed:,} 円と一致"}
+                 if printed is not None and toku.get("fail") == 0
+                 else {"src": "inferred", "note": "差額から求めた値（概要説明書の印字と照合できていない）"})
     for acc in toku["会計"]:
         name = special_name(acc["会計"])
         if name not in special_slugs:
@@ -118,7 +125,7 @@ def build(work: str, special_slugs: dict[str, str]):
                     row["setsu"] = ss
                 rows.append(row)
         for r in acc["歳入"]:
-            revenue.append(revenue_row(aid, r["no"], r["name"], r, r.get("過誤納金")))
+            revenue.append(revenue_row(aid, r["no"], r["name"], r, r.get("過誤納金"), over_note))
 
     checks, ok, lines = check(rows, revenue, kmk, toku)
     file = {"schema_version": 1, "gov_id": "fukuoka-pref", "year": YEAR, "year_label": YEAR_LABEL, "basis": "settlement",
@@ -126,11 +133,15 @@ def build(work: str, special_slugs: dict[str, str]):
     return file, ok, lines
 
 
-def revenue_row(account, no, name, d, overpaid):
+def revenue_row(account, no, name, d, overpaid, over_note=None):
+    """over_note: 特別会計の過誤納金（款の表になく、差額から求めた値）の出典。印字の合計と照合できたときは
+    {"src": "text", "note": …}、照合できないときは {"src": "inferred", "note": …}。一般会計（明細表に印字）は None"""
     r = {"account": account, "kan": named(no, name), "amount": val(d["収入済額"]), "budget_current": val(d["予算現額"]),
          "assessed": val(d["調定額"]), "deficit_loss": val(d["不納欠損額"]), "uncollected": val(d["収入未済額"])}
     if overpaid:
         r["overpaid"] = val(overpaid)
+        if over_note:
+            r["overpaid"].update(over_note)
     return r
 
 
@@ -142,7 +153,11 @@ def check(rows, revenue, kmk, toku):
         v = lambda k: r[k]["v"]  # noqa: E731
         ok1 = v("amount") + v("carried_over") + v("unused") == v("budget_current")
         ok2 = "setsu" not in r or sum(s["amount"]["v"] for s in r["setsu"]) == v("amount")
-        ok3 = "by_department" not in r or all(sum(d[k]["v"] for d in r["by_department"]) == v(k) for k in COLS)
+        # 一般会計の目は部局別の表に必ず載る（R6 で 234目すべて）。内訳が欠けたら検算の失敗にする。特別会計は部局の内訳がない
+        if r["account"] == "general" and "by_department" not in r:
+            ok3 = False
+        else:
+            ok3 = "by_department" not in r or all(sum(d[k]["v"] for d in r["by_department"]) == v(k) for k in COLS)
         rules["予算現額の式"] += ok1
         rules["節の合計"] += ok2
         rules["部局の内訳"] += ok3
@@ -172,7 +187,11 @@ def check(rows, revenue, kmk, toku):
     rev_ok = sum(1 for x in revenue if x["amount"]["v"] - (x.get("overpaid") or {"v": 0})["v"] + x["deficit_loss"]["v"]
                  + x["uncollected"]["v"] == x["assessed"]["v"])
     ext["歳入の調定額の式"] = f"{rev_ok}/{len(revenue)} 款"
-    ok = ok and rev_ok == len(revenue)
+    # 推定（inferred）の過誤納金を使った款は、式が成り立っても裏付けのない一致なので検算済みにしない
+    n_inferred = sum(1 for x in revenue if (x.get("overpaid") or {}).get("src") == "inferred")
+    if n_inferred:
+        ext["歳入の推定した過誤納金"] = f"{n_inferred} 款（概要説明書の印字と照合できていない）"
+    ok = ok and rev_ok == len(revenue) and n_inferred == 0
     checks = {"rows": len(rows), "all_ok": all_ok, "rules": rules, "external": ext}
     lines.append(f"決算 目 {len(rows)} 件（全検算一致 {all_ok}）。歳入の款 {len(revenue)} 件。" + "・".join(f"{k}: {v}" for k, v in ext.items()))
     return checks, ok, lines

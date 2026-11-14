@@ -19,6 +19,7 @@ PDF の癖（R6 で確認）:
 import json
 import os
 import re
+import subprocess
 import sys
 
 import pdfplumber
@@ -47,7 +48,8 @@ SPECIAL_MOKU_BAND = (40.0, 440.0)
 
 def special_shift(page) -> float | None:
     """特別会計の歳出の並びなら、列のずれ（0 か 9.7）。一般会計の並びなら None。支出済額の列の数字の右端で見分ける。"""
-    ends = [c["x1"] for c in page.chars if c["text"].isdigit() and repr(c.get("non_stroking_color")) == "(0.0,)"]
+    # 数字は文字コードなし（(cid:N)）で描かれることもある（digit_of と同じ範囲で数える）
+    ends = [c["x1"] for c in page.chars if digit_of(c["text"]) is not None and repr(c.get("non_stroking_color")) == "(0.0,)"]
     a = sum(1 for x in ends if abs(x - 583.2) < 0.6)
     b = sum(1 for x in ends if abs(x - 592.9) < 0.6)
     general = sum(1 for x in ends if abs(x - 501.9) < 0.6)
@@ -142,6 +144,12 @@ def main():
         with open(sys.argv[sys.argv.index("--toku") + 1], encoding="utf-8") as f:
             toku = json.load(f)
     groups: list[dict] = []  # 目の単位（目の行で区切る）
+    # 「…特別会計歳入歳出決算事項別明細書」の見出しのあるページ（会計の区切り）。pdfplumber の文字の取り出しでは見出しが
+    # 2層の重なりで崩れるので、pdftotext（-layout）のページごとの文字で探す（改ページ \f で区切る）
+    head_pages: list[int] = []
+    if toku is not None:
+        txt = subprocess.run(["pdftotext", "-layout", pdf_path, "-"], capture_output=True, text=True, check=True).stdout
+        head_pages = [i for i, t in enumerate(txt.split("\f"), 1) if "特別会計歳入歳出決算事項別明細書" in re.sub(r"\s", "", t)]
     with pdfplumber.open(pdf_path) as pdf:
         for pno, page in enumerate(pdf.pages, 1):
             for row in rows_of(page, special=toku is not None):
@@ -184,6 +192,21 @@ def main():
         print("FAIL " + msg, file=sys.stderr)
 
     cand = [g for g in groups if g["節"]]
+    # 会計の区切り: 特別会計は会計ごとに見出しのページから始まる（R6 は特別会計全体の見出し p257 と 14会計の見出し p262〜p303）。
+    # 最後の「会計の数」個の見出しを、概要説明書（kessan-toku.json）の会計の順に当てる。区画はその会計のものだけを照合の候補にする
+    # （予算現額・支出済額がたまたま同じ別の会計の区画を拾わないため）。一般会計の区画は最初の会計の見出しより前
+    acc_names = [a["会計"] for a in (toku or {}).get("会計", [])]
+    starts = head_pages[-len(acc_names):] if acc_names else []
+    if acc_names and len(head_pages) < len(acc_names):
+        print(f"FAIL 特別会計の見出しのページが {len(head_pages)} 個しかない（会計 {len(acc_names)}）", file=sys.stderr)
+        sys.exit(1)
+
+    def acc_of(page: int) -> str:
+        i = sum(1 for s in starts if s <= page) - 1
+        return "一般会計" if i < 0 else acc_names[i]
+
+    for g in cand:
+        g["会計"] = acc_of(g["pdf_page"])
     out = []
     gi = 0
     prev_acc = None
@@ -201,9 +224,11 @@ def main():
         window = len(cand) if (acc_name != prev_acc or last_failed) else 8
         prev_acc = acc_name
         for j in range(gi, min(gi + window, len(cand))):
+            if cand[j]["会計"] != acc_name:
+                continue
             for k in range(1, 11):  # 節の多い目は 5ページ以上にまたがる
                 seg = cand[j:j + k]
-                if len(seg) < k:
+                if len(seg) < k or seg[-1]["会計"] != acc_name:
                     break
                 ss = [s for g in seg for s in g["節"]]
                 if sum(s["節の金額"] for s in ss) == mo["予算現額"] and sum(s["支出済額"] for s in ss) == mo["支出済額"]:

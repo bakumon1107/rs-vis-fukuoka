@@ -45,6 +45,20 @@ def toc(pdf: str) -> tuple[list[tuple[str, int]], int, int]:
     return items, end, ichiran
 
 
+def printed_overpaid(pdf: str, pages: int = 20) -> int | None:
+    """概要説明書の冒頭（総括）の備考「収入済額のうち過誤納金 X 円」から、特別会計の過誤納金の合計を取る。
+    一般会計・特別会計・合計の順に3つ印字される（R6: 5,339,307 / 177,125 / 5,516,432）。一般 + 特別 = 合計 のときだけ特別会計の値を返す。
+    特別会計の款の表には過誤納金の行がないので、差額から求めた会計ごとの過誤納金の合計をこれと照合する（独立した裏付け）。"""
+    vals = []
+    for p in range(1, pages + 1):
+        vals += [int(x.replace(",", "")) for x in re.findall(r"収入済額のうち過誤納金\s+([\d,]+)\s*円", pdftext(pdf, p))]
+        if len(vals) >= 3:
+            break
+    if len(vals) >= 3 and vals[0] + vals[1] == vals[2]:
+        return vals[1]
+    return None
+
+
 def page_map(pdf: str, last: int) -> dict[int, int]:
     pmap: dict[int, int] = {}
     for p in range(1, 400):
@@ -240,7 +254,9 @@ def parse_ichiran(pdf: str, pmap: dict[int, int], page: int) -> list[dict]:
     return rows
 
 
-def verify(accounts, fails, ichiran_rows) -> int:
+def verify(accounts, fails, ichiran_rows, printed_over=None) -> int:
+    """printed_over: 概要説明書に印字された特別会計の過誤納金の合計（printed_overpaid）。差額から求めた過誤納金の合計と照合する。
+    印字が読めないのに差額の過誤納金があるときは、裏付けのない推定なので FAIL にする。"""
     def fail(msg):
         fails.append(msg)
 
@@ -267,7 +283,9 @@ def verify(accounts, fails, ichiran_rows) -> int:
             elif over < 0:
                 fail(f"{n} 歳入 {r['no']}款 {r['name']}: 調定額が 収入済額 + 不納欠損額 + 収入未済額 より {-over:,} 円多い")
         summ = {(x["款"], x["項"]): x["決算額"] for x in a["款項"]}
-        if a["款項の計"] is not None and sum(summ.values()) != a["款項の計"]:
+        if a["款項の計"] is None:
+            fail(f"{n} 歳出の款・項の表: 計の行が読めない（照合できない）")
+        elif sum(summ.values()) != a["款項の計"]:
             fail(f"{n} 歳出の款・項の表: 合計 {sum(summ.values()):,} ≠ 計 {a['款項の計']:,}")
         bc = 0
         for k in a["項"]:
@@ -305,6 +323,14 @@ def verify(accounts, fails, ichiran_rows) -> int:
     tot = next((r for r in ichiran_rows if r["合計"]), None)
     if tot is None or tot["歳出決算額"] != sum(x["決算額"] for a in accounts for x in a["款項"]):
         fail(f"一覧表の合計の歳出決算額 {tot and tot['歳出決算額']} ≠ 抽出の合計")
+    derived_over = sum(r.get("過誤納金", 0) for a in accounts for r in a["歳入"])
+    if derived_over:
+        if printed_over is None:
+            fail(f"過誤納金: 差額から {derived_over:,} 円を求めたが、概要説明書の印字（特別会計の過誤納金）が読めず裏付けがない")
+        elif derived_over != printed_over:
+            fail(f"過誤納金: 差額から求めた合計 {derived_over:,} 円 ≠ 概要説明書の印字 {printed_over:,} 円")
+        else:
+            print(f"過誤納金: 差額から求めた合計 {derived_over:,} 円 = 概要説明書の印字（特別会計）", file=sys.stderr)
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     print(f"会計 {len(accounts)}、項 {sum(len(a['項']) for a in accounts)}、目 {sum(len(k['目']) for a in accounts for k in a['項'])}、"
@@ -316,8 +342,10 @@ def verify(accounts, fails, ichiran_rows) -> int:
 if __name__ == "__main__":
     accs, fl, ich_page, pm = parse(sys.argv[1])
     ich = parse_ichiran(sys.argv[1], pm, ich_page)
-    nf = verify(accs, fl, ich)
-    # FAIL の件数も出力に入れる（書き出し export_settlement.py が、抽出の検算が通ったかを確かめて「検算済み」にするため）
-    json.dump({"source": os.path.basename(sys.argv[1]), "unit": "円", "fail": nf, "会計": accs}, sys.stdout,
+    po = printed_overpaid(sys.argv[1])
+    nf = verify(accs, fl, ich, po)
+    # FAIL の件数も出力に入れる（書き出し export_settlement.py が、抽出の検算が通ったかを確かめて「検算済み」にするため）。
+    # 過誤納金の印字（特別会計の合計）も入れ、書き出しで過誤納金の出典を決める
+    json.dump({"source": os.path.basename(sys.argv[1]), "unit": "円", "fail": nf, "過誤納金の印字": po, "会計": accs}, sys.stdout,
               ensure_ascii=False, indent=1)
     sys.exit(1 if nf else 0)

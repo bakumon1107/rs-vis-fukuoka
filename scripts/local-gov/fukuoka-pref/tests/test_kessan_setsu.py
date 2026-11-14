@@ -40,6 +40,11 @@ class TestSpecialRows:
         r = rows[0]
         assert r["label"].startswith("11") and r["節の金額"] == 7854 and r["支出済額"] == 230 and r["不用額"] == 10
 
+    def test_shift_counts_cid_digits(self):
+        # 支出済額の右端の数字がすべて文字コードなし（(cid:N)）でも、特別会計の並びと見分ける（ずれ 9.7）
+        page = _Page([_ch("(cid:20)", 588.0, 592.9, 166), _ch("(cid:22)", 588.0, 592.9, 180)])
+        assert ks.special_shift(page) == 9.7
+
     def test_general_page_is_not_special(self):
         # 一般会計の並び（支出済額の右端 501.9）では特別会計の読み方をしない
         page = _Page([_ch("9", 495.0, 501.9, 166), _ch("1", 640.0, 652.0, 166)])

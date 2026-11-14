@@ -41,6 +41,11 @@ const NAME_LEVELS = [
 
 
 /** 確定した読み取り（text・ocr）以外の値の出典の印（詳細パネルと同じ考え方。設計書 4.4） */
+/** 金額。欠測（null・ない）は 0 円と区別して「—」 */
+function amountOrDash(v: number | null | undefined) {
+  return v != null ? formatBudgetFromYen(v) : '—';
+}
+
 function srcNote(src: ValueSource) {
   return <ValueSourceMark src={src} className="text-amber-700" />;
 }
@@ -185,6 +190,7 @@ function LocalGovAboutContent() {
                     <th className="py-1 text-right font-normal">調定額</th>
                     <th className="py-1 text-right font-normal">不納欠損額</th>
                     <th className="py-1 text-right font-normal">収入未済額</th>
+                    <th className="py-1 text-right font-normal">過誤納金（内数）</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -194,11 +200,17 @@ function LocalGovAboutContent() {
                         <span className="text-mirai-text-muted">{accountName.get(r.account) ?? r.account} ／ </span>
                         {r.kan.name}
                       </td>
-                      <td className="py-1 text-right font-bold">{formatBudgetFromYen(r.amount.v ?? 0)}</td>
-                      <td className="py-1 text-right">{formatBudgetFromYen(r.budget_current.v ?? 0)}</td>
-                      <td className="py-1 text-right">{formatBudgetFromYen(r.assessed.v ?? 0)}</td>
-                      <td className="py-1 text-right">{formatBudgetFromYen(r.deficit_loss.v ?? 0)}</td>
-                      <td className="py-1 text-right">{formatBudgetFromYen(r.uncollected.v ?? 0)}</td>
+                      {/* 欠測（v が null）は 0 円と区別して「—」 */}
+                      <td className="py-1 text-right font-bold">{amountOrDash(r.amount.v)}</td>
+                      <td className="py-1 text-right">{amountOrDash(r.budget_current.v)}</td>
+                      <td className="py-1 text-right">{amountOrDash(r.assessed.v)}</td>
+                      <td className="py-1 text-right">{amountOrDash(r.deficit_loss.v)}</td>
+                      <td className="py-1 text-right">{amountOrDash(r.uncollected.v)}</td>
+                      {/* 過誤納金は行がないとき 0 円（印字がない＝過誤納金なし）。差額から求めた値は出典の印を付ける */}
+                      <td className="py-1 text-right" title={r.overpaid?.note}>
+                        {r.overpaid ? amountOrDash(r.overpaid.v) : formatBudgetFromYen(0)}
+                        {r.overpaid && <ValueSourceMark src={r.overpaid.src} className="text-amber-700" />}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -334,8 +346,18 @@ function LocalGovAboutContent() {
                   </span>{' '}
                   {isSettlement ? (
                     <>
-                      {r.moku.name}（支出済額 {formatBudgetFromYen(r.amount.v ?? 0)}・予算現額 {r.budget_current?.v != null ? formatBudgetFromYen(r.budget_current.v) : '—'}
-                      ・不用額 {r.unused?.v != null ? formatBudgetFromYen(r.unused.v) : '—'}）
+                      {r.moku.name}（支出済額 {r.amount.v != null ? formatBudgetFromYen(r.amount.v) : '読めない'}・予算現額{' '}
+                      {amountOrDash(r.budget_current?.v)}・不用額 {amountOrDash(r.unused?.v)}）
+                      {/* 図に箱がないので、決算の内容・不用額の内容はここで読めるようにする（部局ごとの説明も） */}
+                      {[r.explanation, ...(r.by_department ?? []).map(d => d.explanation)]
+                        .filter((e): e is NonNullable<typeof e> => !!e && !!(e.content || e.unused))
+                        .map((e, i) => (
+                          <span key={i} className="block pl-3 text-mirai-text-muted">
+                            {e.content && <>決算の内容: {e.content}</>}
+                            {e.content && e.unused && '／'}
+                            {e.unused && <>不用額の内容: {e.unused}</>}
+                          </span>
+                        ))}
                     </>
                   ) : (
                     <>
