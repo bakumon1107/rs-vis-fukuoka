@@ -107,13 +107,14 @@ function mergeSetsu(base: Setsu[] | undefined, sup: Setsu[] | undefined, round: 
     hit.amount = add(hit.amount, s.amount);
     // 細節は、当初と補正の両方にあるときだけ足す。片方だけにあると細節の合計が節の額にならない（当初の節 33,000 に
     // 細節がなく、補正の細節「その他需用費 112」だけを付けると 33,112 の節の細節が 112 になる）ので、細節を出さない
-    if (hit.sub && s.sub) {
+    // 空の配列も「細節なし」と同じに扱う（当初 sub=[]・補正に細節がある、で細節が補正の分だけになるのを防ぐ）
+    if (hit.sub?.length && s.sub?.length) {
       for (const sb of s.sub) {
         const h2 = hit.sub.find(x => x.name === sb.name);
         if (h2) h2.amount = add(h2.amount, sb.amount);
         else hit.sub.push({ ...sb });
       }
-    } else if (hit.sub || s.sub) {
+    } else if (hit.sub?.length || s.sub?.length) {
       hit.sub = undefined;
     }
   }

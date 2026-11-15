@@ -160,8 +160,8 @@ export function LocalDetailPanel({
             <tr key={s.round}>
               <th className="py-0.5 text-left font-normal text-mirai-text-muted">{s.round}</th>
               <td className="text-right">
-                {(s.amount.v ?? 0) >= 0 ? '+' : '△'}
-                {formatBudgetFromYen(Math.abs(s.amount.v ?? 0))}
+                {/* 補正額が読めない（null）ときは「—」（0円と区別する） */}
+                {s.amount.v === null ? '—' : `${s.amount.v >= 0 ? '+' : '△'}${formatBudgetFromYen(Math.abs(s.amount.v))}`}
               </td>
             </tr>
           ))}

@@ -254,12 +254,16 @@ def verify(gian, sk, fails: list[str]):
         if tot is None:
             fails.append(f"議案 {side}: 合計の行がない")
             continue
+        # 合計の行も 補正前 + 補正額 = 計（合計の行の補正前の読み違いを、第1条との照合（補正額・計）だけでは見つけられない）
+        row_ok(f"議案 {side} 合計", tot)
         if sum(k["補正額"] for k in gian[side]) != tot["補正額"]:
             fails.append(f"議案 {side}: 款の補正額の合計 ≠ 合計の行")
         if gian["追加額"] is not None and tot["補正額"] != gian["追加額"]:
             fails.append(f"議案 {side}: 合計の補正額 {tot['補正額']:,} ≠ 第1条の追加額 {gian['追加額']:,}")
         if gian["総額"] is not None and tot["計"] != gian["総額"]:
             fails.append(f"議案 {side}: 合計の計 {tot['計']:,} ≠ 第1条の総額 {gian['総額']:,}")
+    if gian["合計"].get("歳入") and gian["合計"].get("歳出") and gian["合計"]["歳入"] != gian["合計"]["歳出"]:
+        fails.append("議案: 歳入の合計の行 ≠ 歳出の合計の行")
 
 
 def main():

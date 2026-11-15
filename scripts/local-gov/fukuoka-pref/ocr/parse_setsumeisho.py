@@ -419,7 +419,9 @@ def main():
             print(f"WARN p{page}: OCR 結果がない", file=sys.stderr)
             continue
         page_rec = json.load(open(path, encoding="utf-8"))
-        if hosei and re.search(r"債務負担行為|地方債", page_title_text(page_rec)):
+        title = page_title_text(page_rec)
+        # 調書の見出し（「第2 債務負担行為で…に関する調書」）だけで止める。「地方債」だけで止めると、歳入の「11款 地方債」の目の表で止まる
+        if hosei and re.search(r"債務負担行為|地方債", title) and "調書" in title:
             # 補正の説明書の「第2 債務負担行為…の調書」「地方債の…調書」は目の表ではない。ここから後は読まない
             print(f"INFO p{page}: 補正の説明書の調書のページ（ここで終わる）", file=sys.stderr)
             break

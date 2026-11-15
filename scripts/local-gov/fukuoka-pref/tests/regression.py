@@ -128,8 +128,14 @@ def _export_deps():
     return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
 
 
-# ステップの、引数に出てこない入力（{out:...}・{pdf:...} の形）
-STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps()}
+# ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
+# 補正の目の明細は前のステップ（文字層・△）が作る一時ディレクトリを読むので、前のステップが飛ばされたら飛ばす
+# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読む
+STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps(),
+             **{f"補正 {rid}（目の明細）": [f"{{tmp:tl-{rid}}}"] for rid in ("R8-06-1", "R8-08-2", "R8-09-4")},
+             "補正 R8-09-3（目の明細）": ["{tmp:neg-09-3}"],
+             "補正 回の鎖": ["{tmp:export}/budget-2026-initial.json"],
+             "補正 書き出しの照合": ["{tmp:export}/budget-2026-initial.json"]}
 
 
 def resolve(arg, data, outdir, tmpdir):
@@ -163,7 +169,9 @@ def run_all(data, keep=None):
             # 前のステップが飛ばされると出力ファイルができないので、それを入力にする後のステップも飛ぶ
             # 引数に出てこない入力（書き出しが読む前のステップの出力・資料の PDF）は STEP_DEPS で足して確かめる
             deps = [resolve(a, data, outdir, tmpdir) for a in STEP_DEPS.get(name, [])]
-            missing = [a for a in argv + deps if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            # 引数は原本・前のステップの出力だけを確かめる（{tmp:...} の引数は出力先のこともある）。STEP_DEPS に並べた入力は全部確かめる
+            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            missing += [a for a in deps if not os.path.exists(a)]
             if missing:
                 results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}
                 continue

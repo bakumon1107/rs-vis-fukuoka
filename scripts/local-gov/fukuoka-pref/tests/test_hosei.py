@@ -59,6 +59,27 @@ def test_verify_finds_kou_sum_and_article_mismatch():
     assert any("項の補正額の合計" in f for f in fails) and any("第1条の追加額" in f for f in fails)
 
 
+def test_verify_checks_bill_total_rows():
+    # 議案の合計の行の補正前の読み違い（補正額・計は第1条と合う）も、補正前 + 補正額 = 計 で見つける
+    fails = []
+    g = eh.parse_gian(GIAN, fails)
+    g["合計"]["歳入"] = dict(g["合計"]["歳入"], 補正前=999)
+    eh.verify(g, {"歳入": [], "歳出": [], "合計": {}}, fails)
+    assert any("議案 歳入 合計" in f for f in fails) and any("歳入の合計の行 ≠ 歳出の合計の行" in f for f in fails)
+
+
+mn = load("ocr/mark_negatives.py", "mark_negatives")
+
+
+def test_mark_negatives_prefers_the_same_line():
+    # △ の中心（y=106）が同じ行の数字（y 90〜110）の高さにある。次の行の数字（y 120〜140、より左）は選ばない
+    same = {"text": "40,040", "x0": 200, "x1": 300, "y0": 90, "y1": 110}
+    nxt = {"text": "137,491", "x0": 160, "x1": 300, "y0": 120, "y1": 140}
+    rec = {"vlines": [0, 400], "tables": [{"cols": [[same, nxt]]}]}
+    assert mn.mark(rec, [{"x0": 100, "x1": 120, "y0": 100, "y1": 112}]) == 1
+    assert same["text"] == "△40,040" and nxt["text"] == "137,491"
+
+
 def test_derive_soukatsu_from_previous_and_bill():
     prev = {"歳入": [{"no": 9, "name": "国庫支出金", "補正前": 1, "補正額": 0, "計": 100}],
             "歳出": [{"no": 2, "name": "総務費", "補正前": 1, "補正額": 0, "計": 60}, {"no": 7, "name": "商工費", "補正前": 1, "補正額": 0, "計": 40}]}

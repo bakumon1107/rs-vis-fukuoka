@@ -35,14 +35,17 @@ def main():
     # その照合を飛ばす。読めた「計」があれば、そこから額をつなぎ直す）
     tainted_moku: set[str] = set()
     tainted_kan: set[tuple] = set()
+    fails, n = [], Counter()
     for r in initial["rows"]:
         if r["account"] == "general":
             if r["amount"]["v"] is None:
+                # 当初の額の欠けは、補正に出てこない目でも1件の FAIL にする（款の照合を飛ばしたまま成功にしない）。
+                # 後の回で FAIL が並ばないよう、照合からは外す
+                fails.append(f"当初 {r['id']} {r['moku']['name']}: 当初予算の額が読めない（款の補正前の照合ができない）")
                 tainted_moku.add(r["id"])
                 tainted_kan.add((r["side"], r["kan"]["no"]))
             cur[r["id"]] += r["amount"]["v"] or 0
             kan_cur[(r["side"], r["kan"]["no"])] += r["amount"]["v"] or 0
-    fails, n = [], Counter()
     for rd in export_hosei.ROUNDS:
         rid = rd["id"]
         no = int(rid.rsplit("-", 1)[1])

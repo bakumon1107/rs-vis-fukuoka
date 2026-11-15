@@ -25,7 +25,7 @@ def mark(rec: dict, tris: list[dict]) -> int:
     n = 0
     for tri in tris:
         cy = (tri["y0"] + tri["y1"]) / 2
-        best = None
+        same, near = [], []  # 同じ行（数字の文字枠の高さに △ の中心が入る）・上下 15px まで広げたもの
         for t in rec.get("tables", []):
             vl = t.get("vlines") or rec["vlines"]
             for ci, col in enumerate(t["cols"]):
@@ -35,10 +35,17 @@ def mark(rec: dict, tris: list[dict]) -> int:
                 for d in col:
                     if not NUM.match(d["text"]) or d["x0"] < tri["x1"] - 5:
                         continue
-                    if not (d["y0"] - 15 <= cy <= d["y1"] + 15):
-                        continue
-                    if best is None or d["x0"] < best["x0"]:
-                        best = d
+                    if d["y0"] <= cy <= d["y1"]:
+                        same.append(d)
+                    elif d["y0"] - 15 <= cy <= d["y1"] + 15:
+                        near.append(d)
+        # 同じ行の数字を先に選ぶ（広げた範囲の隣の行の数字を減額にしない）。同じ行になければ、高さのいちばん近い数字
+        if same:
+            best = min(same, key=lambda d: d["x0"])
+        elif near:
+            best = min(near, key=lambda d: (min(abs(d["y0"] - cy), abs(d["y1"] - cy)), d["x0"]))
+        else:
+            best = None
         if best is not None and not best["text"].startswith("△"):
             best["text"] = "△" + best["text"]
             n += 1

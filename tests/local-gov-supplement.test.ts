@@ -127,6 +127,10 @@ test('composeLatest drops breakdowns that would not add up', () => {
   const ex = out.rows.find(x => x.id === 'general/expense/8-3-2')!;
   assert.equal(ex.setsu?.[0].amount.v, 507);
   assert.equal(ex.setsu?.[0].sub, undefined);
+  // 当初の細節が空の配列でも「細節なし」と同じ（補正の細節だけを付けない）
+  const init2 = file('initial', [row('general/expense/8-3-2', 500, { setsu: [{ no: 10, name: '需用費', amount: v(500), sub: [] }] })]);
+  const out2 = composeLatest(init2, [s]);
+  assert.equal(out2.rows.find(x => x.id === 'general/expense/8-3-2')!.setsu?.[0].sub, undefined);
 });
 
 test('composeLatest keeps same-named items of one round separate', () => {

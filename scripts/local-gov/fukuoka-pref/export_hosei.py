@@ -10,7 +10,6 @@
 款・項の名前は当初の名前（出典も当初のまま）。目の名前は、当初にある目は当初の名前、補正で新しく設けた目は説明書の名前。
 検算: 目ごとの検算（parse_setsumeisho の A〜D）と、目の補正額の合計 = 総括の款の補正額（歳入・歳出の全部の款）。
 """
-import difflib
 import json
 import os
 import re
@@ -108,15 +107,14 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             continue
         if base is not None and clean(m["目名"]):
             # 名前で当初の目と同じかを確かめる（ID は読んだ目番号から作るので、番号の読み違いで別の目に足さないため）。
-            # 字形の違い（りよう／りょう、OCR の崩れ）は許し、似ていなければ止める
+            # 字形の違い（りよう／りょう・全角半角）だけを許し、それ以外は止める。似ているだけで採ると、番号の読み違いで
+            # 「県議会議員一般選挙費」と「県議会議員補欠選挙費」のような別の目に足してしまう（裏付けのない置き換えをしない）。
+            # OCR の崩れで止まったら、画像で確かめて名前の修正表（r8-hosei-names.json）に記録する
             a, b = norm_name(clean(m["目名"])), norm_name(base["moku"]["name"])
             if a != b:
-                ratio = difflib.SequenceMatcher(None, a, b).ratio()
-                if ratio < 0.6:
-                    fails.append(f"{r['id']} {rid}: 目の名前が当初と違う（当初「{base['moku']['name']}」/ 補正「{clean(m['目名'])}」）")
-                    continue
-                print(f"WARN {r['id']} {rid}: 目の名前 当初「{base['moku']['name']}」/ 補正の説明書「{clean(m['目名'])}」"
-                      f"（似ている {ratio:.2f}。当初の名前を使う）", file=sys.stderr)
+                fails.append(f"{r['id']} {rid}: 目の名前が当初と違う（当初「{base['moku']['name']}」/ 補正「{clean(m['目名'])}」。"
+                             f"番号の読み違いか OCR の崩れ。画像で確かめる）")
+                continue
         kan = kan_name.get((side, m["款"]))
         kou = kou_name.get((side, m["款"], kou_no))
         if kan is None or kou is None:
@@ -128,12 +126,24 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
                "after": val(m["比較"], src)}
         if side == "expense":
             row["funding"] = {FUND[k]: val(v, src) for k, v in m["財源"].items()}
-        items = [{"name": clean(e["name"]), "name_src": src, "amount": val(e["amount"], src),
-                  **({"no_amount_printed": True} if e.get("金額の記載なし") else {})} for e in m.get("説明", []) if e.get("amount") is not None]
-        # 歳入の説明欄は、金額の印字されない事項（節ごとに1事項）があり、事項の合計が目の額にならないことがある
-        # （R8 9月第3号の県土整備債: 金額のない「堰堤改良事業債」「海岸高潮対策事業債」）。合わない目は事項を載せない（推計で埋めない）
-        if items and side == "revenue" and sum(i["amount"]["v"] for i in items) != row["amount"]["v"]:
-            print(f"WARN {r['id']} {rid}: 歳入の説明欄の事項の合計が目の額と合わないので、事項を載せない", file=sys.stderr)
+        items = []
+        last_top = None
+        for e in m.get("説明", []):
+            if e.get("amount") is None:
+                continue
+            it = {"name": clean(e["name"]), "name_src": src, "amount": val(e["amount"], src),
+                  **({"no_amount_printed": True} if e.get("金額の記載なし") else {})}
+            # 字下げされた内訳は直前の上の段の事項の内訳にする（当初の書き出し export_fukuoka_pref.py と同じ）
+            if e.get("内訳") and last_top is not None:
+                it["parent"] = last_top
+            else:
+                last_top = len(items)
+            items.append(it)
+        # 説明欄に金額の印字されない事項（歳入の節ごとに1事項）があると、事項の合計が目の額にならない
+        # （R8 9月第3号の県土整備債: 金額のない「堰堤改良事業債」「海岸高潮対策事業債」）。上の段の事項の合計が合わない目は、
+        # 歳入・歳出とも事項を載せない（推計で埋めない）
+        if items and sum(i["amount"]["v"] for i in items if "parent" not in i) != row["amount"]["v"]:
+            print(f"WARN {r['id']} {rid}: 説明欄の事項の合計が目の額と合わないので、事項を載せない", file=sys.stderr)
             items = []
         if items:
             row["items"] = items
