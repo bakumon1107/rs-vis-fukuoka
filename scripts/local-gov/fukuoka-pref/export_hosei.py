@@ -38,8 +38,8 @@ def apply_name_corrections(rid: str, rows: list[dict], fixes: list[dict], fails:
     """その回の修正を当てる。1件に当たらない・今の名前が was と違うものは FAIL（黙って当てずに済ませない）"""
     by_id = {x["id"]: x for x in rows}
     for fx in fixes:
-        if fx["round"] != rid:
-            continue
+        if fx["round"] != rid or fx["level"] == "moku":
+            continue  # 目の名前は build_round が照合の前に当てる
         r = by_id.get(fx["id"])
         amt = fx["amount"] * 1000
         if r is None:
@@ -84,6 +84,10 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
     init_rows = {x["id"]: x for x in initial["rows"]}
     kan_name = {(x["side"], x["kan"]["no"]): x["kan"] for x in initial["rows"] if x["account"] == "general"}
     kou_name = {(x["side"], x["kan"]["no"], x["kou"]["no"]): x["kou"] for x in initial["rows"] if x["account"] == "general"}
+    # 目の名前の修正（名前の修正表の level moku）。目の名前の照合の前に当てる（画像で確かめた名前で照合し、OCR の崩れで止まらないように）
+    moku_fixes = {fx["id"]: fx for fx in json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"]
+                  if fx["round"] == r["id"] and fx["level"] == "moku"}
+    used_moku_fixes = set()
     rows, all_ok = [], 0
     for m in parsed:
         if m.get("kind") != "目":
@@ -99,28 +103,36 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             fails.append(f"{r['id']}: 目・項の番号が読めない目 {m['目名']}")
             continue
         base = init_rows.get(rid)
+        moku_name, moku_src = clean(m["目名"]), src
+        fx = moku_fixes.get(rid)
+        if fx is not None:
+            if moku_name != fx["was"]:
+                fails.append(f"{r['id']} 名前の修正表: {rid} moku「{fx['was']}」が今の名前「{moku_name}」と違う")
+                continue
+            moku_name, moku_src = fx["name"], "correction"
+            used_moku_fixes.add(rid)
         new_moku = m["前年度"] == 0 and m.get("空欄を0とみなした") == "前年度"
         if base is not None and new_moku:
             # 補正で新しく設けた目（補正前が空欄）なのに、当初に同じ ID の目がある＝番号の読み違いか ID の取り違え。
             # 足すと別の目の補正後の額になるので止める（前年度のみの目の ID を p<n> にする前は、R8 8月専決で起きた）
-            fails.append(f"{r['id']} {rid}: 補正で新設の目「{clean(m['目名'])}」が当初の目「{base['moku']['name']}」と ID がぶつかる")
+            fails.append(f"{r['id']} {rid}: 補正で新設の目「{moku_name}」が当初の目「{base['moku']['name']}」と ID がぶつかる")
             continue
-        if base is not None and clean(m["目名"]):
+        if base is not None and moku_name:
             # 名前で当初の目と同じかを確かめる（ID は読んだ目番号から作るので、番号の読み違いで別の目に足さないため）。
             # 字形の違い（りよう／りょう・全角半角）だけを許し、それ以外は止める。似ているだけで採ると、番号の読み違いで
             # 「県議会議員一般選挙費」と「県議会議員補欠選挙費」のような別の目に足してしまう（裏付けのない置き換えをしない）。
             # OCR の崩れで止まったら、画像で確かめて名前の修正表（r8-hosei-names.json）に記録する
-            a, b = norm_name(clean(m["目名"])), norm_name(base["moku"]["name"])
+            a, b = norm_name(moku_name), norm_name(base["moku"]["name"])
             if a != b:
-                fails.append(f"{r['id']} {rid}: 目の名前が当初と違う（当初「{base['moku']['name']}」/ 補正「{clean(m['目名'])}」。"
-                             f"番号の読み違いか OCR の崩れ。画像で確かめる）")
+                fails.append(f"{r['id']} {rid}: 目の名前が当初と違う（当初「{base['moku']['name']}」/ 補正「{moku_name}」。"
+                             f"番号の読み違いか OCR の崩れ。画像で確かめ、OCR の崩れなら名前の修正表に level moku で記録する）")
                 continue
         kan = kan_name.get((side, m["款"]))
         kou = kou_name.get((side, m["款"], kou_no))
         if kan is None or kou is None:
             fails.append(f"{r['id']} {rid}: 当初にない款・項")
             continue
-        moku = dict(base["moku"]) if base is not None else {"no": m["目番号"], "name": clean(m["目名"]), "name_src": src}
+        moku = dict(base["moku"]) if base is not None else {"no": m["目番号"], "name": moku_name, "name_src": moku_src}
         row = {"id": rid, "account": "general", "side": side, "kan": kan, "kou": kou, "moku": moku,
                "amount": val(m["本年度"], src), "before": val(m["前年度"], "blank-as-zero" if m.get("空欄を0とみなした") == "前年度" else src),
                "after": val(m["比較"], src)}
@@ -167,6 +179,8 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
             fails.append(f"{r['id']} {rid}: 目の検算 {m.get('checks')}")
         rows.append(row)
     apply_name_corrections(r["id"], rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], fails)
+    for rid in sorted(set(moku_fixes) - used_moku_fixes):
+        fails.append(f"{r['id']} 名前の修正表: {rid} moku「{moku_fixes[rid]['was']}」に当たる目がない")
     # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
     got = Counter()
     for x in rows:

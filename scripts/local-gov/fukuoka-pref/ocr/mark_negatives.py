@@ -21,11 +21,12 @@ from textlayer_pages import calibrate, merged_words  # noqa: E402
 NUM = re.compile(r"^[\d,，.\s]+$")
 
 
-def mark(rec: dict, tris: list[dict]) -> int:
+def mark(rec: dict, tris: list[dict], unplaced: list | None = None) -> int:
+    """文字層の △ を、同じ行・同じ欄のすぐ右の OCR の数字に付ける。付けた数を返す。付ける数字のない △ は unplaced に入れる"""
     n = 0
     for tri in tris:
         cy = (tri["y0"] + tri["y1"]) / 2
-        same, near = [], []  # 同じ行（数字の文字枠の高さに △ の中心が入る）・上下 15px まで広げたもの
+        same = []  # 同じ行（数字の文字枠の高さに △ の中心が入る）の、△ より右の数字
         for t in rec.get("tables", []):
             vl = t.get("vlines") or rec["vlines"]
             for ci, col in enumerate(t["cols"]):
@@ -37,16 +38,14 @@ def mark(rec: dict, tris: list[dict]) -> int:
                         continue
                     if d["y0"] <= cy <= d["y1"]:
                         same.append(d)
-                    elif d["y0"] - 15 <= cy <= d["y1"] + 15:
-                        near.append(d)
-        # 同じ行の数字を先に選ぶ（広げた範囲の隣の行の数字を減額にしない）。同じ行になければ、高さのいちばん近い数字
-        if same:
-            best = min(same, key=lambda d: d["x0"])
-        elif near:
-            best = min(near, key=lambda d: (min(abs(d["y0"] - cy), abs(d["y1"] - cy)), d["x0"]))
-        else:
-            best = None
-        if best is not None and not best["text"].startswith("△"):
+        # 同じ行の数字だけに付ける。同じ行の数字を OCR が読めなかったとき、上下の行の数字に付けると別の金額を減額にするので、
+        # 付けずに知らせる（unplaced。目の検算で符号の誤りとして見つかる）
+        if not same:
+            if unplaced is not None:
+                unplaced.append(tri)
+            continue
+        best = min(same, key=lambda d: d["x0"])
+        if not best["text"].startswith("△"):
             best["text"] = "△" + best["text"]
             n += 1
     return n
@@ -68,9 +67,12 @@ def main():
             words = merged_words(page, scale)
             calibrate(words, rec)
             tris = [w for w in words if w["text"].strip() in ("△", "▲")]
-            n = mark(rec, tris) if tris else 0
+            unplaced: list = []
+            n = mark(rec, tris, unplaced) if tris else 0
             if tris:
                 print(f"p{pno}: △ {len(tris)} 個のうち {n} 個を数字に付けた", file=sys.stderr)
+            for tri in unplaced:
+                print(f"WARN p{pno}: 同じ行に数字のない △（x {tri['x0']:.0f}・y {tri['y0']:.0f}）。付けない（画像で確かめる）", file=sys.stderr)
             total += n
             with open(os.path.join(outdir, f"p{pno:04d}.json"), "w", encoding="utf-8") as f:
                 json.dump(rec, f, ensure_ascii=False)

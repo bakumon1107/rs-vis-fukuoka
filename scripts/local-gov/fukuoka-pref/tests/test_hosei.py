@@ -80,6 +80,49 @@ def test_mark_negatives_prefers_the_same_line():
     assert same["text"] == "△40,040" and nxt["text"] == "137,491"
 
 
+def test_mark_negatives_does_not_mark_another_line():
+    # 同じ行の数字を OCR が読めなかった（同じ行に数字がない）: 次の行の数字には付けず、付けられなかった △ として返す
+    nxt = {"text": "137,491", "x0": 160, "x1": 300, "y0": 120, "y1": 140}
+    rec = {"vlines": [0, 400], "tables": [{"cols": [[nxt]]}]}
+    unplaced = []
+    tri = {"x0": 100, "x1": 120, "y0": 100, "y1": 112}
+    assert mn.mark(rec, [tri], unplaced) == 0
+    assert nxt["text"] == "137,491" and unplaced == [tri]
+
+
+ex_h = load("export_hosei.py", "export_hosei")
+
+
+def test_moku_name_correction_is_applied_before_the_name_check(tmp_path, monkeypatch):
+    # OCR の崩れた目の名前（「道路橋りよう総務貨」）は当初の名前と照合できずに止まる。修正表（level moku）を当てると照合が通る
+    import json
+    initial = {"schema_version": 1, "gov_id": "fukuoka-pref", "accounts": [{"id": "general", "kind": "general", "name": "一般会計"}],
+               "rows": [{"id": "general/expense/8-2-1", "account": "general", "side": "expense",
+                         "kan": {"no": 8, "name": "県土整備費"}, "kou": {"no": 2, "name": "道路橋りょう費"},
+                         "moku": {"no": 1, "name": "道路橋りょう総務費"}, "amount": {"v": 100000, "src": "ocr"}}]}
+    m = {"kind": "目", "会計": "一般会計", "side": "歳出", "款": 8, "項": [2], "目番号": 1, "目名": "道路橋りよう総務貨",
+         "本年度": 5, "前年度": 100, "比較": 105, "財源": {"国庫支出金": 0, "地方債": 0, "その他": 0, "一般財源": 5},
+         "説明": [], "節": [], "pages": [27], "checks": {"C": True}}
+    gs = {"総括": {"歳入": [], "歳出": [{"no": 8, "補正額": 5}]}}
+    r = {"id": "R8-09-3", "round": "9月補正（第3号）", "kind": "定例", "bill_no": None, "src": "x", "text": False}
+
+    def run(fixes):
+        p = tmp_path / "fix.json"
+        p.write_text(json.dumps({"修正": fixes}, ensure_ascii=False), encoding="utf-8")
+        monkeypatch.setattr(ex_h, "NAME_CORRECTIONS", str(p))
+        fails = []
+        out = ex_h.build_round(r, gs, [dict(m)], initial, fails)
+        return out, fails
+    out, fails = run([])
+    assert any("目の名前が当初と違う" in f for f in fails) and out["rows"] == []
+    out, fails = run([{"round": "R8-09-3", "id": "general/expense/8-2-1", "level": "moku",
+                       "was": "道路橋りよう総務貨", "name": "道路橋りょう総務費"}])
+    assert fails == [] and [x["id"] for x in out["rows"]] == ["general/expense/8-2-1"]
+    # 当たる目のない修正は止める
+    _, fails = run([{"round": "R8-09-3", "id": "general/expense/9-9-9", "level": "moku", "was": "x", "name": "y"}])
+    assert any("当たる目がない" in f for f in fails)
+
+
 def test_derive_soukatsu_from_previous_and_bill():
     prev = {"歳入": [{"no": 9, "name": "国庫支出金", "補正前": 1, "補正額": 0, "計": 100}],
             "歳出": [{"no": 2, "name": "総務費", "補正前": 1, "補正額": 0, "計": 60}, {"no": 7, "name": "商工費", "補正前": 1, "補正額": 0, "計": 40}]}
