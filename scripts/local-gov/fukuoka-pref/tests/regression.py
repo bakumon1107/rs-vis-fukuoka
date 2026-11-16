@@ -81,9 +81,37 @@ STEPS = [
     ("説明書 特別会計（多数決）", "ocr/vote.py",
      ["{out:cross-toku.json}", "{out:setsumeisho-toku.json}", "{out:setsumeisho-toku-v4.json}", "{out:setsumeisho-toku-tl.json}"],
      "vote-toku.json", [r"^全検算", r"^  \d 通り"]),
+    # R8 補正予算（R8 補正予算の抽出の設計）。テキストの3回は ocr_pages の表の線（ocr/r8-hosei-<回>）＋テキストの単語、
+    # 画像の9月第3号は OCR（ocr/r8-hosei-09-3）＋文字層の △ で読む。議案・総括（hosei-<回>.json）と目の明細（setsumeisho-hosei-<回>.json）
+    *[step for rid, pdf, gian, pages, kind in (("R8-06-1", "289925", "289924", "1-21", "定例"),
+                                               ("R8-08-2", "298206", None, "1-14", "専決"),
+                                               ("R8-09-4", "298207", "298208", "1-13", "追加提案"))
+      for step in (
+          (f"補正 {rid}（文字層）", "ocr/textlayer_pages.py",
+           [f"{{pdf:{pdf}}}", f"{{ocr:r8-hosei-{rid[3:].lower()}}}", f"{{tmp:tl-{rid}}}", pages], None, []),
+          (f"補正 {rid}（目の明細）", "ocr/parse_setsumeisho.py", [f"{{tmp:tl-{rid}}}", pages, "--hosei"],
+           f"setsumeisho-hosei-{rid}.json", [r"^\[", r"^計の行"]),
+          (f"補正 {rid}（議案・総括）", "extract_hosei.py",
+           ["--id", rid, "--kind", kind, *(["--gian", f"{{pdf:{gian}}}"] if gian else []), "--setsumeisho", f"{{pdf:{pdf}}}"],
+           f"hosei-{rid}.json", [rf"^{rid}:", r"FAIL="]))],
+    ("補正 R8-09-3（△）", "ocr/mark_negatives.py", ["{pdf:298930}", "{ocr:r8-hosei-09-3}", "{tmp:neg-09-3}", "1-44"], None,
+     [r"^△ を付けた"]),
+    ("補正 R8-09-3（目の明細）", "ocr/parse_setsumeisho.py", ["{tmp:neg-09-3}", "1-44", "--hosei"],
+     "setsumeisho-hosei-R8-09-3.json", [r"^\[", r"^計の行"]),
+    ("補正 R8-09-3（議案）", "extract_hosei.py",
+     ["--id", "R8-09-3", "--kind", "定例", "--gian-scan", "{pdf:298929}", "--prev", "{out:hosei-R8-08-2.json}"],
+     "hosei-R8-09-3.json", [r"^R8-09-3:", r"FAIL="]),
     # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
     ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
-     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None, [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典"]),
+     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None,
+     [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^補正 R8", r"^FAIL 補正"]),
+    # 補正の回の鎖（書き出した当初予算から回の順に補正額を足し、各回の補正前の額と款・項で照合）
+    ("補正 回の鎖", "check_hosei_chain.py",
+     ["{tmp:export}/budget-2026-initial.json", "{out:hosei-R8-06-1.json}", "{out:hosei-R8-08-2.json}",
+      "{out:hosei-R8-09-3.json}", "{out:hosei-R8-09-4.json}"], None, [r"^R8-", r"FAIL="]),
+    # 書き出した補正のデータの照合（目の補正前 = 当初＋それまでの補正、項 = 議案、款の財源 = 総括）
+    ("補正 書き出しの照合", "verify_hosei.py",
+     ["{tmp:export}/budget-2026-initial.json", "{outdir}", "{tmp:export}"], None, [r"^照合した数", r"^FAIL"]),
 ]
 
 
@@ -100,8 +128,14 @@ def _export_deps():
     return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
 
 
-# ステップの、引数に出てこない入力（{out:...}・{pdf:...} の形）
-STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps()}
+# ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
+# 補正の目の明細は前のステップ（文字層・△）が作る一時ディレクトリを読むので、前のステップが飛ばされたら飛ばす
+# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読む
+STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps(),
+             **{f"補正 {rid}（目の明細）": [f"{{tmp:tl-{rid}}}"] for rid in ("R8-06-1", "R8-08-2", "R8-09-4")},
+             "補正 R8-09-3（目の明細）": ["{tmp:neg-09-3}"],
+             "補正 回の鎖": ["{tmp:export}/budget-2026-initial.json"],
+             "補正 書き出しの照合": ["{tmp:export}/budget-2026-initial.json"]}
 
 
 def resolve(arg, data, outdir, tmpdir):
@@ -135,7 +169,9 @@ def run_all(data, keep=None):
             # 前のステップが飛ばされると出力ファイルができないので、それを入力にする後のステップも飛ぶ
             # 引数に出てこない入力（書き出しが読む前のステップの出力・資料の PDF）は STEP_DEPS で足して確かめる
             deps = [resolve(a, data, outdir, tmpdir) for a in STEP_DEPS.get(name, [])]
-            missing = [a for a in argv + deps if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            # 引数は原本・前のステップの出力だけを確かめる（{tmp:...} の引数は出力先のこともある）。STEP_DEPS に並べた入力は全部確かめる
+            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            missing += [a for a in deps if not os.path.exists(a)]
             if missing:
                 results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}
                 continue

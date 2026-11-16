@@ -1,0 +1,578 @@
+{
+ "schema_version": 1,
+ "gov_id": "fukuoka-pref",
+ "year": 2026,
+ "year_label": "令和8年度",
+ "basis": "supplementary",
+ "supplementary": {
+  "round": "6月補正（第1号）",
+  "kind": "定例",
+  "bill_no": "第120号議案"
+ },
+ "unit_source": "千円",
+ "accounts": [
+  {
+   "id": "general",
+   "kind": "general",
+   "name": "一般会計"
+  }
+ ],
+ "rows": [
+  {
+   "id": "general/revenue/9-2-1",
+   "account": "general",
+   "side": "revenue",
+   "kan": {
+    "no": 9,
+    "name": "国庫支出金",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 2,
+    "name": "国庫補助金",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "総務費国庫補助金",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 2545648000,
+    "src": "text"
+   },
+   "before": {
+    "v": 8819677000,
+    "src": "text"
+   },
+   "after": {
+    "v": 11365325000,
+    "src": "text"
+   },
+   "setsu": [
+    {
+     "no": 4,
+     "no_src": "text",
+     "name": "物価高騰対応重点支援地方創生臨時事業費補助金",
+     "name_src": "text",
+     "amount": {
+      "v": 2545648000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 10
+    }
+   ]
+  },
+  {
+   "id": "general/expense/2-6-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 2,
+    "name": "総務費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 6,
+    "name": "防災費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "銃砲火薬ガス等取締費",
+    "name_src": "search",
+    "name_evidence": [
+     "r6-kessan-gaiyou"
+    ]
+   },
+   "amount": {
+    "v": 1604118000,
+    "src": "text"
+   },
+   "before": {
+    "v": 33345000,
+    "src": "text"
+   },
+   "after": {
+    "v": 1637463000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 1604118000,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "ガス等行政費",
+     "name_src": "text",
+     "amount": {
+      "v": 1604118000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 10,
+     "no_src": "text",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 112000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "text",
+       "amount": {
+        "v": 112000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "text",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 47906000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 1556100000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 13
+    }
+   ]
+  },
+  {
+   "id": "general/expense/3-4-2",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 3,
+    "name": "保健費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 4,
+    "name": "医薬費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 2,
+    "name": "医務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 134487000,
+    "src": "text"
+   },
+   "before": {
+    "v": 15592737000,
+    "src": "text"
+   },
+   "after": {
+    "v": 15727224000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 134487000,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "救急医療対策費",
+     "name_src": "text",
+     "amount": {
+      "v": 134487000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 10,
+     "no_src": "text",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 5000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "text",
+       "amount": {
+        "v": 5000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 11,
+     "no_src": "text",
+     "name": "役務費",
+     "name_src": "reference",
+     "amount": {
+      "v": 39000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "通信運搬費",
+       "name_src": "text",
+       "amount": {
+        "v": 39000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 134443000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 15
+    }
+   ]
+  },
+  {
+   "id": "general/expense/6-1-4",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 6,
+    "name": "農林水産業費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "農林水産業企画費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 4,
+    "name": "団体指導費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 492000,
+    "src": "text"
+   },
+   "before": {
+    "v": 290375000,
+    "src": "text"
+   },
+   "after": {
+    "v": 290867000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 492000,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "農林漁業セーフティネット資金融通対策費",
+     "name_src": "text",
+     "amount": {
+      "v": 492000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 492000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 17
+    }
+   ]
+  },
+  {
+   "id": "general/expense/7-1-1",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 7,
+    "name": "商工費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "商業費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 1,
+    "name": "商業総務費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 165000000,
+    "src": "text"
+   },
+   "before": {
+    "v": 217015204000,
+    "src": "text"
+   },
+   "after": {
+    "v": 217180204000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 165000000,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "中小企業振興資金融資費信用保証料補填費",
+     "name_src": "text",
+     "amount": {
+      "v": 165000000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 21,
+     "no_src": "text",
+     "name": "補償、補塡及び賠償金",
+     "name_src": "reference",
+     "amount": {
+      "v": 165000000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 19
+    }
+   ]
+  },
+  {
+   "id": "general/expense/7-1-2",
+   "account": "general",
+   "side": "expense",
+   "kan": {
+    "no": 7,
+    "name": "商工費",
+    "name_src": "text"
+   },
+   "kou": {
+    "no": 1,
+    "name": "商業費",
+    "name_src": "reference"
+   },
+   "moku": {
+    "no": 2,
+    "name": "商業振興費",
+    "name_src": "reference"
+   },
+   "amount": {
+    "v": 641551000,
+    "src": "text"
+   },
+   "before": {
+    "v": 5450206000,
+    "src": "text"
+   },
+   "after": {
+    "v": 6091757000,
+    "src": "text"
+   },
+   "funding": {
+    "national": {
+     "v": 0,
+     "src": "text"
+    },
+    "bond": {
+     "v": 0,
+     "src": "text"
+    },
+    "other": {
+     "v": 0,
+     "src": "text"
+    },
+    "general": {
+     "v": 641551000,
+     "src": "text"
+    }
+   },
+   "items": [
+    {
+     "name": "中小企業活性化支援事業費",
+     "name_src": "text",
+     "amount": {
+      "v": 641551000,
+      "src": "text"
+     },
+     "no_amount_printed": true
+    }
+   ],
+   "setsu": [
+    {
+     "no": 10,
+     "no_src": "text",
+     "name": "需用費",
+     "name_src": "reference",
+     "amount": {
+      "v": 43000,
+      "src": "text"
+     },
+     "sub": [
+      {
+       "name": "その他需用費",
+       "name_src": "text",
+       "amount": {
+        "v": 43000,
+        "src": "text"
+       }
+      }
+     ]
+    },
+    {
+     "no": 12,
+     "no_src": "text",
+     "name": "委託料",
+     "name_src": "reference",
+     "amount": {
+      "v": 38411000,
+      "src": "text"
+     }
+    },
+    {
+     "no": 18,
+     "no_src": "text",
+     "name": "負担金、補助及び交付金",
+     "name_src": "reference",
+     "amount": {
+      "v": 603097000,
+      "src": "text"
+     }
+    }
+   ],
+   "pages": [
+    {
+     "source": "r8-hosei-06-setsumeisho",
+     "page": 19
+    }
+   ]
+  }
+ ],
+ "checks": {
+  "rows": 6,
+  "all_ok": 6,
+  "rules": {},
+  "external": {
+   "総括_目の合計": "29 款で照合"
+  }
+ }
+}

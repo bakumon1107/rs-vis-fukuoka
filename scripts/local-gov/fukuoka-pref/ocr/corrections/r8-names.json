@@ -104,6 +104,7 @@
   {"id": "special:kenei-futo-shisetsu/revenue/5-1-1", "level": "setsu", "amount": 1, "name": "延滞金", "page": 98},
   {"id": "special:kenei-futo-shisetsu/revenue/5-2-1", "level": "setsu", "amount": 1, "name": "雑入", "page": 98},
   {"id": "special:kenei-futo-shisetsu/expense/2-1-1", "level": "moku", "name": "元金", "page": 101},
+  {"id": "general/revenue/12-2-p1", "level": "moku", "name": "地域づくり基金繰入金", "page": 90},
   {"id": "general/expense/12-1-1", "level": "item", "amount": 228089882, "name": "公債管理特別会計への繰出金", "page": 411},
   {"id": "general/expense/12-1-2", "level": "item", "amount": 31278351, "name": "公債管理特別会計への繰出金", "page": 411},
   {"id": "general/expense/12-1-3", "level": "item", "amount": 781505, "name": "公債管理特別会計への繰出金", "page": 411},

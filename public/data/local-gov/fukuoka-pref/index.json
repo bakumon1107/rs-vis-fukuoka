@@ -19,6 +19,34 @@
    "basis": "settlement",
    "file": "settlement-2024.json",
    "status": "verified"
+  },
+  {
+   "year": 2026,
+   "label": "令和8年度",
+   "basis": "supplementary",
+   "file": "budget-2026-supplementary-1.json",
+   "status": "verified"
+  },
+  {
+   "year": 2026,
+   "label": "令和8年度",
+   "basis": "supplementary",
+   "file": "budget-2026-supplementary-2.json",
+   "status": "verified"
+  },
+  {
+   "year": 2026,
+   "label": "令和8年度",
+   "basis": "supplementary",
+   "file": "budget-2026-supplementary-3.json",
+   "status": "verified"
+  },
+  {
+   "year": 2026,
+   "label": "令和8年度",
+   "basis": "supplementary",
+   "file": "budget-2026-supplementary-4.json",
+   "status": "verified"
   }
  ],
  "sources": [
@@ -161,6 +189,55 @@
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277220.pdf",
    "sha256": "0e5585d224e6bb2df09b068c912bf7cee7b2ea372bd5f315c0c47a963947fda5",
    "retrieved": "2026-11-06"
+  },
+  {
+   "id": "r8-hosei-06-gian",
+   "title": "令和8年度6月補正予算議案（第1号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/289924.pdf",
+   "sha256": "22baaff94425605283ab1544f4ccccaac430acdb653ff1db4fea6b81512f5ba3",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-06-setsumeisho",
+   "title": "令和8年度6月補正予算に関する説明書（第1号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/289925.pdf",
+   "sha256": "daf9ba4986cf92594a9fc0688cff331d2d7ab0c7a09fe82591c981d7a58fd87f",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-08-setsumeisho",
+   "title": "令和8年度8月専決補正予算に関する説明書",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298206.pdf",
+   "sha256": "df3065bfda2949bce4677d0a053f3507c9962ae5d3a162fb7aeb43bb565809b5",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-09-3-gian",
+   "title": "令和8年度9月補正予算議案（第3号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298929.pdf",
+   "sha256": "545c5af36fde654a967b546f1404cb1c562043abd41b369445a5e95511cf01b7",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-09-3-setsumeisho",
+   "title": "令和8年度9月補正予算に関する説明書（第3号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298930.pdf",
+   "sha256": "f507d9cac8523b77b7c324a494273891fbb9e99fa90c54be4ffba86a1ca219e9",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-09-4-gian",
+   "title": "令和8年度9月補正予算議案（追加提案分。第4号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298208.pdf",
+   "sha256": "edb3f50f2a77e6f83370972f9bb9a53e14cddbdadf2547989a9a30ea6804f2cd",
+   "retrieved": "2026-11-14"
+  },
+  {
+   "id": "r8-hosei-09-4-setsumeisho",
+   "title": "令和8年度9月補正予算に関する説明書（追加提案分。第4号）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298207.pdf",
+   "sha256": "171bb668ee2fbed925e4236994933833fa7894f1ce05838aca4c5a9cf5e54734",
+   "retrieved": "2026-11-14"
   },
   {
    "id": "r8-minaoshi",

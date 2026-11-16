@@ -7,7 +7,11 @@
  * グラフはデータから画面で組み立てる（app/lib/local-gov/graph.ts。設計書 2章の案 B）。
  */
 import { useEffect, useState } from 'react';
+import { composeLatest, supplementDatasets } from '@/app/lib/local-gov/supplement';
 import { LOCAL_GOV_SCHEMA_VERSION, type Basis, type LocalBudgetFile, type LocalGovIndex } from '@/types/local-gov';
+
+/** 画面で選ぶ基準。latest は 当初 + Σ補正（ファイルはなく、当初と同じ年度の補正のファイルから組み立てる） */
+export type BasisChoice = Basis | 'latest';
 
 const VERSION_ERROR = 'データの形式の版がこの画面と合いません（画面かデータの更新が必要です）';
 
@@ -33,10 +37,13 @@ export function pickDataset(index: LocalGovIndex, basis: Basis, year?: number): 
   return candidates.reduce<LocalDataset | undefined>((best, d) => (!best || d.year > best.year ? d : best), undefined);
 }
 
+// 回の順の決まり（ドメインの規則）は app/lib に置き、画面から使いやすいようにここからも出す
+export { supplementDatasets };
+
 /** 自治体 ID は英小文字・数字・ハイフンだけ（URL から来るのでパスに使う前に確かめる） */
 const GOV_ID = /^[a-z0-9-]+$/;
 
-export function useLocalBudget(gov: string, year?: number, basis: Basis = 'initial'): LocalBudgetState {
+export function useLocalBudget(gov: string, year?: number, basis: BasisChoice = 'initial'): LocalBudgetState {
   const [state, setState] = useState<LocalBudgetState>({ status: 'loading' });
 
   useEffect(() => {
@@ -54,12 +61,26 @@ export function useLocalBudget(gov: string, year?: number, basis: Basis = 'initi
         const index = (await indexRes.json()) as LocalGovIndex;
         // 知らない版の形は読み違えるので、表示を止めて知らせる（共通 JSON 形式の設計 3章）
         if (index.schema_version !== LOCAL_GOV_SCHEMA_VERSION) throw new Error(VERSION_ERROR);
-        const ds = pickDataset(index, basis, year);
+        // 補正後は当初のデータ（同じ年度）に補正を足して作る。dataset は当初の項目（年度のラベル・検算の状態）
+        const ds = pickDataset(index, basis === 'latest' ? 'initial' : basis, year);
         if (!ds) throw new Error('指定の年度のデータはありません');
-        const fileRes = await fetch(`${base}/${ds.file}`);
-        if (!fileRes.ok) throw new Error('データを読み込めませんでした');
-        const file = (await fileRes.json()) as LocalBudgetFile;
-        if (file.schema_version !== LOCAL_GOV_SCHEMA_VERSION) throw new Error(VERSION_ERROR);
+        const load = async (name: string) => {
+          const res = await fetch(`${base}/${name}`);
+          if (!res.ok) throw new Error('データを読み込めませんでした');
+          const f = (await res.json()) as LocalBudgetFile;
+          if (f.schema_version !== LOCAL_GOV_SCHEMA_VERSION) throw new Error(VERSION_ERROR);
+          return f;
+        };
+        let file: LocalBudgetFile;
+        if (basis === 'latest') {
+          const sups = supplementDatasets(index, ds.year);
+          if (sups.length === 0) throw new Error('この年度の補正予算のデータはありません');
+          // 当初と補正のファイルは一覧から分かるので、まとめて読む
+          const [init, ...supFiles] = await Promise.all([ds, ...sups].map(d => load(d.file)));
+          file = composeLatest(init, supFiles);
+        } else {
+          file = await load(ds.file);
+        }
         if (!cancelled) setState({ status: 'ready', index, dataset: ds, file });
       } catch (e) {
         if (!cancelled) setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
