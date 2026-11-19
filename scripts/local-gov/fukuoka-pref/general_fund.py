@@ -22,7 +22,16 @@ def build(rows: list[dict], table: dict) -> tuple[dict | None, list[str]]:
     """返り値: (general_fund, 失敗の一覧)。失敗があれば general_fund は None"""
     fails: list[str] = []
     general = [r for r in rows if r["account"] == "general"]
-    total = sum((r.get("funding") or {}).get("general", {}).get("v") or 0 for r in general if r["side"] == "expense")
+
+    def known(v, where):
+        """読めない値（None）を 0 円にせず失敗にする（足りない額の内訳を作らない）"""
+        if v is None:
+            fails.append(f"{where}: 額が読めない")
+            return 0
+        return v
+
+    total = sum(known(((r.get("funding") or {}).get("general") or {}).get("v"), f"一般財源の合計 {r['id']}")
+                for r in general if r["side"] == "expense")
     revenue = {r["id"]: r for r in general if r["side"] == "revenue"}
     out = []
     for kan in table["款そのもの"]:
@@ -30,7 +39,7 @@ def build(rows: list[dict], table: dict) -> tuple[dict | None, list[str]]:
         if not rs:
             fails.append(f"款そのもの {kan}款: 歳入の目がない")
             continue
-        out.append({"label": rs[0]["kan"]["name"], "amount": sum(r["amount"]["v"] or 0 for r in rs),
+        out.append({"label": rs[0]["kan"]["name"], "amount": sum(known(r["amount"]["v"], f"{kan}款 {r['id']}") for r in rs),
                     "basis": "revenue_kan", "kan": kan})
     for g in table["組み替え"]:
         got = 0
@@ -44,9 +53,9 @@ def build(rows: list[dict], table: dict) -> tuple[dict | None, list[str]]:
                 if len(ss) != 1:
                     fails.append(f"{g['label']}: {ref['id']} の {ref['setsu']}節が {len(ss)} 件")
                     continue
-                got += ss[0]["amount"]["v"] or 0
+                got += known(ss[0]["amount"]["v"], f"{g['label']}: {ref['id']} の {ref['setsu']}節")
             else:
-                got += r["amount"]["v"] or 0
+                got += known(r["amount"]["v"], f"{g['label']}: {ref['id']}")
         want = g["額"] * 1000
         if g.get("部分"):
             if want > got:

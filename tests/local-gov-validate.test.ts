@@ -76,6 +76,11 @@ test('一般財源の中身: 行の合計 = total = 財源内訳の一般財源�
   const errs = validateBudgetFile(file([row()], { general_fund: bad })).errors;
   assert.ok(errs.some(e => e.includes('組み替えの元の目')) && errs.some(e => e.includes('0 以上の整数')));
   assert.ok(validateBudgetFile(file([row()], { basis: 'settlement', general_fund: ok })).errors.some(e => e.includes('当初予算のファイルだけ')));
+  // 財源内訳の一般財源が読めない歳出の目があれば誤り（0 円として合計と照合しない）
+  const noFunding = row({ id: 'general/expense/2-1-2', moku: { no: 2, name: '人事管理費' }, funding: undefined, items: undefined, setsu: undefined });
+  assert.ok(
+    validateBudgetFile(file([row(), noFunding], { general_fund: ok })).errors.some(e => e.includes('一般財源が読めない')),
+  );
 });
 
 test('ID は会計/歳入歳出/款-項-目', () => {

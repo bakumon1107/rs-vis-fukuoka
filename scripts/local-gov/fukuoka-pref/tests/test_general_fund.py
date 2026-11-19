@@ -55,6 +55,15 @@ def test_builds_rows_and_residual():
     assert out["notes"] == ["注1"] and out["checked_on"] == "2026-11-14"
 
 
+def test_stops_when_an_amount_is_unreadable():
+    # 読めない額（None）を 0 円にして足りない内訳を作らない（款そのもの・一般財源の合計・組み替えの元）
+    for rows in (ROWS + [rev("general/revenue/1-1-3", 1, "県税", None)],
+                 ROWS + [{**exp("general/expense/2-1-9", 0), "funding": {"general": v(None)}}],
+                 [rev("general/revenue/9-2-1", 9, "国庫支出金", 300_000, setsu=[(4, None)])] + ROWS[:2] + ROWS[3:]):
+        out, fails = gf.build(rows, TABLE)
+        assert out is None and any("額が読めない" in f for f in fails)
+
+
 def test_stops_when_table_does_not_match_data():
     bad = {**TABLE, "組み替え": [{**TABLE["組み替え"][0], "額": 201}, TABLE["組み替え"][1]]}
     out, fails = gf.build(ROWS, bad)

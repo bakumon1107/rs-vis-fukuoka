@@ -211,9 +211,12 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     });
     const sum = gf.rows.reduce((s, r) => s + r.amount, 0);
     if (sum !== gf.total) err(`general_fund: 行の合計 ${sum} ≠ total ${gf.total}`);
-    const general = file.rows
-      .filter(r => r.account === 'general' && r.side === 'expense')
-      .reduce((s, r) => s + (r.funding?.general.v ?? 0), 0);
+    // 一般財源の読めない（財源内訳がない・null の）一般会計の歳出の目は 0 円にせず誤りにする（足りない合計と照合して通さない）
+    const expense = file.rows.filter(r => r.account === 'general' && r.side === 'expense');
+    for (const r of expense) {
+      if (r.funding?.general.v == null) err(`general_fund: ${r.id} の財源内訳の一般財源が読めない（一般財源の合計と照合できない）`);
+    }
+    const general = expense.reduce((s, r) => s + (r.funding?.general.v ?? 0), 0);
     if (gf.total !== general) err(`general_fund: total ${gf.total} ≠ 一般会計の歳出の財源内訳の一般財源の合計 ${general}`);
   }
 
