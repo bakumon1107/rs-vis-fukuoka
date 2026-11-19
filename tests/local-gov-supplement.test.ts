@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { composeLatest, supplementDatasets } from '../app/lib/local-gov/supplement';
+import { fundingNotes } from '../app/lib/local-gov/summary';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import type { LocalBudgetFile, LocalGovIndex, MokuRow, Value } from '../types/local-gov';
 
@@ -93,6 +94,17 @@ test('composeLatest adds supplement amounts, funding, items and setsu by id/name
   // 補正のない目はそのまま（before に当初の額）
   assert.equal(out.rows.find(x => x.id === 'general/expense/3-4-2')!.amount.v, 100);
   assert.equal(out.composed?.through, '6月補正（第1号）');
+  // 一般財源の中身は当初の内訳なので補正後では外す（合計が合わなくなる）。説明文は補正後でも当てはまるので composed に残す
+  const withFund = composeLatest({ ...init, general_fund: { rows: [], total: 0, notes: ['注'], checked_on: '2026-11-14' } }, [s1]);
+  assert.equal(withFund.general_fund, undefined);
+  assert.deepEqual(withFund.composed?.funding_notes, ['注']);
+  assert.equal(out.composed?.funding_notes, undefined);
+  // 説明文は当初でも補正後でも fundingNotes で取れる（空なら空の配列）
+  assert.deepEqual(fundingNotes(withFund), ['注']);
+  assert.deepEqual(fundingNotes({ ...init, general_fund: { rows: [], total: 0, notes: ['当初'], checked_on: '2026-11-14' } }), ['当初']);
+  assert.deepEqual(fundingNotes(out), []);
+  const emptyNotes = composeLatest({ ...init, general_fund: { rows: [], total: 0, notes: [], checked_on: '2026-11-14' } }, [s1]);
+  assert.equal(emptyNotes.composed?.funding_notes, undefined);
   assert.equal(out.basis, 'initial');
   // 元のデータは書き換えない
   assert.equal(init.rows[0].amount.v, 33_000);

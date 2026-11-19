@@ -195,6 +195,34 @@ export interface CheckSummary {
   corrections?: number;
 }
 
+/**
+ * 一般財源の中身の行の根拠の強さ。revenue_kan: 歳入の款そのもの（データの歳入の目から足す）/
+ * matched: 財源内訳の差と歳入の目・節が千円の位まで一致 / summed: 財源の名前ごとの足し上げから求めた額 / residual: 合計からの差し引き
+ */
+export type GeneralFundBasis = 'revenue_kan' | 'matched' | 'summed' | 'residual';
+export const GENERAL_FUND_BASES: readonly GeneralFundBasis[] = ['revenue_kan', 'matched', 'summed', 'residual'];
+
+export interface GeneralFundRow {
+  label: string;
+  /** 円 */
+  amount: number;
+  basis: GeneralFundBasis;
+  /** revenue_kan の款の番号 */
+  kan?: number;
+  /** 組み替えの元の歳入の目の ID */
+  refs?: string[];
+}
+
+export interface GeneralFund {
+  rows: GeneralFundRow[];
+  /** 円。一般会計の歳出の目の財源内訳の一般財源の合計と一致する */
+  total: number;
+  /** 組み替えの説明（「データについて」に出す） */
+  notes: string[];
+  /** 説明書で確かめた日 */
+  checked_on: string;
+}
+
 export interface LocalBudgetFile {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
@@ -209,10 +237,20 @@ export interface LocalBudgetFile {
   revenue_by_kan?: RevenueByKan[];
   checks: CheckSummary;
   /**
+   * 一般会計の歳出の財源内訳の「一般財源」の中身（当初予算。組み替えを調べた年度だけ。一般財源の中身の設計）。
+   * 補正後（composed）では外す（一般財源の額が変わる）。説明文だけ composed.funding_notes に残る
+   */
+  general_fund?: GeneralFund;
+  /**
    * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
    * basis は 'initial' のまま（図の組み立ては当初と同じ）。rows の amount は補正後の額、before は当初の額
    */
-  composed?: { through: string; rounds: { round: string; kind: string }[] };
+  composed?: {
+    through: string;
+    rounds: { round: string; kind: string }[];
+    /** 当初の general_fund.notes（財源内訳と歳入の款の違いの説明。補正後でも当てはまる。general_fund 自体は外す） */
+    funding_notes?: string[];
+  };
 }
 
 export interface SourceDocument {

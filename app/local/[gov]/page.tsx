@@ -19,12 +19,12 @@ import type { Basis } from '@/types/local-gov';
 import { useIsNarrow } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
+import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
-import { sourcesUsed } from '@/app/lib/local-gov/summary';
+import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
-import { fundingReclassNotes } from '@/client/lib/local-gov-labels';
 
 // opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3・R6 決算の設計 4章）
 type ViewInfo = { key: LocalGraphView; label: string; note: string; opens: string };
@@ -118,6 +118,11 @@ function LocalGovContent() {
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
   );
+  // 一般会計の見方で「一般財源」の箱を選んだときは、目の詳細の代わりに一般財源の中身の表を出す（当初予算で中身を調べた年度だけ。
+  // 補正後は一般財源の額が変わるので composeLatest が general_fund を外し、表は出ない）
+  const fund =
+    state.status === 'ready' && view === 'general' && selectedId === 'funding:general' ? state.file.general_fund ?? null : null;
+  const hasDetail = !!row || !!fund;
   // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
   // 「選択中」の行のボタンを押したときだけ詳細まで動かす
   const detailRef = useRef<HTMLElement>(null);
@@ -182,7 +187,7 @@ function LocalGovContent() {
       <AppHeader current="/" />
       {/* 広い幅では詳細を図の下に置くので、図の幅は選んでも変わらない（横のパネルで図が縮み名前が重なった。2026-11-14 ユーザー決定） */}
       {/* 狭い幅で詳細パネル（画面の下から 45dvh）が出ているときは、図の下端と出典の行がパネルの裏に隠れないよう下に余白を足す */}
-      <main className="px-4 pb-16 pt-4" style={{ paddingBottom: row && isNarrow ? '50dvh' : undefined }}>
+      <main className="px-4 pb-16 pt-4" style={{ paddingBottom: hasDetail && isNarrow ? '50dvh' : undefined }}>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">
             {index.gov.name} {dataset.label}
@@ -248,9 +253,12 @@ function LocalGovContent() {
             {view === 'all' && file.basis === 'initial' &&
               '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
                 '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
-            {fundingReclassNotes(gov, file) && (
+            {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
+            {(fundingNotes(file).length > 0 || file.general_fund) && (
               <>
-                {view === 'all' ? '（調べた内訳は' : '。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（調べた内訳は'}
+                {view === 'all'
+                  ? '（調べた内訳は'
+                  : `。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（${file.general_fund ? '「一般財源」の箱を押すと中身を表で見られます。' : ''}調べた内訳は`}
                 <Link href={aboutHref('#funding')} className="text-primary-accent underline">
                   データについて
                 </Link>
@@ -284,7 +292,7 @@ function LocalGovContent() {
               >
                 全部の流れを見る
               </button>
-              {row && !isNarrow && (
+              {hasDetail && !isNarrow && (
                 <button
                   type="button"
                   className="rounded-full border border-primary-accent bg-mirai-surface-teal px-3 py-0.5 text-sm font-bold"
@@ -312,9 +320,20 @@ function LocalGovContent() {
           )}
         </div>
 
-        {row && !isNarrow && (
-          <section ref={detailRef} tabIndex={-1} aria-label="選んだ目の詳細" className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent">
-            <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
+        {hasDetail && !isNarrow && (
+          <section
+            ref={detailRef}
+            tabIndex={-1}
+            aria-label={row ? '選んだ目の詳細' : '一般財源の中身'}
+            className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent"
+          >
+            {row ? (
+              <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
+            ) : (
+              <div className="max-w-2xl">
+                <GeneralFundPanel fund={fund!} aboutHref={aboutHref('#funding')} />
+              </div>
+            )}
           </section>
         )}
 
@@ -327,7 +346,7 @@ function LocalGovContent() {
         </p>
       </main>
 
-      {row && isNarrow && (
+      {hasDetail && isNarrow && (
         <SidePanelChrome
           side="right"
           width={panel.effectiveWidth}
@@ -337,7 +356,11 @@ function LocalGovContent() {
           isResizing={panel.isResizing}
           onResetWidth={panel.resetWidth}
         >
-          <LocalDetailPanel row={row} index={index} accountName={accountName} />
+          {row ? (
+            <LocalDetailPanel row={row} index={index} accountName={accountName} />
+          ) : (
+            <GeneralFundPanel fund={fund!} aboutHref={aboutHref('#funding')} />
+          )}
         </SidePanelChrome>
       )}
     </div>

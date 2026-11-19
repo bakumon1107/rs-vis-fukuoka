@@ -15,6 +15,7 @@ import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { ValueSourceMark } from '@/client/components/local-gov/ValueSourceMark';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import {
+  fundingNotes,
   nameSourceCounts,
   noAmountPrintedCount,
   valueNotes,
@@ -24,7 +25,6 @@ import {
 } from '@/app/lib/local-gov/summary';
 import type { Basis, MokuRow, ValueSource } from '@/types/local-gov';
 import {
-  fundingReclassNotes,
   NAME_SOURCE_ORDER,
   NAME_SRC_LABEL,
   VALUE_SOURCE_ORDER,
@@ -115,7 +115,10 @@ function LocalGovAboutContent() {
   // 同じ名前の款が複数の会計にあるので、0 円の目の一覧には会計の名前を添える
   const accountName = new Map(file.accounts.map(a => [a.id, a.name]));
   const c = file.checks;
-  const fundingNotes = fundingReclassNotes(gov, file);
+  // 財源内訳と歳入の款の違い（組み替え）の説明は、一般財源の中身のデータに持つ（書き出しが組み替えの表から入れる）。
+  // #funding の節は、説明か一般財源の中身があれば出す（中身の表の「データについて」のリンク先がなくならないように）
+  const notes = fundingNotes(file);
+  const showFunding = notes.length > 0 || !!file.general_fund;
   const isSettlement = file.basis === 'settlement';
   const basisQuery = isSettlement ? '&basis=settlement' : '';
   // 図に箱を出さない目（0 円の目・額の読めない目）の一覧の1行。会計 ／ 歳入出 ／ 款 ／ 項 ／ 目と、額・予算現額・不用額・説明
@@ -251,7 +254,7 @@ function LocalGovAboutContent() {
           </section>
         )}
 
-        {fundingNotes && (
+        {showFunding && (
           <section
             id="funding"
             tabIndex={-1}
@@ -264,11 +267,19 @@ function LocalGovAboutContent() {
               一般会計だけで比べても、歳入では国庫支出金・県債・繰入金などに入っているお金の一部を、歳出の財源内訳では一般財源として数えているため、額が合いません。
               一般会計について説明書を読んで調べた結果は次のとおりです。どこまで確かめられたかは、それぞれの括弧の中に書いています（{index.gov.name}の資料。なぜ一般財源に数えるのかは説明書に書かれていません）。
             </p>
-            <ul className="list-disc space-y-0.5 pl-5">
-              {fundingNotes.map(n => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
+            {notes.length > 0 && (
+              <ul className="list-disc space-y-0.5 pl-5">
+                {notes.map(n => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            )}
+            {file.general_fund && (
+              <p className="text-xs text-mirai-text-muted">
+                サンキー図の当初予算・一般会計の見方で「一般財源」の箱を押すと、一般財源の中身を表で見られます（{file.general_fund.checked_on}{' '}
+                に説明書で確認。補正後予算の見方では、補正で一般財源の額が変わるので表を出しません）。
+              </p>
+            )}
           </section>
         )}
 

@@ -104,7 +104,7 @@ STEPS = [
     # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
     ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
      ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None,
-     [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^補正 R8", r"^FAIL 補正"]),
+     [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^一般財源の中身", r"^補正 R8", r"^FAIL 補正"]),
     # 補正の回の鎖（書き出した当初予算から回の順に補正額を足し、各回の補正前の額と款・項で照合）
     ("補正 回の鎖", "check_hosei_chain.py",
      ["{tmp:export}/budget-2026-initial.json", "{out:hosei-R8-06-1.json}", "{out:hosei-R8-08-2.json}",
