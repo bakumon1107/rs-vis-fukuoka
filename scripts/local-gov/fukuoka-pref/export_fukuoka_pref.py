@@ -42,8 +42,8 @@ import unicodedata
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# 名前の一致の支えにだけ使う系統（疑いの根拠・採る名前・節番号の確かめには使わない）。NDLOCR-Lite（ndl）は OCR の文字枠より広く
-# 切り抜くので、名前の端に余計な字を読む（名前の読み取りに NDLOCR-Lite を組み込む設計 9章）。同じ扱いの系統を足すときはここに足す
+# 名前の一致の支えにだけ使う系統（採る名前・節番号の確かめには使わない。疑いの根拠は名前の内側に字を足した形だけ）。NDLOCR-Lite（ndl）は
+# OCR の文字枠より広く切り抜くので、名前の端に余計な字を読む（名前の読み取りに NDLOCR-Lite を組み込む設計 9章）。同じ扱いの系統を足すときはここに足す
 SUPPORT_ONLY = frozenset({"ndl"})
 sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
@@ -319,7 +319,7 @@ class Exporter:
         （name_evidence.resolve）。系統: bill＝予算書の本体（議案）の文字層、ocr＝説明書の OCR と旧 OCR（同じ切り抜きを読む
         ので1つの系統）、textlayer＝説明書の文字層。"""
         cands = [(clean_name(c), g) for c, g in cands if c and c.strip()]
-        # NDLOCR-Lite（ndl）は一致の支えにだけ使う（広く切り抜くので名前の端に余計な字が付き、疑いの根拠にならない）
+        # NDLOCR-Lite（ndl）は一致の支えにだけ使う（広く切り抜くので名前の端に余計な字が付く。疑いは名前の内側に字を足した形だけ）
         name, src, ev = name_evidence.resolve(cands, self.corpus, reference, support_only=SUPPORT_ONLY)
         name = clean_name(name)
         first = cands[0][0] if cands else ""

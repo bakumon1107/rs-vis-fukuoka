@@ -175,9 +175,9 @@ def resolve(candidates, corpus: Corpus, reference=None, support_only=frozenset()
     いちばん強い裏付けの名前が1つに決まらない（同じ強さで別の名前が並び、一致した系統の数も同じ）とき、
     また別の系統の読み取りが採る名前に疑いをかける形（contradicts: 字を足した形・字の並べ替え）のときは、決めずに ocr とする。
     並べ替えの疑いは readings で採る名前にだけかける（資料・参照で見つかった名前は、字の順が資料で確かめられている）。
-    support_only: 一致の数には入れるが、疑い・採る名前の候補には使わない系統（NDLOCR-Lite の ndl。OCR の文字枠より広く切り抜いて
-    読むので、隣の番号・2行の名前の間の記号を名前の端に読み込む（「の用水事業費2負担金」）。字を足した形を疑いにすると、
-    正しい名前を 17件 読み取りのみに下げた。R8 当初 2026-11-15）"""
+    support_only: 一致の数には入れるが、採る名前の候補には使わない系統（NDLOCR-Lite の ndl。OCR の文字枠より広く切り抜いて
+    読むので、隣の番号・2行の名前の間の記号を名前の端に読み込む（「の用水事業費2負担金」）。字を足した形をすべて疑いにすると、
+    正しい名前を 17件 読み取りのみに下げた。R8 当初 2026-11-15）。疑いには、名前の内側に字を足した形（adds_inner）だけを使う"""
     pairs = [(c, str(i)) if isinstance(c, str) else c for i, c in enumerate(candidates)]
     cands = [(vs, g) for vs, g in ((variants(c), g) for c, g in pairs) if vs]
     if not cands:
