@@ -82,6 +82,15 @@ class TestMergeNumbers:
         # OCR の行が数字で終わるときは、末尾の罫線・閉じ括弧だけを外す
         assert nd.merge_numbers("人生100", "人生100)") == "人生100" and nd.merge_numbers("人生100", "人生100|") == "人生100"
 
+    def test_item_column_keeps_leading_digits(self):
+        # 説明欄の事項に番号はない。頭の数字は名前の一部なので外さず、OCR の数字も写さない
+        # （写すと OCR の読み違い「8D」が NDLOCR-Lite の読みに付き、別の系統の一致になる。R8 p64 は「2○2次救急…」になっていた）
+        assert nd.merge_numbers("8Dプリンタ導入事業", "3Dプリンタ導入事業", numbered=False) == "3Dプリンタ導入事業"
+        assert nd.merge_numbers("2次救急医療体制整備費補助金", "○2次救急医療体制整備費補助金", numbered=False) == "○2次救急医療体制整備費補助金"
+        assert nd.merge_numbers("Dプリンタ導入事業", "8Dプリンタ導入事業", numbered=False) == "8Dプリンタ導入事業"
+        # 末尾の罫線の読みは説明欄でも外す
+        assert nd.merge_numbers("管理事務費", "管理事務費1)", numbered=False) == "管理事務費"
+
 
 class TestLineAction:
     def test_total_short_and_names(self):

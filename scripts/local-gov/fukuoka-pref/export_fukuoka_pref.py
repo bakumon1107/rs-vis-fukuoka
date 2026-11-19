@@ -255,6 +255,14 @@ def ndl_mismatches(ocr: dict, ndl: dict) -> list:
     return bad
 
 
+def others_for_column(others: list, m: dict, col: str) -> list:
+    """欄 col（説明・節）の事項・節の名前の候補に使う、ほかの読み取り [(種類, 目の行)]。
+    修正表で金額を直した欄では NDLOCR-Lite の読み取りを使わない。NDLOCR-Lite の金額は直す前の OCR の値なので、金額と何番目で
+    対応させる（by_amount）と別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）"""
+    fixed = {fx.get("列") for fx in m.get("修正", [])}
+    return [(k, x) for k, x in others if not (k == "ndl" and col in fixed)]
+
+
 def candidate_labels(cands) -> list[str]:
     """画像で確かめる一覧（names-unresolved.json）に出す候補。支えにだけ使う系統の読み取りには、そうと分かる印を付ける"""
     return [c if g not in SUPPORT_ONLY else f"{c}（{g}・支えのみ）" for c, g in cands]
@@ -348,6 +356,7 @@ class Exporter:
                  "row": f"{m.get('会計') or '一般会計'} {m['side']} {m['款']}-{kou_no}-{m['目番号']}",
                  "source": "r8-setsumeisho-toku" if special else "r8-setsumeisho-ippan", "cell": m.get("cell")}
         others = self.others(m)  # [(textlayer|v4|ndl, 目の行)]
+        others_in = lambda col: others_for_column(others, m, col)  # noqa: E731
         # 名前の系統: 旧 OCR は OCR と同じ系統（同じ字を一緒に読み違える）。NDLOCR-Lite は別の系統（名前の読み取りに NDLOCR-Lite を組み込む設計）
         group = {"textlayer": "textlayer", "v4": "ocr", "ndl": "ndl"}
         # 項・款: 予算書の本体（議案）の名前（choose_kou が予算書の項の一覧から選んだ名前）と、OCR・旧 OCR の表の見出しの名前。
@@ -428,7 +437,7 @@ class Exporter:
             last_top = None
             seen = Counter()
             other_items = [(group[kind], self.by_amount([e for e in x["説明"] if not e.get("金額の記載なし")]))
-                           for kind, x in others]
+                           for kind, x in others_in("説明")]
             for e in m["説明"]:
                 name, headcount = split_headcount(clean_name(e["name"]))
                 it = {}
@@ -461,8 +470,8 @@ class Exporter:
         seen = Counter()
         seen_sub = Counter()
         is_top = lambda st: st.get("top", st.get("no") is not None)  # noqa: E731
-        other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others]
-        other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others]
+        other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others_in("節")]
+        other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others_in("節")]
         expense = m["side"] == "歳出"
         for st in setsu_in_print_order(m):
             top = is_top(st)

@@ -205,6 +205,16 @@ def test_ndl_mismatches_skips_only_corrected_columns():
     assert ex.ndl_mismatches(ocr, {}) == ["a"]
 
 
+def test_ndl_not_used_for_corrected_columns():
+    # 説明欄の金額を修正表で直した目では、NDLOCR-Lite の読み取りを事項の名前の候補にしない（金額の対応がずれて、
+    # 別の事項の読みが裏付けになる）。直していない節の欄・ほかの読み取りは使う
+    others = [("textlayer", "tl"), ("v4", "v4"), ("ndl", "ndl")]
+    m = {"修正": [{"列": "説明"}]}
+    assert ex.others_for_column(others, m, "説明") == [("textlayer", "tl"), ("v4", "v4")]
+    assert ex.others_for_column(others, m, "節") == others
+    assert ex.others_for_column(others, {}, "説明") == others
+
+
 def test_candidate_labels_mark_support_only():
     assert ex.candidate_labels([("用水事業費負担金", "ocr"), ("の用水事業費2負担金", "ndl")]) == \
         ["用水事業費負担金", "の用水事業費2負担金（ndl・支えのみ）"]

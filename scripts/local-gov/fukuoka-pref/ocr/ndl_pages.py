@@ -162,15 +162,19 @@ def name_lines(col: list[dict], left: float, right: float, full: bool = False) -
     return out
 
 
-def merge_numbers(ocr_text: str, ndl_text: str) -> str:
+def merge_numbers(ocr_text: str, ndl_text: str, numbered: bool = True) -> str:
     """数字は OCR の読みを使う（NDLOCR-Lite は名前の読み直しにだけ使う。数字に弱い）。
-    - NDLOCR-Lite の読みの頭・末尾の数字（と罫線・それに付いた括弧）を外し、OCR の行の頭の数字（目・節の番号）を付ける
-      （「7林業改善…」「林業改善資金1)」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）。名前の途中の数字（「第75回」）は残す
+    - 目・節の欄（numbered）: NDLOCR-Lite の読みの頭の数字（と罫線・それに付いた括弧）を外し、OCR の行の頭の数字（目・節の番号）を付ける
+      （「7林業改善…」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
+    - 説明欄（numbered でない）: 事項に番号はないので、頭の数字は名前の一部（「2次救急医療体制整備費補助金」）。外さず、OCR の数字も付けない
+      （付けると OCR の読み違えた数字「8Dプリンタ」を NDLOCR-Lite の読み「3Dプリンタ」に写し、別の系統の一致として裏付けを付ける）
+    - 末尾の数字（と罫線・括弧）は外す（右端の罫線を「1」と読む「林業改善資金1)」）。OCR の行が数字で終わるときは罫線・括弧だけ。
+      名前の途中の数字（「第75回」）は残す
     - 外した後が空・金額の形（数字だけ）なら名前は UNREAD（OCR の字を写さない。line_action と同じ理由）。番号は OCR の読みのまま付ける
       （番号は目・節の鍵なので、落とすと OCR の読み取りと目が対応しなくなる）"""
-    m = re.match(r"\s*(\d+)", ocr_text)
+    m = re.match(r"\s*(\d+)", ocr_text) if numbered else None
     head = m.group(1) if m else ""
-    body = HEAD_RE.sub("", ndl_text or "")
+    body = HEAD_RE.sub("", ndl_text or "") if numbered else (ndl_text or "")
     if re.search(r"\d\s*$", ocr_text):
         # 末尾の数字が本当に名前の一部（OCR の行も数字で終わる「人生100」）: 末尾は数字でない端の字（罫線・閉じ括弧）だけを外す
         body = TAIL_NONDIGIT_RE.sub("", body)
@@ -207,7 +211,7 @@ def replace_names(rec: dict, img, ndl) -> int:
                 else:
                     crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
                     text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
-                    text = merge_numbers(ocr_text, text)
+                    text = merge_numbers(ocr_text, text, numbered=ci != cols[2])  # 説明欄（各表の名前の列の3つ目）の事項に番号はない
                 new_col.append({"x0": min(d["x0"] for d in row), "x1": max(d["x1"] for d in row),
                                 "y0": min(d["y0"] for d in row), "y1": max(d["y1"] for d in row),
                                 "text": text, "score": 1.0, "ndl": True})

@@ -33,6 +33,7 @@ MIN_SEARCH_LEN = 4  # これより短い名前（「使用料」「雑入」）�
 # 語の続きとみなす文字（ひらがな・カタカナ・漢字）。見つかった名前の前後がこれなら、もっと長い語の一部。
 # 濁点・半濁点だけの字（U+3099〜309C）は除く（文字層で名前の前に「゚」が付く。「゚証紙収入」）
 WORD_CHAR = re.compile(r"[ぁ-ゖゝ-ゟ゠-ヿ々一-鿿]")
+STUTTER_RE = re.compile(r"(.{1,3})\1")  # 続けて2度読んだ字の並び（adds_inner）
 
 
 def normalize(s: str) -> str:
@@ -115,6 +116,26 @@ def contradicts(name: str, other: str) -> bool:
             extra.remove(ch)
         return any(WORD_CHAR.match(ch) for ch in extra)
     return len(other) == len(name) and sorted(other) == sorted(name)
+
+
+def adds_inner(name: str, other: str) -> bool:
+    """other が name の内側（最初の字と最後の字の間）に字（漢字・かな）を足した形か。支えにだけ使う系統（NDLOCR-Lite）の疑いに使う。
+    NDLOCR-Lite は OCR の文字枠より広く切り抜くので、名前の端に隣の字・番号を読み込む（「の用水事業費2負担金」の「の」）。
+    端の字・内側の数字・記号は疑いにしないが、内側の字は疑いにする（OCR と旧 OCR が一緒に「躍」を落とした「人材育成活推進費」に、
+    NDLOCR-Lite が「人材育成活躍推進費」と読んだ。疑いにしないと、1字ずつの多数決で字を落とした名前を採る）。
+    NDLOCR-Lite は字（1〜3字）を続けて2度読むことがある（「保健環健環境」「手数数料」「総総務」。R8 当初で 4件）。続けて2度の分は
+    1度にしてから比べる（name が同じ並びを本当に含むときは比べられなくなるが、疑いが減る向きなので、採る名前は変わらない）"""
+    other = STUTTER_RE.sub(r"\1", other)
+    if not name or len(other) <= len(name) or not is_subsequence(name, other):
+        return False
+    # name の字を other の中で左から当てた位置と右から当てた位置。内側は、左から当てた最初の字の位置と右から当てた最後の字の位置の間
+    lo = other.index(name[0])
+    hi = other.rindex(name[-1])
+    inner = list(other[lo:hi + 1])
+    for ch in name:
+        if ch in inner:
+            inner.remove(ch)
+    return any(WORD_CHAR.match(ch) for ch in inner)
 
 
 def char_vote(cands: list[tuple[str, str]], support_only=frozenset()):
@@ -203,8 +224,10 @@ def resolve(candidates, corpus: Corpus, reference=None, support_only=frozenset()
     rank, n_agree, src, ev = best[name]
     # 疑い: 採る名前を読んでいない系統の読み取りが、採る名前に字を足した形・字の並べ替えになっている
     support = groups.get(name, set())
-    doubt = sorted({v for vs, g in cands if g not in support and g not in support_only for v in vs
-                    if contradicts(name, v) and (src == "readings" or len(v) > len(name))})
+    # support_only の系統は、名前の内側に字を足した形だけを疑いにする（端の字・並べ替えは切り抜きの広さで起きるので疑いにしない）
+    doubt = sorted({v for vs, g in cands if g not in support for v in vs
+                    if (adds_inner(name, v) if g in support_only else contradicts(name, v))
+                    and (src == "readings" or len(v) > len(name))})
     if doubt:
         return first, "ocr", {"conflict": [name] + doubt}
     return name, src, ev
