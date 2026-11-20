@@ -22,6 +22,9 @@ const budget = {
       { name: '地方公務員災害補償基金負担金', amount: v(5) },
     ]),
     row('general/expense/2-4-4', 'expense', '地域振興費', 1, [{ name: '文化芸術振興基金積立金', amount: v(4_841_361_000) }]),
+    // 特別会計としての基金への繰出しは、目でも事項でも積み立てに数える（目のときは事項を重ねて数えない）
+    row('general/expense/13-2-1', 'expense', '財政調整基金特別会計繰出金', 100, [{ name: '財政調整基金特別会計繰出金', amount: v(100) }]),
+    row('general/expense/13-2-2', 'expense', '特別会計繰出金', 7, [{ name: '市町村振興基金特別会計繰出金', amount: v(7) }]),
   ],
 } as unknown as LocalBudgetFile;
 
@@ -30,6 +33,8 @@ test('fundFlows: 繰入金・特別会計繰入金・積立金を名前で基金
   assert.deepEqual(byFund.get('財政調整基金')?.withdraw.map(x => x.amount), [21_899_939_000]);
   assert.deepEqual(byFund.get('市町村振興基金')?.withdraw.map(x => x.amount), [52_018_000]);
   assert.deepEqual(byFund.get('減債基金')?.deposit.map(x => x.amount), [259_215_000]);
+  assert.deepEqual(byFund.get('財政調整基金')?.deposit.map(x => x.amount), [100]);
+  assert.deepEqual(byFund.get('市町村振興基金')?.deposit.map(x => x.amount), [7]);
   assert.equal(byFund.has('地方公務員災害補償基金'), false);
   assert.equal(byFund.has('県債管理基金'), false);
 });
@@ -38,8 +43,10 @@ test('fundRows: 年度末現在高の多い順。予算にだけある基金は�
   const fund = (name: string, end: number) => ({ name, kind: 'stock', no: 1, holdings: [], end, after_closing: end, history: [] });
   const funds = { items: [fund('財政調整基金', 66_716_408_000), fund('減債基金', 749_255_770_000)] } as unknown as LocalFunds;
   const rows = fundRows(funds, fundFlows(budget));
-  assert.deepEqual(rows.map(r => r.name), ['減債基金', '財政調整基金', '市町村振興基金', '文化芸術振興基金']);
+  assert.deepEqual(rows.slice(0, 2).map(r => r.name), ['減債基金', '財政調整基金']);
+  assert.deepEqual(rows.slice(2).map(r => r.name).sort(), ['市町村振興基金', '文化芸術振興基金']);
   assert.equal(rows[1].withdraw, 21_899_939_000);
-  assert.equal(rows[3].fund, null);
-  assert.equal(rows[3].deposit, 4_841_361_000);
+  const culture = rows.find(r => r.name === '文化芸術振興基金');
+  assert.equal(culture?.fund, null);
+  assert.equal(culture?.deposit, 4_841_361_000);
 });

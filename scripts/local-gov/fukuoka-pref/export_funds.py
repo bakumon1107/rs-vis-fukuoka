@@ -21,6 +21,9 @@ MAIN = {"福岡県財政調整基金": "fiscal_adjustment", "福岡県減債基�
 
 
 def short(name: str) -> str:
+    """「福岡県財政調整基金」→「財政調整基金」。「福岡県営住宅…」「福岡県立美術館…」は「県営」「県立」の「県」を残す"""
+    if name.startswith(("福岡県営", "福岡県立")):
+        return name.removeprefix("福岡")
     return name.removeprefix("福岡県")
 
 

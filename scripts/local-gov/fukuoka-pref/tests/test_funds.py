@@ -82,6 +82,14 @@ class TestOcr:
         assert len(log) == 2 and len(fails) == 1 and "架空" in fails[0]
 
 
+def test_short_name_keeps_ken_ei_ken_ritsu():
+    ef = load("export_funds.py", "export_funds")
+    assert ef.short("福岡県財政調整基金") == "財政調整基金"
+    assert ef.short("福岡県営住宅敷金積立基金") == "県営住宅敷金積立基金"
+    assert ef.short("福岡県立美術館美術品取得基金") == "県立美術館美術品取得基金"
+    assert ef.short("福岡県県営林造成事業振興基金") == "県営林造成事業振興基金"
+
+
 class TestChain:
     def test_chain_and_rename(self):
         prev = {"福岡県こども育成基金": {"holdings": {"現金": [0, 0, 41876, 0, 41876]}}}

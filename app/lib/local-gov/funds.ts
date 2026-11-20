@@ -46,7 +46,9 @@ export function fundFlows(file: LocalBudgetFile): FundFlows {
     for (const it of r.items ?? []) {
       // 内訳（parent のある事項）は親の事項に含まれるので数えない
       if (it.parent !== undefined) continue;
-      const m = DEPOSIT_ITEM_RE.exec(it.name);
+      // 目そのものが「〇〇基金特別会計繰出金」なら目の額で数えた（事項はその内訳なので数えない）
+      if (mm) continue;
+      const m = DEPOSIT_ITEM_RE.exec(it.name) ?? DEPOSIT_MOKU_RE.exec(it.name);
       if (m && it.amount.v != null) at(m[1]).deposit.push({ row: r.id, label: it.name, amount: it.amount.v });
     }
   }
