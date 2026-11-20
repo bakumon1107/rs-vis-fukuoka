@@ -270,9 +270,11 @@ function LocalPoliciesContent() {
 
         <section className="space-y-1 text-xs text-mirai-text-muted">
           <p>
-            範囲: 一般会計の事項だけ。施策別資料のうち、特別会計の事項 {policies.excluded.special.count} 件（{formatBudgetFromYen(policies.excluded.special.amount)}）と、
-            債務負担行為 {policies.excluded.debt_burden.count} 件（{formatBudgetFromYen(policies.excluded.debt_burden.amount)}。
-            後年度にわたる限度額で、この年度の歳出ではない）は除いています。補正予算は入っていません（施策別資料は当初予算だけ）。
+            範囲: 一般会計の事項だけ。施策別資料のうち、特別会計・公営企業会計の事項 {policies.excluded.special.count} 件
+            （{formatBudgetFromYen(policies.excluded.special.amount)}）は除いています。債務負担行為のある事項 {policies.excluded.debt_burden.count} 件は、
+            この年度の額を円にし、限度額（計 {formatBudgetFromYen(policies.excluded.debt_burden.amount)}。後年度にわたる額で、この年度の歳出ではない）は含めていません。
+            中小企業の制度融資の貸付金（中小企業振興資金融資費）は、施策別資料の事項ですが灰色の円で見せています（金融機関に預けて年度内に戻るお金）。
+            補正予算は入っていません（施策別資料は当初予算だけ）。
           </p>
           <p>
             1つの事項が複数の款・目にまたがるときも、円は1つです（款で色分けするときは「款をまたぐ事項」の色）。
