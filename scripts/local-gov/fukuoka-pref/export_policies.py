@@ -59,8 +59,9 @@ def _kamoku(text: str, budget_ids: set[str]):
             return "ambiguous"
         if not cands:
             return {"kan": int(kan), "kou": None, "moku": int(moku), "row": None, "unmatched": True}
-        # 予算にある目が1つなので決まる。資料の読み（「9 ? 4」）を printed に残す（画面は「読み分けられないので決めた」と出す）
-        return {"kan": int(kan), "kou": int(cands[0].split("/")[-1].split("-")[1]), "moku": int(moku), "row": cands[0], "printed": text}
+        # 予算にある目が1つなので決まる。資料の読み（「9 ? 4」）を printed に、決め方を resolved に残す（画面に出す）
+        return {"kan": int(kan), "kou": int(cands[0].split("/")[-1].split("-")[1]), "moku": int(moku), "row": cands[0],
+                "printed": text, "resolved": "budget"}
     row = f"general/expense/{kan}-{kou}-{moku}"
     out = {"kan": int(kan), "kou": int(kou), "moku": int(moku), "row": row if row in budget_ids else None}
     if out["row"] is None:
@@ -126,7 +127,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
                 if fixed and k.get("unmatched"):
                     # 直しの表の行き先が予算の目にない（表の書き誤り）: 「印字のまま」と「直した」を並べて出さないよう止める
                     fails.append(f"施策別資料 {it['事項名']}: 直しの表の科目 {fixed!r} が予算の目にない")
-                kamoku.append({**k, "printed": t} if fixed else k)  # 直した科目には資料の印字を残す（画面に出す）
+                # 直した科目には資料の印字と、根拠を確かめた直しの表で決めたこと（resolved: fix）を残す（画面に出す）
+                kamoku.append({**k, "printed": t, "resolved": "fix"} if fixed else k)
             elif t != "外":
                 # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
                 fails.append(f"施策別資料 {it['事項名']}: 科目が読めない {t!r}")
@@ -167,6 +169,10 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         if len(i["kamoku"]) == 1 and not i.get("other_kamoku") and i["kamoku"][0]["row"]:
             by_row[i["kamoku"][0]["row"]] = by_row.get(i["kamoku"][0]["row"], 0) + i["amount"]
     row_amount = {r["id"]: r["amount"]["v"] or 0 for r in expense}
+    # 制度融資の事項は施策の円から外したので、その目（商業総務費）の確かめでは制度融資の額を引いた額と比べる
+    for r in expense:
+        if loans_in_policies and any(i["name"] == LOANS_ITEM for i in r.get("items", [])):
+            row_amount[r["id"]] -= loans_in_policies
     for rid, s in sorted(by_row.items()):
         if s > row_amount[rid] and rid not in OVER_MOKU_OK:
             fails.append(f"施策別資料: 目 {rid} の事項の合計 {s:,} 円が目の額 {row_amount[rid]:,} 円を超える（科目を確かめて KAMOKU_FIXES か OVER_MOKU_OK に足す）")
@@ -174,7 +180,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
               if by_row.get(rid, 0) <= row_amount.get(rid, 0)]
     # 例外の目の事項には印を付ける（画面に「額が目を超える」と出す）
     for i in out_items:
-        if len(i["kamoku"]) == 1 and i["kamoku"][0]["row"] in OVER_MOKU_OK and i["amount"] > row_amount[i["kamoku"][0]["row"]]:
+        if (len(i["kamoku"]) == 1 and not i.get("other_kamoku") and i["kamoku"][0]["row"] in OVER_MOKU_OK
+                and i["amount"] > row_amount[i["kamoku"][0]["row"]]):
             i["exceeds_moku"] = True  # その事項だけで目の額を超える（同じ目のほかの小さな事項には付けない）
     # 複数の目にまたがる事項: その目の組の中だけに科目を持つ事項の合計が、組の目の額の合計を超えないこと
     # （1つの目だけの確かめでは、またがる事項の科目の読み違いに気づけない。「外」の事項はほかの目にもまたがるので外す）

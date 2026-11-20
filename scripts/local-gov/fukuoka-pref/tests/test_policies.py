@@ -56,11 +56,11 @@ def test_scope_kamoku_and_outside(tmp_path):
     assert _real(fails) == []
     names = [i["name"] for i in pol["items"]]
     assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費", "県立学校施設整備費"]
-    assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1", "printed": "9 ? 1"}
+    assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1", "printed": "9 ? 1", "resolved": "fix"}
     assert pol["excluded"] == {"special": {"count": 2, "amount": 12_000}, "debt_burden": {"count": 2, "amount": 10_012_000}}
     k = pol["items"][0]["kamoku"]
     # 項を予算の目（1つだけ）で決めた科目にも、資料の読みを残す
-    assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4", "printed": "9 ? 4"}
+    assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4", "printed": "9 ? 4", "resolved": "budget"}
     assert pol["items"][1]["kamoku"][1] == {"kan": 9, "kou": None, "moku": 3, "row": None, "unmatched": True}
     assert pol["items"][2]["kamoku"][0]["unmatched"]
     assert pol["pillars"] == [{"no": 3, "name": "感染症や災害に負けない強靭な社会をつくる"}]
@@ -133,7 +133,7 @@ def test_moku_total_fixes_and_tables(tmp_path, monkeypatch):
     # 直しの表で別の目に直すと止まらず、直した科目に資料の印字が残る
     monkeypatch.setattr(ep, "KAMOKU_FIXES", {("大きい事項", "9 2 1"): "9 1 2"})
     pol, _, fails = ep.build(str(tmp_path), ROWS)
-    assert _real(fails) == [] and pol["items"][0]["kamoku"][0] == {"kan": 9, "kou": 1, "moku": 2, "row": "general/expense/9-1-2", "printed": "9 2 1"}
+    assert _real(fails) == [] and pol["items"][0]["kamoku"][0] == {"kan": 9, "kou": 1, "moku": 2, "row": "general/expense/9-1-2", "printed": "9 2 1", "resolved": "fix"}
     # 例外の表に理由を書いた目は止めない。表の行が使われない（超えていない）ときは見直しを促す
     monkeypatch.setattr(ep, "KAMOKU_FIXES", {})
     monkeypatch.setattr(ep, "OVER_MOKU_OK", {"general/expense/9-2-1": "理由", "general/expense/9-1-4": "理由"})

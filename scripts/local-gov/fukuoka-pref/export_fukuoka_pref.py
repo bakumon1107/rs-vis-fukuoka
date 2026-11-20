@@ -725,7 +725,7 @@ def main():
     gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
-    # 施策別資料の事項（バブル図。地方版バブル図の設計）。shisaku.json がなければ書かない
+    # 施策別資料の事項（バブル図。地方版バブル図の設計）。shisaku.json がない・抽出の検算が通っていなければ止める
     policies, policy_lines, policy_fails = export_policies.build(a.work, rows)
     if policy_fails:
         sys.exit("施策別資料の書き出しで止まった:\n" + "\n".join(policy_fails))

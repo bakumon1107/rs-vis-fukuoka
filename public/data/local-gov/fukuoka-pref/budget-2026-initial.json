@@ -101943,7 +101943,8 @@
       "kou": 7,
       "moku": 3,
       "row": "general/expense/10-7-3",
-      "printed": "10 7 2"
+      "printed": "10 7 2",
+      "resolved": "fix"
      }
     ],
     "amount": 723323000,
@@ -101968,7 +101969,8 @@
       "kou": 7,
       "moku": 3,
       "row": "general/expense/10-7-3",
-      "printed": "10 7 2"
+      "printed": "10 7 2",
+      "resolved": "fix"
      }
     ],
     "amount": 703146000,
@@ -112552,7 +112554,8 @@
       "kou": 2,
       "moku": 1,
       "row": "general/expense/9-2-1",
-      "printed": "9 ? 1"
+      "printed": "9 ? 1",
+      "resolved": "fix"
      },
      {
       "kan": 9,
@@ -117908,7 +117911,8 @@
       "kou": 1,
       "moku": 4,
       "row": "general/expense/9-1-4",
-      "printed": "9 ? 4"
+      "printed": "9 ? 4",
+      "resolved": "budget"
      },
      {
       "kan": 9,
