@@ -41,6 +41,8 @@ def main():
     pdf, outdir, rng = sys.argv[1], sys.argv[2], sys.argv[3]
     a, b = (int(x) for x in rng.split("-"))
     os.makedirs(outdir, exist_ok=True)
+    # 前の完了の印を消してから始める（範囲を広げてやり直し、途中で止まったときに、古い範囲の印で抽出が進まないよう）
+    invalidate_done(outdir)
     eng = make_engine(int(os.environ.get("OCR_THREADS", "5")))
     with tempfile.TemporaryDirectory() as tmp:
         for p in range(a, b + 1):
@@ -59,6 +61,13 @@ def main():
 
 
 DONE = "done.json"
+
+
+def invalidate_done(outdir: str):
+    """完了の印（done.json）を消す。OCR を始めるときに呼ぶ"""
+    path = os.path.join(outdir, DONE)
+    if os.path.exists(path):
+        os.remove(path)
 
 
 def write_done(outdir: str, pdf_name: str, first: int, last: int):

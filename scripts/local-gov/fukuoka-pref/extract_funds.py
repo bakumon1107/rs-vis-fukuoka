@@ -125,13 +125,15 @@ def parse(text: str, ocr: bool = False) -> dict:
             name = m.group(2)
             if "……" in ln or "…" in f:
                 continue  # 目次の行
+            unconsumed(cur, label)
             cur = funds.setdefault(name, {"no": int(m.group(1).translate(Z2H)), "kind": kind, "holdings": {}})
             label, partial = None, ""
             continue
         if cur is None:
             continue
         if f.startswith("運用状況"):
-            cur, partial = None, ""  # 運用基金の運用状況の表は読まない（現在高は上の表にある）
+            unconsumed(cur, label)
+            cur, label, partial = None, None, ""  # 運用基金の運用状況の表は読まない（現在高は上の表にある）
             continue
         if re.match(r"^\s*[（(]", ln):
             continue  # 前年度の出納整理期間中増高（内数）。区分の名前の切れ端（partial）はこの行を挟んで続くので残す
@@ -149,6 +151,7 @@ def parse(text: str, ocr: bool = False) -> dict:
             # 区分の名前が注記を挟んで2行に割れる（H24「現 ▲52,639)」「金」）。つないで区分になれば区分
             lb = label_of(partial + compact)
         if lb:
+            unconsumed(cur, label)  # 前の区分に額の行が入らないまま次の区分になった
             label = lb
             partial = ""
             cur.setdefault("labels", []).append(lb)
@@ -175,19 +178,26 @@ def parse(text: str, ocr: bool = False) -> dict:
             label = None
         elif vals is not None:
             cur.setdefault("unlabeled", []).append(ln.strip())  # 区分の名前が一覧（LABELS）にない行。検算で FAIL にする
+    unconsumed(cur, label)  # 最後の基金の最後の区分
     for fd in funds.values():
         labels = fd.pop("labels", [])
+        missed = fd.pop("unconsumed", [])
         if not fd["holdings"] and labels and not fd.get("rejected") and not fd.get("unlabeled"):
             # 区分の行だけで額がない基金（OCR は「－」を読まない）。ここでは 0 にしない（額の行を丸ごと読み落としたのと区別できない）。
             # main で、原本で全部「－」と確かめた年度・基金（NO_FIGURES_CONFIRMED）だけ 0 にする。それ以外は「区分の行がない」で FAIL
             fd["labels_only"] = list(dict.fromkeys(labels))
             continue
-        # 区分の名前を読んだのに額が入らなかった区分（「現金」の後の額の行が5つに足りず、次の基金に移った、など）を黙って落とさない
-        noted = {r.split(":", 1)[0] for r in fd.get("rejected", [])}
-        for lb in dict.fromkeys(labels):
-            if lb not in fd["holdings"] and lb not in noted:
-                fd.setdefault("rejected", []).append(f"{lb}: 区分の名前の後に額の行がない")
+        # 区分の名前を読んだのに額が入らなかった区分（「現金」の後の額の行が5つに足りず、次の区分・基金に移った、など）を黙って落とさない。
+        # 区分の出るたびに数える（同じ区分が2度出て、先の区分に額が入っていても、後の区分の読めない額を見逃さない）
+        for lb in missed:
+            fd.setdefault("rejected", []).append(f"{lb}: 区分の名前の後に額の行がない")
     return funds
+
+
+def unconsumed(fund: dict | None, label: str | None) -> None:
+    """額の行が入らないまま終わった区分（label）を、その基金の unconsumed に足す（parse の最後に rejected にする）"""
+    if fund is not None and label is not None:
+        fund.setdefault("unconsumed", []).append(label)
 
 
 # 区分の行だけで額のない基金（OCR は「－」を読まない）のうち、原本の画像で全部「－」と確かめた年度・基金（2026-11-20）。
@@ -272,9 +282,10 @@ def check_chain(prev_year: str, prev: dict, year: str, cur: dict) -> list[str]:
 OCR_GLYPHS = str.maketrans({"减": "減", "债": "債", "齡": "齢", "產": "産", "增": "増", "·": "・", "电": "電", "讓": "譲", "查": "査"})
 
 
-# OCR の読みの崩れのうち、字形の表（OCR_GLYPHS）で直せないもの。確かめた名前だけ（2026-11-20）。
-# 小書きの「ャ」を大きい「ヤ」と読む: テキストの年度（H23・H25・H30・R2・R5・R6 の PDF の文字）の名前はすべて「アンビシャス」で、
-# 「アンビシヤス」の基金はない。OCR の年度（H27・H28・H29・R4）の前年度末は、前の年度のこの基金の年度末と一致する（check_chain）
+# OCR の読みの崩れのうち、字形の表（OCR_GLYPHS）で直せないもの。原本の見出しで確かめた名前だけ（2026-11-20）。
+# 小書きの「ャ」を大きい「ヤ」と読む: 直す6年度すべての原本の見出しを 400dpi の画像で見て「アンビシャス」（小書き）と確かめた
+# （H24 p63「(22)」・H27 p62「(20)」・H28 p62「(20)」・H29 p61「(20)」・R3 p65「(20)」・R4 p65「(19)」。PDF のページ）。
+# テキストの年度（H23・H25・H30・R2・R5・R6）の名前もすべて「アンビシャス」、前年度末は前の年度の年度末と一致する（check_chain）
 OCR_NAME_FIXES = {
     "福岡県アンビシヤス外国留学支援基金": "福岡県アンビシャス外国留学支援基金",
 }

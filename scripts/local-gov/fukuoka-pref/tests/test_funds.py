@@ -82,6 +82,11 @@ class TestOcr:
         assert list(funds["福岡県財政調整基金"]["holdings"]) == ["有価証券"]
         assert any("現金" in x and "額の行がない" in x for x in fu.check_rows("R6", funds))
         assert fu.check_rows("R6", {"福岡県減債基金": funds["福岡県減債基金"]}) == []
+        # 同じ区分が2度出て、後の区分の額が読めない（先の区分には額がある）: 後の区分も見逃さない
+        txt = ("資金を積み立てるために設置されたもの\n(1)   福岡県財政調整基金\n現   金\n0   0   0   0   0\n"
+               "現   金\n0   0\n")
+        funds = fu.parse(txt)
+        assert any("現金" in x and "額の行がない" in x for x in fu.check_rows("R6", funds))
 
     def test_signs_fixed_only_by_arithmetic(self):
         funds = {"a": {"holdings": {"現金": [100, 20, 80, 5, 75], "有価証券": [100, 20, 130, 0, 130]}}}
@@ -188,3 +193,16 @@ def test_ocr_done_marker(tmp_path):
     (tmp_path / "p0002.txt").write_text("b", encoding="utf-8")
     ol.write_done(str(tmp_path), "x.pdf", 1, 2)
     assert json.loads((tmp_path / "done.json").read_text(encoding="utf-8")) == {"pdf": "x.pdf", "pages": [1, 2]}
+    # OCR を始めるときに前の印を消す（範囲を広げてやり直し、途中で止まったときに古い範囲で抽出が進まないよう）。
+    # 印がなければ抽出は止まる
+    ol.invalidate_done(str(tmp_path))
+    assert not (tmp_path / "done.json").exists()
+    import sys
+    fu_main = load("extract_funds.py", "extract_funds_main")
+    old = sys.argv
+    sys.argv = ["extract_funds.py", f"H27={tmp_path}"]
+    try:
+        with pytest.raises(SystemExit, match="done.json"):
+            fu_main.main()
+    finally:
+        sys.argv = old
