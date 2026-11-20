@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { fundFlows, fundRows } from '../app/lib/local-gov/funds';
+import type { LocalBudgetFile, LocalFunds, MokuRow, Value } from '../types/local-gov';
+
+const v = (n: number | null): Value => ({ v: n, src: 'ocr' });
+
+function row(id: string, side: 'revenue' | 'expense', moku: string, amount: number | null, items: MokuRow['items'] = undefined): MokuRow {
+  const [kan, kou, no] = id.split('/')[2].split('-').map(Number);
+  return { id, account: 'general', side, kan: { no: kan, name: '' }, kou: { no: kou, name: '' }, moku: { no, name: moku },
+    amount: v(amount), pages: [], ...(items ? { items } : {}) } as MokuRow;
+}
+
+const budget = {
+  rows: [
+    row('general/revenue/12-2-1', 'revenue', '財政調整基金繰入金', 21_899_939_000),
+    row('general/revenue/12-1-3', 'revenue', '市町村振興基金特別会計繰入金', 52_018_000),
+    row('general/revenue/12-2-9', 'revenue', '県債管理基金繰入金', null),
+    row('general/expense/2-1-1', 'expense', '一般管理費', 1, [
+      { name: '減債基金積立金', amount: v(259_215_000) },
+      { name: '減債基金積立金', amount: v(1_000), parent: 0 },
+      { name: '地方公務員災害補償基金負担金', amount: v(5) },
+    ]),
+    row('general/expense/2-4-4', 'expense', '地域振興費', 1, [{ name: '文化芸術振興基金積立金', amount: v(4_841_361_000) }]),
+  ],
+} as unknown as LocalBudgetFile;
+
+test('fundFlows: 繰入金・特別会計繰入金・積立金を名前で基金に結ぶ。負担金・内訳・読めない額は入れない', () => {
+  const { byFund } = fundFlows(budget);
+  assert.deepEqual(byFund.get('財政調整基金')?.withdraw.map(x => x.amount), [21_899_939_000]);
+  assert.deepEqual(byFund.get('市町村振興基金')?.withdraw.map(x => x.amount), [52_018_000]);
+  assert.deepEqual(byFund.get('減債基金')?.deposit.map(x => x.amount), [259_215_000]);
+  assert.equal(byFund.has('地方公務員災害補償基金'), false);
+  assert.equal(byFund.has('県債管理基金'), false);
+});
+
+test('fundRows: 年度末現在高の多い順。予算にだけある基金は最後', () => {
+  const fund = (name: string, end: number) => ({ name, kind: 'stock', no: 1, holdings: [], end, after_closing: end, history: [] });
+  const funds = { items: [fund('財政調整基金', 66_716_408_000), fund('減債基金', 749_255_770_000)] } as unknown as LocalFunds;
+  const rows = fundRows(funds, fundFlows(budget));
+  assert.deepEqual(rows.map(r => r.name), ['減債基金', '財政調整基金', '市町村振興基金', '文化芸術振興基金']);
+  assert.equal(rows[1].withdraw, 21_899_939_000);
+  assert.equal(rows[3].fund, null);
+  assert.equal(rows[3].deposit, 4_841_361_000);
+});

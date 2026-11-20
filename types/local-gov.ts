@@ -226,6 +226,67 @@ export interface GeneralFund {
   checked_on: string;
 }
 
+/** 基金の区分（財産に関する調書の行。現金・有価証券・一般会計貸付金・美術作品・備蓄物資など）。円 */
+export interface FundHolding {
+  kind: string;
+  /** 前年度末現在高 */
+  start: Yen;
+  /** 決算年度中増減高 */
+  change: Yen;
+  /** 決算年度末現在高（3月31日） */
+  end: Yen;
+  /** 出納整理期間中増高（4〜5月） */
+  closing_change: Yen;
+  /** 出納閉鎖日現在高（5月31日） */
+  after_closing: Yen;
+}
+
+export interface FundYearValue {
+  /** 年度（西暦。2024 = 令和6年度） */
+  year: number;
+  /** 年度末現在高（円） */
+  end: Yen;
+  src: 'text' | 'ocr';
+}
+
+export interface FundItem {
+  /** 「福岡県」を除いた名前（「財政調整基金」） */
+  name: string;
+  /** stock: 積立基金 / operating: 定額の資金を運用する基金 */
+  kind: 'stock' | 'operating';
+  /** 調書の番号（積立・運用それぞれの中の順） */
+  no: number;
+  holdings: FundHolding[];
+  /** 区分の合計（年度末・出納閉鎖日） */
+  end: Yen;
+  after_closing: Yen;
+  history: FundYearValue[];
+  /** 改称前の名前（推移はつないである） */
+  renamed_from?: string[];
+  /** 調書の額がすべて「－」（OCR の年度は額の行がない） */
+  no_figures?: true;
+}
+
+export interface FundTotals {
+  year: number;
+  fiscal_adjustment: Yen;
+  debt_reduction: Yen;
+  other: Yen;
+  src: 'text' | 'ocr';
+}
+
+/** 基金の現在高（決算のファイルだけ。財産に関する調書。地方版の基金の設計） */
+export interface LocalFunds {
+  as_of: { year: number; label: string };
+  items: FundItem[];
+  /** 年度ごとの全基金の年度末現在高の合計（廃止した基金を含む） */
+  totals: FundTotals[];
+  /** 取り込んだ調書（年度・sources.json の id・テキストか OCR か） */
+  statements: { year: number; label: string; source: string; src: 'text' | 'ocr' }[];
+  notes: string[];
+  checks: { signs_fixed: number; names_fixed: number };
+}
+
 export interface LocalBudgetFile {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
@@ -244,6 +305,8 @@ export interface LocalBudgetFile {
    * 補正後（composed）では外す（一般財源の額が変わる）。説明文だけ composed.funding_notes に残る
    */
   general_fund?: GeneralFund;
+  /** 基金の現在高と推移（決算のファイルだけ） */
+  funds?: LocalFunds;
   /**
    * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
    * basis は 'initial' のまま（図の組み立ては当初と同じ）。rows の amount は補正後の額、before は当初の額

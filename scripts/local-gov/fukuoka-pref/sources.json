@@ -56,6 +56,26 @@
   {"id": "r8-hosei-09-4-setsumeisho", "title": "令和8年度9月補正予算に関する説明書（追加提案分。第4号）", "file": "298207",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/298207.pdf", "sha256": "171bb668ee2fbed925e4236994933833fa7894f1ce05838aca4c5a9cf5e54734", "retrieved": "2026-11-14"},
   {"id": "r8-minaoshi", "title": "令和8年度 主な見直し事項一覧表（名前の検索に使用）", "file": "277047", "corpus": true,
-   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277047.pdf", "sha256": "70362708e511b00e471dff9072f8793abb4c70be137ca4bb503f5c302e0c575f", "retrieved": "2026-11-06"}
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/277047.pdf", "sha256": "70362708e511b00e471dff9072f8793abb4c70be137ca4bb503f5c302e0c575f", "retrieved": "2026-11-06"},
+  {"id": "r6-zaisan", "title": "令和6年度 実質収支・財産に関する調書（基金の現在高）", "file": "272596",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/272596.pdf", "sha256": "a4949ee1567296c6e7f320e2ef5558d52f443e7717c021d23bdfaa6fed4d8a74", "retrieved": "2026-11-20"},
+  {"id": "r5-zaisan", "title": "令和5年度 実質収支・財産に関する調書（基金の現在高）", "file": "238290",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/238290.pdf", "sha256": "d743956d2685f97cc84bbc0c813b12ac72ce441e8cdb0ec4d80e769555427a85", "retrieved": "2026-11-20"},
+  {"id": "r4-zaisan", "title": "令和4年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "208106",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/208106.pdf", "sha256": "300aed5b22cc8225d8f52705cf1ebbfc79fb4717dadbc557d1d4765da30ec57c", "retrieved": "2026-11-20"},
+  {"id": "r2-zaisan", "title": "令和2年度 実質収支・財産に関する調書（基金の現在高）", "file": "151877",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/151877.pdf", "sha256": "1405615eb01143bc2f83c3f7f695fd4d3a65b9c7544d2b6a0206b83252785d7e", "retrieved": "2026-11-20"},
+  {"id": "h30-zaisan", "title": "平成30年度 実質収支・財産に関する調書（基金の現在高）", "file": "60772",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/60772.pdf", "sha256": "a7c07a828c82f046b391dcece45156f0a1bdebf09f0651c11a039ff44b4c4325", "retrieved": "2026-11-20"},
+  {"id": "h29-zaisan", "title": "平成29年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "46773",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/46773.pdf", "sha256": "ed1caf3e46e378e39d8df3b544a0e5ed8654b2c9bef37053b7900888a903260b", "retrieved": "2026-11-20"},
+  {"id": "h28-zaisan", "title": "平成28年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "800079_62749621",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749621_misc.pdf", "sha256": "8a83977ddebade01b341b4f5fb4a85d5be3b92043e1e285a692db7663dfa429c", "retrieved": "2026-11-20"},
+  {"id": "h27-zaisan", "title": "平成27年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "800079_62749618",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749618_misc.pdf", "sha256": "55f9bf9307c7e2e8b92020feba4c51984c2b784316f404296b279172497bc056", "retrieved": "2026-11-20"},
+  {"id": "h25-zaisan", "title": "平成25年度 実質収支・財産に関する調書（基金の現在高）", "file": "800079_62749605",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749605_misc.pdf", "sha256": "39f4a52b18ae7dd454e415cde2dd6868693c85ca75571e8cdb78118a7716bcdf", "retrieved": "2026-11-20"},
+  {"id": "h23-zaisan", "title": "平成23年度 実質収支・財産に関する調書（基金の現在高）", "file": "800079_62749591",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749591_misc.pdf", "sha256": "0cc70eb873d1f979595d615db74bd7a02fd7442a99382e63c0427269945612b8", "retrieved": "2026-11-20"}
  ]
 }
