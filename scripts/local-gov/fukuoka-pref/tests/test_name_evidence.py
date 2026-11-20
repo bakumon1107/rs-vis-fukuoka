@@ -127,6 +127,11 @@ class TestResolve:
         # 端の字・内側の数字は疑いにしない。内側の字は疑い
         assert not ne.adds_inner("用水事業費負担金", "の用水事業費2負担金")
         assert ne.adds_inner("人材育成活推進費", "人材育成活躍推進費")
+        # 端に足した字が名前の頭・末尾と同じ字でも、内側に数えない（name を順に含むいちばん狭い範囲で見る）
+        assert not ne.adds_inner("県税交付金", "県民県税交付金") and not ne.adds_inner("総務費", "総務費管理費")
+        # かなの重なりは本当の名前にある（「ささえあい」）ので1度にしない。内側の英字も疑い
+        assert ne.adds_inner("地域のさえあい事業", "地域のささえあい事業")
+        assert ne.adds_inner("IT活用推進費", "ICT活用推進費")
 
     def test_support_only_reading_is_never_adopted(self):
         # NDLOCR-Lite だけが読んだ名前は採らない（ほかの系統と一致しない限り。資料に見つかっても採らない）

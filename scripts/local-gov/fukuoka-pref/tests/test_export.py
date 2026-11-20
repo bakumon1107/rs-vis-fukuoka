@@ -205,14 +205,17 @@ def test_ndl_mismatches_skips_only_corrected_columns():
     assert ex.ndl_mismatches(ocr, {}) == ["a"]
 
 
-def test_ndl_not_used_for_corrected_columns():
-    # 説明欄の金額を修正表で直した目では、NDLOCR-Lite の読み取りを事項の名前の候補にしない（金額の対応がずれて、
-    # 別の事項の読みが裏付けになる）。直していない節の欄・ほかの読み取りは使う
-    others = [("textlayer", "tl"), ("v4", "v4"), ("ndl", "ndl")]
-    m = {"修正": [{"列": "説明"}]}
-    assert ex.others_for_column(others, m, "説明") == [("textlayer", "tl"), ("v4", "v4")]
+def test_corrected_columns_use_only_readings_with_same_amounts():
+    # 説明欄の事項 A の金額を修正表で 100 → 200 に直した目: 直していない読み取り（NDLOCR-Lite・同じ読み違いの旧 OCR）は
+    # A を 100 のまま持つので、金額で対応させると B（100）に A の名前が付く。金額の集まりが直した後と同じ読み取りだけを使う
+    m = {"説明": [{"amount": 200}, {"amount": 100}], "修正": [{"列": "説明"}]}
+    stale = {"説明": [{"amount": 100}, {"amount": 100}]}
+    right = {"説明": [{"amount": 100}, {"amount": 200}]}
+    others = [("textlayer", right), ("v4", stale), ("ndl", stale)]
+    assert ex.others_for_column(others, m, "説明") == [("textlayer", right)]
+    # 直していない欄・修正のない目は全部使う
     assert ex.others_for_column(others, m, "節") == others
-    assert ex.others_for_column(others, {}, "説明") == others
+    assert ex.others_for_column(others, {"説明": m["説明"]}, "説明") == others
 
 
 def test_candidate_labels_mark_support_only():

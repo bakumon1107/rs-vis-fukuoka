@@ -88,6 +88,8 @@ class TestMergeNumbers:
         assert nd.merge_numbers("8Dプリンタ導入事業", "3Dプリンタ導入事業", numbered=False) == "3Dプリンタ導入事業"
         assert nd.merge_numbers("2次救急医療体制整備費補助金", "○2次救急医療体制整備費補助金", numbered=False) == "○2次救急医療体制整備費補助金"
         assert nd.merge_numbers("Dプリンタ導入事業", "8Dプリンタ導入事業", numbered=False) == "8Dプリンタ導入事業"
+        # 名前が括弧で終わるときは、括弧と中の数字を残す（罫線だけ外す）
+        assert nd.merge_numbers("地域医療構想推進事業(R7)", "地域医療構想推進事業(R7)|", numbered=False) == "地域医療構想推進事業(R7)"
         # 末尾の罫線の読みは説明欄でも外す
         assert nd.merge_numbers("管理事務費", "管理事務費1)", numbered=False) == "管理事務費"
 

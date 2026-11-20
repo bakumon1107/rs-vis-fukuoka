@@ -257,10 +257,15 @@ def ndl_mismatches(ocr: dict, ndl: dict) -> list:
 
 def others_for_column(others: list, m: dict, col: str) -> list:
     """欄 col（説明・節）の事項・節の名前の候補に使う、ほかの読み取り [(種類, 目の行)]。
-    修正表で金額を直した欄では NDLOCR-Lite の読み取りを使わない。NDLOCR-Lite の金額は直す前の OCR の値なので、金額と何番目で
-    対応させる（by_amount）と別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）"""
-    fixed = {fx.get("列") for fx in m.get("修正", [])}
-    return [(k, x) for k, x in others if not (k == "ndl" and col in fixed)]
+    修正表で金額を直した欄では、その欄の金額の集まりが直した後の OCR と同じ読み取りだけを使う。ほかの読み取りの金額は直していない
+    （NDLOCR-Lite は直す前の OCR の値を写し、旧 OCR は同じ切り抜きで同じ読み違いをしやすい）ので、金額と何番目で対応させる（by_amount）と
+    別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）"""
+    if col not in {fx.get("列") for fx in m.get("修正", [])}:
+        return others
+
+    def amounts(x):
+        return Counter(e.get("amount") for e in x.get(col, []) if not e.get("金額の記載なし"))
+    return [(k, x) for k, x in others if amounts(x) == amounts(m)]
 
 
 def candidate_labels(cands) -> list[str]:

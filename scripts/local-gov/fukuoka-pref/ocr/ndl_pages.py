@@ -168,14 +168,18 @@ def merge_numbers(ocr_text: str, ndl_text: str, numbered: bool = True) -> str:
       （「7林業改善…」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
     - 説明欄（numbered でない）: 事項に番号はないので、頭の数字は名前の一部（「2次救急医療体制整備費補助金」）。外さず、OCR の数字も付けない
       （付けると OCR の読み違えた数字「8Dプリンタ」を NDLOCR-Lite の読み「3Dプリンタ」に写し、別の系統の一致として裏付けを付ける）
-    - 末尾の数字（と罫線・括弧）は外す（右端の罫線を「1」と読む「林業改善資金1)」）。OCR の行が数字で終わるときは罫線・括弧だけ。
+    - 末尾の数字（と罫線・括弧）は外す（右端の罫線を「1」と読む「林業改善資金1)」）。OCR の行が数字で終わるときは罫線・括弧だけ、
+      閉じ括弧で終わるとき（「…事業(R7)」）は罫線だけ。
       名前の途中の数字（「第75回」）は残す
     - 外した後が空・金額の形（数字だけ）なら名前は UNREAD（OCR の字を写さない。line_action と同じ理由）。番号は OCR の読みのまま付ける
       （番号は目・節の鍵なので、落とすと OCR の読み取りと目が対応しなくなる）"""
     m = re.match(r"\s*(\d+)", ocr_text) if numbered else None
     head = m.group(1) if m else ""
     body = HEAD_RE.sub("", ndl_text or "") if numbered else (ndl_text or "")
-    if re.search(r"\d\s*$", ocr_text):
+    if re.search(r"[)）]\s*$", ocr_text):
+        # 名前が括弧で終わる（「…事業(R7)」）: 括弧と中の数字は名前の一部。末尾の罫線だけを外す
+        body = re.sub(r"[|｜丨]+$", "", body)
+    elif re.search(r"\d\s*$", ocr_text):
         # 末尾の数字が本当に名前の一部（OCR の行も数字で終わる「人生100」）: 末尾は数字でない端の字（罫線・閉じ括弧）だけを外す
         body = TAIL_NONDIGIT_RE.sub("", body)
     else:
