@@ -123,7 +123,7 @@ STEPS = [
     # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
     ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
      ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None,
-     [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^一般財源の中身", r"^補正 R8", r"^FAIL 補正"]),
+     [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^一般財源の中身", r"^補正 R8", r"^FAIL 補正", r"^施策別資料"]),
     # 補正の回の鎖（書き出した当初予算から回の順に補正額を足し、各回の補正前の額と款・項で照合）
     ("補正 回の鎖", "check_hosei_chain.py",
      ["{tmp:export}/budget-2026-initial.json", "{out:hosei-R8-06-1.json}", "{out:hosei-R8-08-2.json}",
@@ -141,7 +141,9 @@ def _export_deps():
     outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
             "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
             "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json", "setsumeisho-ndl.json",
-            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json"]
+            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json",
+            # 施策別資料の事項（export_policies.build。ないと書き出しが止まる）
+            "shisaku.json"]
     # 基金の抽出の出力（funds.json）は入れない: 基金のステップが飛ばされても（OCR の結果のない環境）、書き出しの回帰は流す。
     # funds.json がなければ export_funds.build が基金を書かず、期待値の要約（「基金 N 件」の行）の差で気づける
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:

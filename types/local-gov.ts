@@ -226,6 +226,58 @@ export interface GeneralFund {
   checked_on: string;
 }
 
+/** 施策別資料の事項の科目（予算の目）。row は予算の目の行の ID（予算にないときは null） */
+export interface PolicyKamoku {
+  kan: number;
+  kou: number | null;
+  moku: number;
+  row: string | null;
+  /** 資料の科目が予算の目にない（資料の印字のまま。項が読み分けられず、予算にその款・目の目がないときは kou が null） */
+  unmatched?: true;
+  /** 根拠を確かめて直した・決めた科目の、資料の読み（「10 7 2」。項が読み分けられないときは「9 ? 1」）。そのままならない */
+  printed?: string;
+  /** printed の科目の決め方。fix: 根拠を確かめた直しの表（額・内訳・節）。budget: 項が読み分けられず、予算にその款・目の目が1つだけ */
+  resolved?: 'fix' | 'budget';
+}
+
+export interface PolicyItem {
+  name: string;
+  /** 柱の番号（4つの柱の外のグループ「計画推進の基盤づくり」（取組は地方分権の推進・行政改革の推進）は null） */
+  pillar: number | null;
+  /** 取組（施策別資料の区分） */
+  initiative: string | null;
+  /** 課名 */
+  division: string;
+  kamoku: PolicyKamoku[];
+  /** 科目に「外」の印（ほかの科目にもまたがる） */
+  other_kamoku?: true;
+  /** 事項の額が科目の目の予算額を超える（資料の科目は1つだが、ほかの目にもまたがるとみられる。書き出しの OVER_MOKU_OK） */
+  exceeds_moku?: true;
+  /** 円 */
+  amount: Yen;
+  previous: Yen | null;
+  is_new: boolean;
+  notes: string[];
+  source: { doc: string; page: number };
+}
+
+export interface LocalPolicies {
+  pillars: { no: number; name: string }[];
+  items: PolicyItem[];
+  /**
+   * special: 範囲から除いた事項（特別会計・公営企業会計）の件数と額。
+   * debt_burden: 債務負担行為のある一般会計の事項（制度融資を除く）の件数と限度額の合計（事項の今年度の額は items に入る。
+   * 今年度の額が 0 の事項は items に入らない。限度額は後年度にわたる額で入れない）
+   */
+  excluded: { special: { count: number; amount: Yen }; debt_burden: { count: number; amount: Yen } };
+  /** 図に載らない経費（一般会計の歳出 − 施策の事項。最後の other は差し引き） */
+  outside: { key: string; label: string; amount: Yen }[];
+  /** 一般会計の歳出の合計（円） */
+  expense_total: Yen;
+  /** 施策別資料の PDF のファイル名 */
+  source_docs: string[];
+}
+
 /** 基金の区分（財産に関する調書の行。現金・有価証券・一般会計貸付金・美術作品・備蓄物資など）。円 */
 export interface FundHolding {
   kind: string;
@@ -306,6 +358,8 @@ export interface LocalBudgetFile {
    * 補正後（composed）では外す（一般財源の額が変わる）。説明文だけ composed.funding_notes に残る
    */
   general_fund?: GeneralFund;
+  /** 施策別資料の事項（当初予算だけ。バブル図）。補正後（composed）では外す */
+  policies?: LocalPolicies;
   /** 基金の現在高と推移（決算のファイルだけ） */
   funds?: LocalFunds;
   /**

@@ -14,3 +14,100 @@ sh = load("extract_shisaku.py", "extract_shisaku")
 ])
 def test_is_header_row(name, want):
     assert sh.is_header_row(name) is want
+
+
+def _w(x, top, text):
+    return {"x0": x, "x1": x + 6, "top": top, "text": text}
+
+
+def test_amounts_spill_and_debt():
+    # 額の頭の字が事項名の欄の右端にこぼれる（R8「地域介護総合確保事業費」: 「2」＋「,783,636」）。前年度の「(」も
+    name = [_w(160, 100, "地域介護総合確保事業費"), _w(265, 105, "2"), _w(261, 95, "(")]
+    amount = [_w(270, 105, ",783,636"), _w(270, 95, "189,508)")]
+    words, prev, plains, bad = sh.amounts_of(name, amount)
+    assert [w["text"] for w in words] == ["地域介護総合確保事業費"] and prev == 189508 and plains == [2783636] and bad == []
+    # 債務負担行為の行: (前年度)・今年度の額・限度額が縦に並ぶ（R8「県立学校施設整備費」）
+    words, prev, plains, bad = sh.amounts_of([], [_w(260, 90, "(14,585,909)"), _w(260, 100, "18,845,825"), _w(260, 130, "30,932,675")])
+    assert prev == 14585909 and plains == [18845825, 30932675]
+
+
+def test_explanation_head_and_sub_amounts():
+    # 「○」の行に額があればそれが内訳の額（下の「・」の細目の額は足さない）。なければ細目の合計（R8「民生委員活動費」）
+    ws = [_w(305, 80, "○"), _w(317, 80, "協議会に対する助成"), _w(526, 80, "6,000"),
+          _w(317, 90, "・相談事業"), _w(526, 90, "4,000"), _w(317, 100, "・普及啓発"), _w(526, 100, "2,000"),
+          _w(305, 110, "○"), _w(317, 110, "民生委員の設置"),
+          _w(317, 120, "・手当"), _w(518, 120, "282,775"), _w(317, 130, "・研修費等"), _w(526, 130, "1,017"),
+          _w(302, 140, "[新]"), _w(317, 140, "新しい事業"), _w(518, 140, "100")]
+    ex = sh.parse_expl(ws)
+    assert [e["amount"] for e in ex] == [6000, 283792, 100]
+    assert ex[2]["text"].startswith("[新]") and ex[0]["starts_new"]
+    # 同じ行の字の高さが四捨五入の境をまたいでも、「○」と本文の順を入れ替えない
+    ex = sh.parse_expl([_w(317, 158.46, "本文"), _w(305, 158.54, "○"), _w(526, 158.5, "10")])
+    assert ex == [{"text": "本文", "amount": 10, "starts_new": True, "amount_from": "head"}]
+    # 見出しの印「〇」（漢数字のゼロ）も見出し。印は文に残さない
+    ex = sh.parse_expl([_w(305, 80, "〇砂浜の回復"), _w(526, 80, "5"), _w(305, 90, "○"), _w(317, 90, "次"), _w(526, 90, "6")])
+    assert [(e["text"], e["amount"]) for e in ex] == [("砂浜の回復", 5), ("次", 6)]
+    # 細目にだけ額がある内訳は amount_from が sub（ページをまたぐ続きの細目の額を足すため）
+    ex = sh.parse_expl([_w(305, 80, "○"), _w(317, 80, "設置"), _w(317, 90, "・手当"), _w(518, 90, "7")])
+    assert ex[0]["amount"] == 7 and ex[0]["amount_from"] == "sub"
+
+
+def test_merge_continuation_across_pages():
+    # 細目にだけ額がある内訳が次のページに続く: 続きの細目の額を足す
+    prev = [{"text": "設置に要する経費・手当", "amount": 300, "amount_from": "sub"}]
+    sh.merge_continuation(prev, [{"text": "・研修費等", "amount": 17, "starts_new": False, "amount_from": "sub"},
+                                 {"text": "次の内訳", "amount": 5, "starts_new": True, "amount_from": "head"}])
+    assert [(e["text"], e["amount"]) for e in prev] == [("設置に要する経費・手当・研修費等", 317), ("次の内訳", 5)]
+    assert "starts_new" not in prev[1]
+    # 「○」の行に額がある内訳の続き: 続きの細目の額は足さない
+    prev = [{"text": "助成", "amount": 6000, "amount_from": "head"}]
+    sh.merge_continuation(prev, [{"text": "・相談事業", "amount": 4000, "starts_new": False, "amount_from": "sub"}])
+    assert prev[0]["amount"] == 6000 and prev[0]["text"] == "助成・相談事業"
+
+
+def test_amounts_two_previous_years_rejected():
+    # 前年度の括弧が2つ: どちらか決められないので読めない字にする（後の数で上書きしない）
+    _, prev, plains, bad = sh.amounts_of([], [_w(260, 90, "(100)"), _w(260, 100, "(200)"), _w(260, 110, "300")])
+    assert prev == 100 and plains == [300] and bad and "前年度の括弧が2つ" in bad[0]
+
+
+def test_division_lines():
+    # 課は1行ずつ縦に並ぶ。「、」で区切る（課名そのものに「・」がある）。「外21課」は前の課の続き。課名の折り返しはつなぐ
+    ws = [_w(70, 100, "水・大気環境課"), _w(70, 110, "漁業管理課")]
+    assert sh.division_of(ws) == "水・大気環境課、漁業管理課"
+    assert sh.division_of([_w(70, 100, "財産活用課"), _w(70, 110, "外21課")]) == "財産活用課外21課"
+    assert sh.division_of([_w(70, 100, "高齢者地域包括ケア"), _w(70, 110, "推進課")]) == "高齢者地域包括ケア推進課"
+    # 「…事務局」の次の行の課はその事務局の課（R8 277220「議会事務局」「総務課」）
+    assert sh.division_of([_w(70, 100, "議会事務局"), _w(70, 110, "総務課")]) == "議会事務局総務課"
+
+
+def test_kamoku_by_order_more_labels_than_rows():
+    # 字が目の行より多い（目の字を読み落とした）: どの行も決めない
+    notes: list = []
+    ws = [_w(107, 100, "９"), _w(120, 95, "１"), _w(120, 101, "２"), _w(120, 107, "３"), _w(133, 98, "１"), _w(133, 104, "２")]
+    assert sh.kamoku_lines(ws, notes) == ["9 ? 1", "9 ? 2"] and notes
+
+
+def test_kamoku_centered_kan_kou():
+    # 款・項は結合セルで、またがる目の行の縦の真ん中に1回だけ（R8 277214 p3「ワンヘルス教育推進費」）
+    ws = [_w(107, 279.8, "５"), _w(120, 279.8, "３"), _w(133, 279.8, "１"),
+          _w(120, 298.5, "１"), _w(133, 298.5, "４"),
+          _w(105, 307.8, "10"), _w(120, 307.8, "８"), _w(133, 307.8, "１"),
+          _w(120, 317.2, "９"), _w(133, 317.2, "２")]
+    assert sh.kamoku_lines(ws) == ["5 3 1", "10 1 4", "10 8 1", "10 9 2"]
+    # 款が全部の目の真ん中、項が2つずつの真ん中（278133 p1「中小企業成長投資・賃上げ応援費」）
+    ws = [_w(133, 282.0, "１"), _w(120, 286.2, "１"), _w(133, 291.4, "３"), _w(107, 309.6, "７"), _w(133, 310.1, "５"),
+          _w(120, 314.3, "２"), _w(133, 319.5, "６"), _w(120, 338.2, "３"), _w(133, 338.2, "１")]
+    assert sh.kamoku_lines(ws) == ["7 1 1", "7 1 3", "7 2 5", "7 2 6", "7 3 1"]
+    # 目のない字の並び（特別会計など）はそのまま
+    assert sh.kamoku_lines([_w(110, 100, "特別"), _w(125, 100, "会計")]) == ["特別会計"]
+    # 長いセルの端の行: 項1 が目 4行（300〜330）の真ん中 315、項2 が目 1行（340）。目 330 は項2 の字の方が近いが、項1 のかたまり
+    ws = [_w(107, 320, "９"), _w(120, 315, "１"), _w(120, 340, "２")] + [_w(133, y, "１２３４５"[i]) for i, y in enumerate((300, 310, 320, 330, 340))]
+    assert sh.kamoku_lines(ws) == ["9 1 1", "9 1 2", "9 1 3", "9 1 4", "9 2 5"]
+    # かたまりに分けられない（字が半行ずれた。R8「少年補導員等活動費」）: 最初と最後の行だけ決め、間は「?」。notes に書く
+    notes: list = []
+    ws = [_w(107, 214.1, "９"), _w(120, 209.55, "１"), _w(120, 218.91, "２"),
+          _w(133, 204.87, "２"), _w(133, 214.23, "１"), _w(133, 223.59, "２")]
+    assert sh.kamoku_lines(ws, notes) == ["9 1 2", "9 ? 1", "9 2 2"] and len(notes) == 1
+    # 款・項の字はあるのに目の字がない: 科目を黙って落とさず、決まらない科目として返す
+    assert sh.kamoku_lines([_w(107, 100, "９"), _w(120, 100, "１")]) == ["9 1 ?"]

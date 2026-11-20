@@ -205,6 +205,8 @@ export function composeLatest(initial: LocalBudgetFile, supplements: LocalBudget
     // 一般財源の中身（general_fund）は当初の一般財源の内訳。補正で一般財源の額が変わり、合計が合わなくなる（validate.ts の
     // total = 一般財源の合計 が成り立たない）ので外す。財源内訳と歳入の款の違いの説明文は補正後でも当てはまるので composed に残す
     general_fund: undefined,
+    // 施策別資料の事項（バブル図）は当初予算だけ（補正の事項は柱・取組の分類がない。地方版バブル図の設計 3章）
+    policies: undefined,
     rows: order.map(id => rows.get(id)!),
     composed: {
       through: last ? last.supplementary!.round : '当初予算',

@@ -49,6 +49,7 @@ sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
 import export_settlement  # noqa: E402
 import general_fund  # noqa: E402
+import export_policies  # noqa: E402
 import name_evidence  # noqa: E402
 from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
 
@@ -724,6 +725,12 @@ def main():
     gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
+    # 施策別資料の事項（バブル図。地方版バブル図の設計）。shisaku.json がない・抽出の検算が通っていなければ止める
+    policies, policy_lines, policy_fails = export_policies.build(a.work, rows)
+    if policy_fails:
+        sys.exit("施策別資料の書き出しで止まった:\n" + "\n".join(policy_fails))
+    for line in policy_lines:
+        print(line, file=sys.stderr)
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",
         "unit_source": "千円", "accounts": accounts, "rows": rows,
@@ -738,6 +745,7 @@ def main():
             "corrections": n_fix,
         },
         **({"general_fund": gfund} if gfund else {}),
+        **({"policies": policies} if policies else {}),
     }
     os.makedirs(a.out, exist_ok=True)
     with open(os.path.join(a.out, f"budget-{YEAR}-initial.json"), "w", encoding="utf-8") as f:
