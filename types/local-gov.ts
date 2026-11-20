@@ -249,6 +249,8 @@ export interface PolicyItem {
   kamoku: PolicyKamoku[];
   /** 科目に「外」の印（ほかの科目にもまたがる） */
   other_kamoku?: true;
+  /** 事項の額が科目の目の予算額を超える（資料の科目は1つだが、ほかの目にもまたがるとみられる。書き出しの OVER_MOKU_OK） */
+  exceeds_moku?: true;
   /** 円 */
   amount: Yen;
   previous: Yen | null;

@@ -52,6 +52,19 @@ def test_explanation_head_and_sub_amounts():
     assert ex[0]["amount"] == 7 and ex[0]["amount_from"] == "sub"
 
 
+def test_merge_continuation_across_pages():
+    # 細目にだけ額がある内訳が次のページに続く: 続きの細目の額を足す
+    prev = [{"text": "設置に要する経費・手当", "amount": 300, "amount_from": "sub"}]
+    sh.merge_continuation(prev, [{"text": "・研修費等", "amount": 17, "starts_new": False, "amount_from": "sub"},
+                                 {"text": "次の内訳", "amount": 5, "starts_new": True, "amount_from": "head"}])
+    assert [(e["text"], e["amount"]) for e in prev] == [("設置に要する経費・手当・研修費等", 317), ("次の内訳", 5)]
+    assert "starts_new" not in prev[1]
+    # 「○」の行に額がある内訳の続き: 続きの細目の額は足さない
+    prev = [{"text": "助成", "amount": 6000, "amount_from": "head"}]
+    sh.merge_continuation(prev, [{"text": "・相談事業", "amount": 4000, "starts_new": False, "amount_from": "sub"}])
+    assert prev[0]["amount"] == 6000 and prev[0]["text"] == "助成・相談事業"
+
+
 def test_amounts_two_previous_years_rejected():
     # 前年度の括弧が2つ: どちらか決められないので読めない字にする（後の数で上書きしない）
     _, prev, plains, bad = sh.amounts_of([], [_w(260, 90, "(100)"), _w(260, 100, "(200)"), _w(260, 110, "300")])

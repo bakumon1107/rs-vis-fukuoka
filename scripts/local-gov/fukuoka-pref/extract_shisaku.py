@@ -252,6 +252,20 @@ def parse_expl(ws):
     return expl
 
 
+def merge_continuation(prev: list[dict], cont: list[dict]) -> None:
+    """前のページの事項の説明（prev。最後の内訳が続いている）に、次のページの頭の続き（cont。parse_expl の結果）をつなぐ。
+    続きの最初が見出しでなければ、前の最後の内訳の文の続き。前の内訳の額が「○」の行のもの（head）なら、続きの額は細目の額なので足さない。
+    額がまだない・細目の合計（sub）なら、続きの細目の額を足す（細目がページをまたぐ）。R8 の資料には、ページの頭が続きの行はない"""
+    if cont and not cont[0]["starts_new"] and prev:
+        last = prev[-1]
+        last["text"] += cont[0]["text"]
+        if last.get("amount_from") != "head" and cont[0]["amount"] is not None:
+            last["amount"] = (last["amount"] or 0) + cont[0]["amount"]
+            last["amount_from"] = "sub"
+        cont = cont[1:]
+    prev += [{k: v for k, v in c.items() if k != "starts_new"} for c in cont]
+
+
 def parse_pdf(path):
     items = []
     with pdfplumber.open(path) as pdf:
@@ -293,16 +307,7 @@ def parse_pdf(path):
                     cont = parse_expl(words_in(words, "expl", y0, y1))
                     if not cont:
                         continue  # 何もない帯（ページの頭の余白）: 続きではない。最初の行の印は残す
-                    if cont and not cont[0]["starts_new"] and items[-1]["説明"]:
-                        last = items[-1]["説明"][-1]
-                        last["text"] += cont[0]["text"]
-                        # 前のページの内訳の額が「○」の行のものなら、続きの額は細目の額なので足さない。
-                        # 額がまだない・細目の合計なら、続きの細目の額を足す（細目がページをまたぐ）
-                        if last.get("amount_from") != "head" and cont[0]["amount"] is not None:
-                            last["amount"] = (last["amount"] or 0) + cont[0]["amount"]
-                            last["amount_from"] = "sub"
-                        cont = cont[1:]
-                    items[-1]["説明"] += [{k: v for k, v in c.items() if k != "starts_new"} for c in cont]
+                    merge_continuation(items[-1]["説明"], cont)
                     items[-1]["pdf_pages"].append(pi)
                     first_on_page = False
                     continue

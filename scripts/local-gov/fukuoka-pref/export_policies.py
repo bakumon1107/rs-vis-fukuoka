@@ -120,6 +120,9 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
                 # 項が読み分けられず、予算にその款・目の目が2つ以上ある: 黙って項なしで載せない
                 fails.append(f"施策別資料 {it['事項名']}: 科目 {t!r} の項が決まらない（予算に候補が2つ以上。根拠を確かめて KAMOKU_FIXES に足す）")
             elif k:
+                if fixed and k.get("unmatched"):
+                    # 直しの表の行き先が予算の目にない（表の書き誤り）: 「印字のまま」と「直した」を並べて出さないよう止める
+                    fails.append(f"施策別資料 {it['事項名']}: 直しの表の科目 {fixed!r} が予算の目にない")
                 kamoku.append({**k, "printed": t} if fixed else k)  # 直した科目には資料の印字を残す（画面に出す）
             elif t != "外":
                 # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
@@ -166,6 +169,22 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             fails.append(f"施策別資料: 目 {rid} の事項の合計 {s:,} 円が目の額 {row_amount[rid]:,} 円を超える（科目を確かめて KAMOKU_FIXES か OVER_MOKU_OK に足す）")
     fails += [f"施策別資料: OVER_MOKU_OK の目 {rid} はもう超えていない（表を見直す）" for rid in sorted(OVER_MOKU_OK)
               if by_row.get(rid, 0) <= row_amount.get(rid, 0)]
+    # 例外の目の事項には印を付ける（画面に「額が目を超える」と出す）
+    for i in out_items:
+        if len(i["kamoku"]) == 1 and i["kamoku"][0]["row"] in OVER_MOKU_OK:
+            i["exceeds_moku"] = True
+    # 複数の目にまたがる事項: その目の組の中だけに科目を持つ事項の合計が、組の目の額の合計を超えないこと
+    # （1つの目だけの確かめでは、またがる事項の科目の読み違いに気づけない。「外」の事項はほかの目にもまたがるので外す）
+    multi = {frozenset(k["row"] for k in i["kamoku"]) for i in out_items
+             if len(i["kamoku"]) > 1 and not i.get("other_kamoku") and all(k["row"] for k in i["kamoku"])}
+    for rows_set in sorted(multi, key=sorted):
+        if rows_set & set(OVER_MOKU_OK):
+            continue
+        s = sum(i["amount"] for i in out_items if i["kamoku"] and not i.get("other_kamoku")
+                and all(k["row"] in rows_set for k in i["kamoku"]))
+        cap = sum(row_amount[r] for r in rows_set)
+        if s > cap:
+            fails.append(f"施策別資料: 目の組 {sorted(rows_set)} の事項の合計 {s:,} 円が目の額の合計 {cap:,} 円を超える（科目を確かめる）")
     pillars: dict[int, str] = {}
     for it in items:
         mm = re.match(r"^([１-９\d])．(.+)$", it["柱"] or "")

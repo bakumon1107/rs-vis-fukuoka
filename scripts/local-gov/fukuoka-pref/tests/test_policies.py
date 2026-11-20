@@ -136,6 +136,21 @@ def test_moku_total_fixes_and_tables(tmp_path, monkeypatch):
     monkeypatch.setattr(ep, "OVER_MOKU_OK", {"general/expense/9-2-1": "理由", "general/expense/9-1-4": "理由"})
     _, _, fails = ep.build(str(tmp_path), ROWS)
     assert fails == ["施策別資料: OVER_MOKU_OK の目 general/expense/9-1-4 はもう超えていない（表を見直す）"]
+    # 例外の目の事項には、額が目を超える印を付ける
+    pol, _, _ = ep.build(str(tmp_path), ROWS)
+    assert all(i.get("exceeds_moku") for i in pol["items"])
+    # 直しの表の行き先が予算の目にないときは止める（「印字のまま」と「直した」を並べない）
+    monkeypatch.setattr(ep, "OVER_MOKU_OK", {})
+    monkeypatch.setattr(ep, "KAMOKU_FIXES", {("大きい事項", "9 2 1"): "9 9 9", ("もう1つ", "9 2 1"): "9 1 2"})
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert any("直しの表の科目 '9 9 9' が予算の目にない" in f for f in fails)
+    # 複数の目にまたがる事項: その目の組の中だけの事項の合計が、組の目の額の合計を超えれば止める（9-2-1 + 9-1-1 = 4,000,000 円）
+    monkeypatch.setattr(ep, "KAMOKU_FIXES", {})
+    # またがる 3,500 千円 + 片方だけ 900 千円 = 440 万円 > 400 万円（片方だけの 9-1-1 は 90 万円 ≦ 100 万円で、1つの目の確かめは通る）
+    items = [_item("またがる", ["9 2 1", "9 1 1"], 3_500), _item("片方だけ", ["9 1 1"], 900)]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert any("目の組" in f for f in fails)
     # 同じ番号の柱の名前がページで違えば止める
     items = [_item("甲", ["9 1 2"], 1), _item("乙", ["9 1 2"], 1, 柱="３．感染症や災害に負けない")]
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")

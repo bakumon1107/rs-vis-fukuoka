@@ -111742,7 +111742,8 @@
     "source": {
      "doc": "278133.pdf",
      "page": 38
-    }
+    },
+    "exceeds_moku": true
    },
    {
     "name": "景観整備事業費",
@@ -116635,7 +116636,8 @@
     "source": {
      "doc": "277217.pdf",
      "page": 3
-    }
+    },
+    "exceeds_moku": true
    },
    {
     "name": "流域治水推進費",
