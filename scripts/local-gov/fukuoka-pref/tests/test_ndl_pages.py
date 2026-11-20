@@ -82,6 +82,27 @@ class TestMergeNumbers:
         # OCR の行が数字で終わるときは、末尾の罫線・閉じ括弧だけを外す
         assert nd.merge_numbers("人生100", "人生100)") == "人生100" and nd.merge_numbers("人生100", "人生100|") == "人生100"
 
+    def test_number_only_before_kanji_or_kana(self):
+        # 目・節の欄でも、英字が続く数字は名前の一部（番号とみなさない）。OCR の数字を写さず、NDLOCR-Lite の数字も外さない
+        assert nd.merge_numbers("8Dプリンタ導入事業", "3Dプリンタ導入事業") == "3Dプリンタ導入事業"
+        assert nd.merge_numbers("Dプリンタ導入事業", "38Dプリンタ導入事業") == "38Dプリンタ導入事業"
+        # 漢字が続く数字は番号（今までどおり）
+        assert nd.merge_numbers("13 報酬", "18報酬") == "13報酬"
+
+    def test_number_box_left(self):
+        # 番号が名前と別の文字枠（「1」と「8Dプリンタ」）なら、行の頭の数字は名前の一部
+        col = [box("1", 2160, 2180), box("8Dプリンタ", 2300, 2480)]
+        assert nd.number_box_left(col, [col[1]])
+        assert not nd.number_box_left([box("1 報酬", 2160, 2300)], [box("1 報酬", 2160, 2300)])
+        # 2行の区分の番号は2行の間の高さ（中心が行の外でも、高さが重なれば同じ行。R8 p105「16」）。切り抜きにも入れない
+        name = box("FOF事務所", 1573, 1836, 719, 763)
+        col = [box("16", 1512, 1566, 744, 790), name]
+        assert nd.number_box_left(col, [name])
+        [(_, (x0, _, _, _))] = nd.name_lines(col, 1500, 2050, full=True)
+        assert x0 == 1566 + nd.INSET
+        # 番号と名前の間の点は番号の区切り
+        assert nd.merge_numbers("5·共済事業団", "共済事業団") == "5共済事業団"
+
     def test_item_column_keeps_leading_digits(self):
         # 説明欄の事項に番号はない。頭の数字は名前の一部なので外さず、OCR の数字も写さない
         # （写すと OCR の読み違い「8D」が NDLOCR-Lite の読みに付き、別の系統の一致になる。R8 p64 は「2○2次救急…」になっていた）

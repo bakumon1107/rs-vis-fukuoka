@@ -210,8 +210,10 @@ def test_corrected_columns_use_only_readings_with_same_amounts():
     # A を 100 のまま持つので、金額で対応させると B（100）に A の名前が付く。金額の集まりが直した後と同じ読み取りだけを使う
     m = {"説明": [{"amount": 200}, {"amount": 100}], "修正": [{"列": "説明"}]}
     stale = {"説明": [{"amount": 100}, {"amount": 100}]}
-    right = {"説明": [{"amount": 100}, {"amount": 200}]}
-    others = [("textlayer", right), ("v4", stale), ("ndl", stale)]
+    right = {"説明": [{"amount": 200}, {"amount": 100}]}
+    # 金額が入れ替わった読み取り（集まりは同じ）も使わない（金額で対応させると A と B の名前が入れ替わる）
+    swapped = {"説明": [{"amount": 100}, {"amount": 200}]}
+    others = [("textlayer", right), ("v4", stale), ("ndl", swapped)]
     assert ex.others_for_column(others, m, "説明") == [("textlayer", right)]
     # 直していない欄・修正のない目は全部使う
     assert ex.others_for_column(others, m, "節") == others

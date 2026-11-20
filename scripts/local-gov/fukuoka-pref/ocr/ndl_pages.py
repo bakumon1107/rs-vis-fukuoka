@@ -46,8 +46,10 @@ EXTEND = 1.2
 # 名前の両端に付く罫線の読み（細節の内側の枠）
 FRAME_RE = re.compile(r"^[|｜丨]+|[|｜丨]+$")
 # 名前の端の、NDLOCR-Lite が端の罫線・隣の番号を読んだもの（数字・罫線と、それに付いた括弧「1)」「(1」）。
-# 括弧だけのもの（「（仮称）」「（地方創生推進）」）は名前の一部なので外さない
-HEAD_RE = re.compile(r"^[(（]?[\d|｜丨]+[)）]?")
+# 括弧だけのもの（「（仮称）」「（地方創生推進）」）は名前の一部なので外さない。頭は、英字が続く数字（「3Dプリンタ」）は名前の一部なので外さない
+HEAD_RE = re.compile(r"^[(（]?[\d|｜丨]+[)）]?(?![\d|｜丨A-Za-zＡ-Ｚａ-ｚ])")
+# OCR の行の頭の数字を目・節の番号とみなすのは、すぐ後（空白を除く）が漢字・かなのとき（merge_numbers）
+NUMBER_FOLLOW = r"(?=[\s·・.．]*[ぁ-ゖ゠-ヿ一-鿿々])"  # 番号と名前の間の点（「5·共済事業団」。R8 p102）も許す
 TAIL_RE = re.compile(r"[(（]?[\d|｜丨]+[)）]?$")
 # OCR の行が数字で終わるとき（「人生100」）に外す、末尾の数字でない端の字（罫線・閉じ括弧）
 TAIL_NONDIGIT_RE = re.compile(r"[|｜丨)）]+$")
@@ -150,11 +152,9 @@ def name_lines(col: list[dict], left: float, right: float, full: bool = False) -
         x0, x1 = max(left + INSET, bx0 - ext), min(right - INSET, bx1 + ext)
         for a in amts:
             cy = (a["y0"] + a["y1"]) / 2
-            if not (y0 <= cy <= y1):
-                continue
-            if a["x0"] > bx1 - 5:
+            if a["x0"] > bx1 - 5 and y0 <= cy <= y1:
                 x1 = min(x1, a["x0"] - INSET)
-            elif a["x1"] < bx0 + 5:
+            elif is_number_left(a, y0, y1, bx0):
                 # 名前の左の数字だけの文字枠（節番号・目の番号「1」）。数字は OCR の文字枠のまま残すので、切り抜きに入れない
                 # （入れると NDLOCR-Lite が「1県民税」と読み、番号を外す処理（OCR の別の文字枠の番号）が効かず、OCR の名前と一致しない）
                 x0 = max(x0, a["x1"] + INSET)
@@ -162,18 +162,35 @@ def name_lines(col: list[dict], left: float, right: float, full: bool = False) -
     return out
 
 
+def is_number_left(a: dict, y0: float, y1: float, bx0: float) -> bool:
+    """数字だけの文字枠 a が、行（高さ y0〜y1・左端 bx0）の左の番号か。高さは重なれば同じ行とみなす（2行の節の区分・目の名前は
+    番号が2行の間の高さに印字され、中心がどちらの行にも入らないことがある。R8 p105「16」・p235「18」。中心で見ると切り抜きに番号が入り、
+    NDLOCR-Lite が「16FOF事務所」と読んだ）"""
+    return a["x1"] < bx0 + 5 and a["y0"] < y1 and a["y1"] > y0
+
+
+def number_box_left(col: list[dict], row: list[dict]) -> bool:
+    """行の左に、番号だけの文字枠（目・節の番号「1」）が名前と別にあるか（name_lines と同じ判定）。あれば番号は名前の文字枠の外"""
+    y0, y1 = min(d["y0"] for d in row), max(d["y1"] for d in row)
+    bx0 = min(d["x0"] for d in row)
+    return any(is_amount_box(a) and is_number_left(a, y0, y1, bx0) for a in col)
+
+
 def merge_numbers(ocr_text: str, ndl_text: str, numbered: bool = True) -> str:
     """数字は OCR の読みを使う（NDLOCR-Lite は名前の読み直しにだけ使う。数字に弱い）。
-    - 目・節の欄（numbered）: NDLOCR-Lite の読みの頭の数字（と罫線・それに付いた括弧）を外し、OCR の行の頭の数字（目・節の番号）を付ける
-      （「7林業改善…」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）
-    - 説明欄（numbered でない）: 事項に番号はないので、頭の数字は名前の一部（「2次救急医療体制整備費補助金」）。外さず、OCR の数字も付けない
-      （付けると OCR の読み違えた数字「8Dプリンタ」を NDLOCR-Lite の読み「3Dプリンタ」に写し、別の系統の一致として裏付けを付ける）
+    - 目・節の欄で番号が名前と同じ文字枠にある行（numbered）: NDLOCR-Lite の読みの頭の数字（と罫線・それに付いた括弧）を外し、
+      OCR の行の頭の数字（目・節の番号）を付ける（「7林業改善…」と読んで、番号の印字のない前年度のみの目に番号が付いた。R8 歳入 12-1）。
+      ただし番号とみなすのは、数字のすぐ後（空白を除く）が漢字・かなのときだけ（「1 報酬」）。英字などが続く数字（「8Dプリンタ」）は名前の一部とみなし、
+      外しも付けもしない
+    - 説明欄・番号が別の文字枠にある行（numbered でない）: 頭の数字は名前の一部（「2次救急医療体制整備費補助金」）。外さず、OCR の数字も付けない
+      （付けると OCR の読み違えた数字「8Dプリンタ」を NDLOCR-Lite の読み「3Dプリンタ」に写し、別の系統の一致として裏付けを付ける）。
+      番号と同じ文字枠で数字と漢字で始まる名前（「12次救急…」）は見分けられない（目・節の名前では見ていない）
     - 末尾の数字（と罫線・括弧）は外す（右端の罫線を「1」と読む「林業改善資金1)」）。OCR の行が数字で終わるときは罫線・括弧だけ、
       閉じ括弧で終わるとき（「…事業(R7)」）は罫線だけ。
       名前の途中の数字（「第75回」）は残す
     - 外した後が空・金額の形（数字だけ）なら名前は UNREAD（OCR の字を写さない。line_action と同じ理由）。番号は OCR の読みのまま付ける
       （番号は目・節の鍵なので、落とすと OCR の読み取りと目が対応しなくなる）"""
-    m = re.match(r"\s*(\d+)", ocr_text) if numbered else None
+    m = re.match(r"\s*(\d+)" + NUMBER_FOLLOW, ocr_text) if numbered else None
     head = m.group(1) if m else ""
     body = HEAD_RE.sub("", ndl_text or "") if numbered else (ndl_text or "")
     if re.search(r"[)）]\s*$", ocr_text):
@@ -215,7 +232,9 @@ def replace_names(rec: dict, img, ndl) -> int:
                 else:
                     crop = img[max(0, y0):y1, max(0, x0):max(x0 + 1, x1)]
                     text = FRAME_RE.sub("", ndl.read(squeeze_gaps(crop))).strip() if crop.size else ""
-                    text = merge_numbers(ocr_text, text, numbered=ci != cols[2])  # 説明欄（各表の名前の列の3つ目）の事項に番号はない
+                    # 説明欄（各表の名前の列の3つ目）の事項に番号はない。番号が別の文字枠の行は、OCR の行の頭の数字も名前の一部
+                    numbered = ci != cols[2] and not number_box_left(t["cols"][ci], row)
+                    text = merge_numbers(ocr_text, text, numbered=numbered)
                 new_col.append({"x0": min(d["x0"] for d in row), "x1": max(d["x1"] for d in row),
                                 "y0": min(d["y0"] for d in row), "y1": max(d["y1"] for d in row),
                                 "text": text, "score": 1.0, "ndl": True})

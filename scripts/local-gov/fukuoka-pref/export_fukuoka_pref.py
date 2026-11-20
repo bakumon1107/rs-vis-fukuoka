@@ -257,14 +257,18 @@ def ndl_mismatches(ocr: dict, ndl: dict) -> list:
 
 def others_for_column(others: list, m: dict, col: str) -> list:
     """欄 col（説明・節）の事項・節の名前の候補に使う、ほかの読み取り [(種類, 目の行)]。
-    修正表で金額を直した欄では、その欄の金額の集まりが直した後の OCR と同じ読み取りだけを使う。ほかの読み取りの金額は直していない
+    修正表で金額を直した欄では、その欄の金額の並び（印字の順）が直した後の OCR と同じ読み取りだけを使う。ほかの読み取りの金額は直していない
     （NDLOCR-Lite は直す前の OCR の値を写し、旧 OCR は同じ切り抜きで同じ読み違いをしやすい）ので、金額と何番目で対応させる（by_amount）と
-    別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）"""
+    別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）。
+    集まりでなく並びで比べる（A=20・B=10 と A=10・B=20 は集まりが同じでも、金額で対応させると A と B が入れ替わる）"""
     if col not in {fx.get("列") for fx in m.get("修正", [])}:
         return others
 
     def amounts(x):
-        return Counter(e.get("amount") for e in x.get(col, []) if not e.get("金額の記載なし"))
+        # 節は印字の順に並べてから比べる（突き合わせで組み直した目は「節を全部 → 細節を全部」の順。setsu_in_print_order）。
+        # 修正表で足した位置のない節がある目は並べられないので、ほかの読み取りと並びが合わず、候補に使わない（裏付けを足さない向き）
+        es = setsu_in_print_order(x) if col == "節" and x.get(col) else x.get(col, [])
+        return [e.get("amount") for e in es if not e.get("金額の記載なし")]
     return [(k, x) for k, x in others if amounts(x) == amounts(m)]
 
 
