@@ -206,6 +206,9 @@ function LocalGovContent() {
               施策のバブル図
             </Link>
           )}
+          <Link href={`/local/${gov}/funds`} className="text-sm text-primary-accent underline">
+            基金
+          </Link>
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">

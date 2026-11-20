@@ -1,0 +1,151 @@
+"""基金の現在高（extract_funds.py の funds.json）を、決算のファイル（settlement-<年度>.json）の funds に組み立てる。
+
+設計: docs/local-gov/tasks/20261120_1200_地方版の基金の設計.md（3章 データ）。型: types/local-gov.ts の LocalFunds
+export_settlement.build から呼ぶ。
+
+- items: 決算年度（R6）の基金ごとの区分（現金・有価証券・一般会計貸付金…）と、年度末現在高・出納閉鎖日現在高（円）
+- 推移（history）: 年度末現在高。調書のある年度はその年度の「決算年度末現在高」、調書を取り込んでいない年度は
+  次の年度の調書の「前年度末現在高」（同じ値。extract_funds.check_chain で続く年度は一致を確かめた）
+- totals: 年度ごとの全基金の年度末現在高の合計（廃止した基金を含む）を、財政調整基金・減債基金・その他に分けて
+- 金額は千円 × 1000 の円。出典は調書のある年度がテキストなら text、OCR なら ocr
+"""
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from extract_funds import RENAMES, YEAR_ORDER  # noqa: E402
+
+KIND = {"積立": "stock", "運用": "operating"}
+MAIN = {"福岡県財政調整基金": "fiscal_adjustment", "福岡県減債基金": "debt_reduction"}
+
+
+def short(name: str) -> str:
+    """「福岡県財政調整基金」→「財政調整基金」。「福岡県営住宅…」「福岡県立美術館…」は「県営」「県立」の「県」を残す"""
+    if name.startswith(("福岡県営", "福岡県立")):
+        return name.removeprefix("福岡")
+    return name.removeprefix("福岡県")
+
+
+def year_label(fy: int) -> str:
+    if fy >= 2019:
+        return "令和元年度" if fy == 2019 else f"令和{fy - 2018}年度"
+    return f"平成{fy - 1988}年度"
+
+
+def source_id(year: str) -> str:
+    """調書の資料の id（sources.json の「<年度>-zaisan」。年度は "R6" など）"""
+    return f"{year.lower()}-zaisan"
+
+
+def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
+    """funds.json があれば決算のファイルの funds を返す（なければ None）"""
+    path = os.path.join(work, "funds.json")
+    if not os.path.exists(path):
+        return None, ["基金: funds.json がない（基金の抽出のステップを飛ばした）"]
+    data = json.load(open(path, encoding="utf-8"))
+    # 抽出の検算の失敗（extract_funds の fails）があれば止める。抽出は失敗しても funds.json を書くので（終了コードは 1）、
+    # 終了コードを見ずに書き出すと、検算の通らない額が決算のファイルに入る。古い funds.json（fails がない）も止める
+    if "fails" not in data:
+        raise SystemExit("基金: funds.json に fails がない（古い抽出の出力。extract_funds.py を流し直す）")
+    if data["fails"]:
+        raise SystemExit("基金: 抽出の検算が通っていない:\n" + "\n".join(data["fails"]))
+    years, ocr = data["years"], set(data.get("ocr_years", []))
+    # 補助の年度（その年度の間に廃止した基金だけを取り込んだ調書。extract_funds の「~」）
+    supplement = set(data.get("supplement_years", []))
+    fy_of = {y: YEAR_ORDER[y] for y in years}
+    latest = max(years, key=fy_of.get)
+    if fy_of[latest] != fiscal_year:
+        raise SystemExit(f"基金: いちばん新しい調書（{latest}）が決算の年度（{fiscal_year}）でない")
+    rename = lambda n: RENAMES.get(n, n)  # noqa: E731
+
+    # 年度末現在高: (今の名前, 年度) → (千円, 出典)
+    ends: dict[tuple[str, int], tuple[int, str]] = {}
+    for y, funds in years.items():
+        src = "ocr" if y in ocr else "text"
+        for name, fd in funds.items():
+            n = rename(name)
+            ends[(n, fy_of[y])] = (sum(v[2] for v in fd["holdings"].values()), src)
+            prev = (n, fy_of[y] - 1)
+            # 補助の年度の前年度末では、前の年度に調書があるときは埋めない（その年度に設けて廃止した基金の 0 を前の年度に足さない）。
+            # 前の年度に調書がなければ埋める（その年度に廃止した基金の前の年度末が合計から落ちないよう）
+            if prev not in ends and (y not in supplement or fy_of[y] - 1 not in set(fy_of.values())):
+                ends[prev] = (sum(v[0] for v in fd["holdings"].values()), src)
+    # 調書のある年度の値を優先する（前年度末から入れた値を上書き）
+    for y, funds in years.items():
+        src = "ocr" if y in ocr else "text"
+        for name, fd in funds.items():
+            ends[(rename(name), fy_of[y])] = (sum(v[2] for v in fd["holdings"].values()), src)
+    all_years = sorted({fy for _, fy in ends})
+    # 調書を取り込んでいない年度（Y）は、次の年度の調書の前年度末で埋める。前の調書（Y-1）にあって次の調書（Y+1）にない基金は、
+    # Y の年度末の額が分からない（Y の間に廃止したか、Y+1 の間に廃止したか）。合計から黙って落とさないよう、数えて示す
+    # 補助の年度（その年度に廃止した基金だけを取り込んだ年度）は「取り込んでいない年度」として確かめる（残した基金が埋めているか）
+    imported = {fy_of[y] for y in years if y not in supplement}
+    present = set(fy_of.values())  # 前後の年度の有無は補助の年度も数える
+    supp_keys = {(rename(n), fy_of[y]) for y in supplement for n in years[y]}
+    gaps = []
+    supp_years = {fy_of[y] for y in supplement}
+    for fy in all_years:
+        if fy in imported or fy - 1 not in present or fy + 1 not in present:
+            continue
+        if fy - 1 in supp_years:
+            # 前の年度が補助の年度だと、前の年度の基金の一覧が揃っていない（廃止した基金だけ）ので確かめられない。そうと書く
+            gaps.append(f"{fy} 年度末: 前の年度が補助の年度で、取りこぼしを確かめられない")
+            continue
+        before = {n for (n, y) in ends if y == fy - 1}
+        missing = sorted(n for n in before if (n, fy) not in ends and ends[(n, fy - 1)][0] != 0)
+        if missing:
+            gaps.append(f"{fy} 年度末: 前の調書にあり残高のある基金が次の調書にない {missing}（この年度の合計に入らない）")
+
+    items = []
+    for name, fd in sorted(years[latest].items(), key=lambda kv: (kv[1]["kind"] != "積立", kv[1]["no"])):
+        holdings = [{"kind": k, "start": v[0] * 1000, "change": v[1] * 1000, "end": v[2] * 1000,
+                     "closing_change": v[3] * 1000, "after_closing": v[4] * 1000} for k, v in fd["holdings"].items()]
+        history = [{"year": fy, "end": ends[(name, fy)][0] * 1000, "src": ends[(name, fy)][1]}
+                   for fy in all_years if (name, fy) in ends]
+        item = {"name": short(name), "kind": KIND[fd["kind"]], "no": fd["no"], "holdings": holdings,
+                "end": sum(h["end"] for h in holdings), "after_closing": sum(h["after_closing"] for h in holdings),
+                "history": history}
+        old = [short(o) for o, n in RENAMES.items() if n == name]
+        if old:
+            item["renamed_from"] = old
+        if fd.get("no_figures"):
+            item["no_figures"] = True
+        items.append(item)
+
+    totals = []
+    for fy in all_years:
+        row = {"year": fy, "fiscal_adjustment": 0, "debt_reduction": 0, "other": 0, "srcs": set()}
+        for (n, y), (v, src) in ends.items():
+            if y == fy:
+                row[MAIN.get(n, "other")] += v * 1000
+                # 補助の年度の 0 の基金（その年度に廃止）は、合計の出典の印に数えない（合計の値はほとんどが次の年度の調書から）
+                if not ((n, y) in supp_keys and v == 0):
+                    row["srcs"].add(src)
+        row["src"] = "ocr" if "ocr" in row["srcs"] else "text"
+        del row["srcs"]
+        totals.append(row)
+
+    out = {
+        "as_of": {"year": fiscal_year, "label": f"{year_label(fiscal_year)}末"},
+        "items": items,
+        "totals": totals,
+        "statements": [{"year": fy_of[y], "label": year_label(fy_of[y]), "source": source_id(y), "src": "ocr" if y in ocr else "text",
+                        **({"partial": True} if y in supplement else {})}
+                       for y in sorted(years, key=fy_of.get)],
+        "notes": [
+            "残高は財産に関する調書（決算）の年度末現在高（3月31日）。出納閉鎖日（5月31日）の現在高は、出納整理期間中の増減を足した額",
+            "調書を取り込んでいない年度の年度末現在高は、次の年度の調書の前年度末現在高",
+            # 理由は確かめていないので「定義が違う」と言い切らない（設計 2章）。確かめた範囲（額が合わないこと）だけを書く
+            "財政状況資料集・財務書類の附属明細書の基金の額は、財政調整基金・減債基金の額が調書と一致しない（R6 で確認。"
+            "財政調整基金の現金の額は、財政状況資料集の財政調整基金・附属明細書の減債基金の流動資産と同じ。違いの理由は未確認）",
+        ],
+        "checks": {"signs_fixed": sum(len(v) for v in data.get("signs_fixed", {}).values()),
+                   "names_fixed": sum(len(v) for v in data.get("names_fixed", {}).values())},
+    }
+    if gaps:
+        out["notes"].append("調書を取り込んでいない年度で、前の年度にあり次の年度の調書にない基金は、その年度の合計に入っていない: " +
+                            "；".join(gaps))
+    lines = [f"基金 {len(items)} 件（{year_label(fiscal_year)}末 {sum(i['end'] for i in items):,} 円）。推移 {all_years[0]}〜{all_years[-1]} 年度"]
+    lines += [f"WARN 基金 {g}" for g in gaps]
+    return out, lines

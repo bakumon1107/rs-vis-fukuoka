@@ -243,6 +243,34 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     });
   }
 
+  // 基金: 決算のファイルだけ。区分ごとに 前年度末 + 増減 = 年度末、年度末 + 出納整理 = 出納閉鎖日。基金の額 = 区分の合計。
+  // 推移の決算年度の値 = 年度末。年度ごとの合計 = その年度の基金の推移の合計（今ある基金の分を含む。廃止した基金があるので ≧）
+  const funds = file.funds;
+  if (funds) {
+    if (file.basis !== 'settlement') err('funds は決算のファイルだけ');
+    const isYen = (n: unknown) => Number.isInteger(n);
+    for (const f of funds.items) {
+      for (const h of f.holdings) {
+        if (![h.start, h.change, h.end, h.closing_change, h.after_closing].every(isYen)) err(`funds ${f.name} ${h.kind}: 額が整数でない`);
+        if (h.start + h.change !== h.end) err(`funds ${f.name} ${h.kind}: 前年度末 + 増減 ≠ 年度末`);
+        if (h.end + h.closing_change !== h.after_closing) err(`funds ${f.name} ${h.kind}: 年度末 + 出納整理 ≠ 出納閉鎖日`);
+      }
+      if (f.holdings.reduce((s, h) => s + h.end, 0) !== f.end) err(`funds ${f.name}: 区分の年度末の合計 ≠ end`);
+      if (f.holdings.reduce((s, h) => s + h.after_closing, 0) !== f.after_closing) err(`funds ${f.name}: 区分の出納閉鎖日の合計 ≠ after_closing`);
+      const last = f.history.find(h => h.year === funds.as_of.year);
+      if (!last || last.end !== f.end) err(`funds ${f.name}: 推移の ${funds.as_of.year} 年度の値が年度末現在高と違う`);
+      // 過年度の推移も1円単位の整数（合計の比較は ≧ なので、端数があっても通ってしまう）
+      for (const h of f.history) if (!isYen(h.end) || h.end < 0) err(`funds ${f.name} ${h.year}: 推移の額が 0 以上の整数でない`);
+    }
+    for (const t of funds.totals) {
+      if (![t.fiscal_adjustment, t.debt_reduction, t.other].every(n => isYen(n) && n >= 0)) {
+        err(`funds.totals ${t.year}: 額が 0 以上の整数でない`);
+      }
+      const current = funds.items.reduce((s, f) => s + (f.history.find(h => h.year === t.year)?.end ?? 0), 0);
+      if (t.fiscal_adjustment + t.debt_reduction + t.other < current) err(`funds.totals ${t.year}: 合計が今ある基金の推移の合計より小さい`);
+    }
+  }
+
   if (file.checks.rows !== file.rows.length) err(`checks.rows ${file.checks.rows} ≠ 目の行数 ${file.rows.length}`);
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);
 
@@ -283,6 +311,9 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
       checkEvidence(`${row.id} setsu[${i}]`, s.name_evidence);
       s.sub?.forEach((sb, j) => checkEvidence(`${row.id} setsu[${i}].sub[${j}]`, sb.name_evidence));
     });
+  }
+  for (const st of file.funds?.statements ?? []) {
+    if (!ids.has(st.source)) errors.push(`funds: ${st.label} の調書 ${st.source} が index の sources にない`);
   }
   return errors;
 }
