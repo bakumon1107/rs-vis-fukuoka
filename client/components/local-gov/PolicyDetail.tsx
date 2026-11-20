@@ -70,7 +70,6 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
                     label
                   )}
                   {k.unmatched && <span className="text-mirai-text-muted">（資料の科目が予算の目にない。資料の印字のまま）</span>}
-                  {k.kou_unresolved && <span className="text-mirai-text-muted">（資料の項が読み分けられない）</span>}
                 </li>
               );
             })}
