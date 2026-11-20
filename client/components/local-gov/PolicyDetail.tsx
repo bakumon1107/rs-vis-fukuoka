@@ -6,7 +6,7 @@
  */
 import Link from 'next/link';
 import type { LocalBudgetFile, PolicyItem, SourceDocument } from '@/types/local-gov';
-import { OUTSIDE_PILLAR_NAME } from '@/app/lib/local-gov/policies';
+import { outsidePillarName } from '@/app/lib/local-gov/policies';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
 interface Props {
@@ -20,7 +20,12 @@ interface Props {
 
 export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Props) {
   const diff = item.previous === null ? null : item.amount - item.previous;
-  const pillar = item.pillar === null ? OUTSIDE_PILLAR_NAME : `${item.pillar}. ${file.policies?.pillars.find(p => p.no === item.pillar)?.name ?? ''}`;
+  const pillar =
+    item.pillar === null
+      ? file.policies
+        ? outsidePillarName(file.policies)
+        : '4つの柱の外'
+      : `${item.pillar}. ${file.policies?.pillars.find(p => p.no === item.pillar)?.name ?? ''}`;
   return (
     <section className="space-y-2 rounded-2xl bg-card p-3 text-sm shadow-soft" aria-label="選んだ事項の詳細">
       <div className="flex items-start gap-2">
@@ -95,9 +100,16 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
         <div className="text-xs">
           <p className="text-mirai-text-muted">説明（資料の内訳）</p>
           <ul className="list-disc pl-4">
-            {item.notes.map((n, i) => (
-              <li key={i}>{n}</li>
-            ))}
+            {item.notes.map((n, i) => {
+              // 資料の「[新]」（新規の内訳の印）は字のまま出さず、印にする
+              const isNew = n.startsWith('[新]');
+              return (
+                <li key={i}>
+                  {isNew && <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">新規</span>}
+                  {isNew ? n.slice('[新]'.length) : n}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

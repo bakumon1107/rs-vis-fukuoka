@@ -43,14 +43,19 @@ export interface PolicyRoot {
   children: PolicyGroup[];
 }
 
-export const OUTSIDE_PILLAR_NAME = '4つの柱の外（地方分権・行政改革）';
+/** 4つの柱の外のグループの名前。取組名はデータから（年度で取組が変わっても古い名前を出さない） */
+export function outsidePillarName(p: LocalPolicies): string {
+  const inits = [...new Set(p.items.filter(it => it.pillar === null).map(it => it.initiative ?? '（取組なし）'))];
+  return inits.length ? `4つの柱の外（${inits.join('・')}）` : '4つの柱の外';
+}
 const pillarKey = (p: number | null) => `p:${p ?? 'none'}`;
 export const initiativeKey = (it: PolicyItem) => `i:${it.pillar ?? 'none'}:${it.initiative ?? '（取組なし）'}`;
 
 /** 事項を柱 → 取組 → 事項の入れ子にする。hidden の事項（添字）は入れない。柱は番号順、柱の外は最後 */
 export function policyTree(p: LocalPolicies, hidden: ReadonlySet<number> = new Set()): PolicyRoot {
   const pillars = new Map<string, PolicyGroup>();
-  const pillarName = (n: number | null) => (n === null ? OUTSIDE_PILLAR_NAME : p.pillars.find(x => x.no === n)?.name ?? `柱 ${n}`);
+  const outsideName = outsidePillarName(p);
+  const pillarName = (n: number | null) => (n === null ? outsideName : p.pillars.find(x => x.no === n)?.name ?? `柱 ${n}`);
   p.items.forEach((it, index) => {
     if (hidden.has(index) || it.amount <= 0) return;
     const pk = pillarKey(it.pillar);
@@ -161,7 +166,7 @@ export function colorScheme(p: LocalPolicies, mode: 'pillar' | 'kan', kanName: M
   { colorOf: (it: PolicyItem) => string; legend: ColorLegend[] } {
   if (mode === 'pillar') {
     const legend: ColorLegend[] = p.pillars.map((x, i) => ({ key: pillarKey(x.no), label: `${x.no}. ${x.name}`, color: SERIES_COLORS[i] ?? MUTED_COLOR }));
-    if (p.items.some(it => it.pillar === null)) legend.push({ key: pillarKey(null), label: OUTSIDE_PILLAR_NAME, color: SERIES_COLORS[p.pillars.length] ?? MUTED_COLOR });
+    if (p.items.some(it => it.pillar === null)) legend.push({ key: pillarKey(null), label: outsidePillarName(p), color: SERIES_COLORS[p.pillars.length] ?? MUTED_COLOR });
     const by = new Map(legend.map(l => [l.key, l.color]));
     return { colorOf: it => by.get(pillarKey(it.pillar)) ?? MUTED_COLOR, legend };
   }

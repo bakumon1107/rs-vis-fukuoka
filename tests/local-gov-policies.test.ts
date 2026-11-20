@@ -13,6 +13,7 @@ import {
   initiativeLeaves,
   initiativeTotals,
   itemKan,
+  outsidePillarName,
   policyTree,
   sourceForDoc,
   type PolicyGroup,
@@ -97,6 +98,11 @@ test('chordPx・fitWidth: 円の上端近くの名前は、その高さの円の
   assert.equal(Math.round(chordPx(166, 17)), 2 * Math.round(Math.sqrt(2 * 166 * 17 - 17 * 17)));
   assert.equal(chordPx(10, 50), 20); // 深さが半径を超えたら直径
   assert.equal(fitWidth('あいうえおかきく', 65, 13), 'あいうえ…');
+});
+
+test('outsidePillarName: 柱の外のグループ名は、柱の外の事項の取組名から作る', () => {
+  assert.equal(outsidePillarName(policies), '4つの柱の外（行政改革）');
+  assert.equal(policyTree(policies).children.at(-1)?.name, '4つの柱の外（行政改革）');
 });
 
 test('fitLabel: 円に収まらない名前は切り、小さすぎる円は空', () => {

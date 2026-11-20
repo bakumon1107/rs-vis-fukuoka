@@ -241,7 +241,11 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
       {hover && (
         <div
           className="pointer-events-none absolute z-10 max-w-64 rounded-md border border-mirai-border bg-card px-2 py-1 text-xs shadow-soft"
-          style={{ left: Math.max(0, Math.min(hover.x + 12, width - TIP_WIDTH)), top: hover.y + 12 }}
+          // 図の下半分ではポインタの上に出す（下の端の円で図の枠の下にはみ出さないよう。図は正方形なので高さ = 幅）
+          style={{
+            left: Math.max(0, Math.min(hover.x + 12, width - TIP_WIDTH)),
+            ...(hover.y > width / 2 ? { bottom: width - hover.y + 12 } : { top: hover.y + 12 }),
+          }}
         >
           <div className="font-bold">{hover.title}</div>
           <div className="text-mirai-text-muted">{hover.sub}</div>

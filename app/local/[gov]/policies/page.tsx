@@ -17,7 +17,7 @@ import { PolicyBubbleChart } from '@/client/components/local-gov/PolicyBubbleCha
 import { PolicyDetail } from '@/client/components/local-gov/PolicyDetail';
 import {
   BIG_ITEM_YEN,
-  OUTSIDE_PILLAR_NAME,
+  outsidePillarName,
   POLICIES_KEY,
   bigItems,
   colorScheme,
@@ -128,7 +128,7 @@ function LocalPoliciesContent() {
           </Link>
         </div>
         <p className="text-sm">
-          一般会計の歳出 {formatBudgetFromYen(policies.expense_total)} のうち、編成概要の施策別資料に載る事項 {policies.items.length} 件
+          一般会計の歳出 {formatBudgetFromYen(policies.expense_total)} のうち、編成概要の施策別資料に載る一般会計の事項 {policies.items.length} 件（灰色で見せる制度融資を除く）
           （計 <b>{formatBudgetFromYen(inPolicies)}</b>）を、県の総合計画の柱と取組で分けて円にしました。円の面積が予算額です。
           施策の円の外の経費 {formatBudgetFromYen(outsideTotal)}（税の清算金・人件費・公債費・制度融資・その他）は灰色の円です（同じ縮尺）。
           円を押すとその円に寄り、事項を押すと内容を出します。
@@ -287,7 +287,7 @@ function LocalPoliciesContent() {
           </p>
           <p>
             1つの事項が複数の款・目にまたがるときも、円は1つです（款で色分けするときは、複数の款にまたがる事項と、資料の科目に「外」のある事項を「款をまたぐ事項」の色に）。
-            柱の外の「{OUTSIDE_PILLAR_NAME}」は、施策別資料で4つの柱の後に載る計画推進の基盤づくりの事項です。
+            柱の外の「{outsidePillarName(policies)}」は、施策別資料で4つの柱の後に載る計画推進の基盤づくりの事項です。
           </p>
           <p>
             出典:{' '}
