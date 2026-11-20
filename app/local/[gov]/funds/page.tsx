@@ -42,6 +42,8 @@ function LocalFundsContent() {
   const budgetLabel = initial.status === 'ready' ? `${initial.dataset.label}当初予算` : '当初予算';
   const latest = funds.totals[funds.totals.length - 1];
   const total = latest.fiscal_adjustment + latest.debt_reduction + latest.other;
+  // 残高のある基金の数（調書に載るが額が「－」・0 の基金は数えない）
+  const holding = funds.items.filter(f => f.end > 0).length;
   const deposit = rows.reduce((s, r) => s + r.deposit, 0);
   const withdraw = rows.reduce((s, r) => s + r.withdraw, 0);
 
@@ -57,8 +59,8 @@ function LocalFundsContent() {
           </Link>
         </div>
         <p className="text-sm">
-          基金は、特定の目的のために県が積み立てているお金です。{funds.as_of.label}の現在高は {funds.items.length} 基金で
-          計 <b>{formatBudgetFromYen(total)}</b>。うち県債（借金）の返済に備える減債基金が {formatBudgetFromYen(latest.debt_reduction)}、
+          基金は、特定の目的のために県が積み立てているお金です。{funds.as_of.label}の現在高は、調書に載る {funds.items.length} 基金
+          （うち残高のあるもの {holding}）の計 <b>{formatBudgetFromYen(total)}</b>。うち県債（借金）の返済に備える減債基金が {formatBudgetFromYen(latest.debt_reduction)}、
           年度間の財源の調整に使う財政調整基金が {formatBudgetFromYen(latest.fiscal_adjustment)} です。
         </p>
 
@@ -97,7 +99,9 @@ function LocalFundsContent() {
                     ) : (
                       s.label
                     )}
-                    {s.src === 'ocr' ? '（画像・OCR）' : ''}
+                    {s.src === 'ocr' ? '（画像・OCR' : ''}
+                    {s.partial ? '・その年度に廃止した基金だけ' : ''}
+                    {s.src === 'ocr' ? '）' : ''}
                   </span>
                 );
               })}

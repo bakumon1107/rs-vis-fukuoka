@@ -41,16 +41,22 @@ export function fundFlows(file: LocalBudgetFile): FundFlows {
       if (m && r.amount.v != null) at(m[1]).withdraw.push({ row: r.id, label: r.moku.name, amount: r.amount.v });
       continue;
     }
-    const mm = DEPOSIT_MOKU_RE.exec(r.moku.name);
-    if (mm && r.amount.v != null) at(mm[1]).deposit.push({ row: r.id, label: r.moku.name, amount: r.amount.v });
-    for (const it of r.items ?? []) {
-      // 内訳（parent のある事項）は親の事項に含まれるので数えない
-      if (it.parent !== undefined) continue;
-      // 目そのものが「〇〇基金特別会計繰出金」なら目の額で数えた（事項はその内訳なので数えない）
-      if (mm) continue;
-      const m = DEPOSIT_ITEM_RE.exec(it.name) ?? DEPOSIT_MOKU_RE.exec(it.name);
-      if (m && it.amount.v != null) at(m[1]).deposit.push({ row: r.id, label: it.name, amount: it.amount.v });
+    // 目そのものが「〇〇基金積立金」「〇〇基金特別会計繰出金」なら目の額で数える（額が読めた目だけ。事項はその内訳なので重ねない）
+    const mm = DEPOSIT_ITEM_RE.exec(r.moku.name) ?? DEPOSIT_MOKU_RE.exec(r.moku.name);
+    if (mm && r.amount.v != null) {
+      at(mm[1]).deposit.push({ row: r.id, label: r.moku.name, amount: r.amount.v });
+      continue;
     }
+    // 事項: 数えた事項の内訳（parent が数えた事項）は重ねない。親が基金の名前でない事項（「基金積立金」）なら内訳を数える
+    const counted = new Set<number>();
+    (r.items ?? []).forEach((it, i) => {
+      if (it.parent !== undefined && counted.has(it.parent)) return;
+      const m = DEPOSIT_ITEM_RE.exec(it.name) ?? DEPOSIT_MOKU_RE.exec(it.name);
+      if (m && it.amount.v != null) {
+        at(m[1]).deposit.push({ row: r.id, label: it.name, amount: it.amount.v });
+        counted.add(i);
+      }
+    });
   }
   return { byFund };
 }

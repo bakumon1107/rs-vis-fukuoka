@@ -268,6 +268,13 @@
    "retrieved": "2026-11-20"
   },
   {
+   "id": "r3-zaisan",
+   "title": "令和3年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/180331.pdf",
+   "sha256": "6f6dfc4baa6270264066faa6f45fc2ece792e8807f129791d4ae9bc3f275dfa0",
+   "retrieved": "2026-11-20"
+  },
+  {
    "id": "r2-zaisan",
    "title": "令和2年度 実質収支・財産に関する調書（基金の現在高）",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/151877.pdf",
@@ -307,6 +314,13 @@
    "title": "平成25年度 実質収支・財産に関する調書（基金の現在高）",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749605_misc.pdf",
    "sha256": "39f4a52b18ae7dd454e415cde2dd6868693c85ca75571e8cdb78118a7716bcdf",
+   "retrieved": "2026-11-20"
+  },
+  {
+   "id": "h24-zaisan",
+   "title": "平成24年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749599_misc.pdf",
+   "sha256": "1a240172b55faeecb075409b94f9eaac2ae1878b2534d786e6aee9521a4ae2e6",
    "retrieved": "2026-11-20"
   },
   {

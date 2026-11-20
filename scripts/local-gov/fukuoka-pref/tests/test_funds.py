@@ -74,6 +74,30 @@ class TestOcr:
         # どちらの符号でも合わない行は直さない（検算で FAIL にする）
         assert funds["a"]["holdings"]["有価証券"] == [100, 20, 130, 0, 130]
 
+    def test_triangle_read_as_seven(self):
+        # OCR が「▲」を独立した「7」と読む（H29 減債基金の現金）。「▲」に戻して5つの額になれば使い、記録する
+        txt = ("資金を積み立てるために設置されたもの\n(2)   福岡県減債基金\n現   金\n"
+               "83,224,249   7   29,207,769   54,016,480   16,836,969   70,853,449\n")
+        f = fu.parse(txt)["福岡県減債基金"]
+        assert f["holdings"]["現金"] == [83224249, -29207769, 54016480, 16836969, 70853449] and f["ocr_fixed"]
+
+    def test_h24_ocr_shapes(self):
+        # 見出しの番号の後のごみ（「(8)   1   福岡県…」）・注記を挟んで割れた区分名（「現 ▲52,639)」「金」）・0 を1つ落とした行
+        txt = ("資金を積み立てるために設置されたもの\n(7) 福岡県地域づくり基金\n有   価   証   券\n0   0   0   0\n"
+               "(8)   1   福岡県環境保全基金   ▲は減を示す。\n現   ▲ 52,639)\n金\n466,782   1,541,245   2,008,027   ▲ 106,438   1,901,589\n")
+        funds = fu.parse(txt)
+        assert funds["福岡県地域づくり基金"]["holdings"] == {"有価証券": [0, 0, 0, 0, 0]}
+        assert funds["福岡県環境保全基金"]["holdings"]["現金"] == [466782, 1541245, 2008027, -106438, 1901589]
+        assert fu.check_rows("H24", funds) == []
+
+    def test_unreadable_value_row_fails(self):
+        # 区分の後の額の行が読めない（コンマを「.」と読んだ）ときは、区分を黙って落とさず FAIL にする
+        txt = "資金を積み立てるために設置されたもの\n(1)   福岡県財政調整基金\n現   金\n41.876   0   41,876   0   41,876\n"
+        funds = fu.parse(txt)
+        assert any("額として読めない" in x for x in fu.check_rows("R4", funds))
+        # 左に区切りのない数（「1234,567」）は途中から読まない
+        assert fu.numbers("1234,567   0   1,234,567   0   1,234,567") is None
+
     def test_names_snapped_to_text_years(self):
         known = {"福岡県減債基金", "福岡県アンビシャス外国留学支援基金", "福岡県高齢者等保健福祉基金"}
         funds = {"福岡県减债基金": {}, "福岡県アンビシヤス外国留学支援基金": {}, "福岡県架空基金": {}}
@@ -96,4 +120,24 @@ class TestChain:
         cur = {"福岡県出産・子育て安心基金": {"holdings": {"現金": [41876, 0, 41876, 0, 41876]}}}
         assert fu.check_chain("R4", prev, "R5", cur) == []
         cur["福岡県出産・子育て安心基金"]["holdings"]["現金"][0] = 41875
-        assert len(fu.check_chain("R4", prev, "R5", cur)) == 1
+        assert len(fu.check_chain("R4", prev, "R5", cur)) == 2  # 区分ごとと合計の両方
+
+    def test_chain_catches_dropped_row(self):
+        # 後の年度で区分の行が落ちた（OCR）: 区分ごとの比較では気づけないので、合計で比べる
+        prev = {"福岡県減債基金": {"holdings": {"有価証券": [0, 0, 100, 0, 100], "現金": [0, 0, 50, 0, 50]}}}
+        cur = {"福岡県減債基金": {"holdings": {"有価証券": [100, 0, 100, 0, 100]}}}
+        assert any("合計" in x for x in fu.check_chain("H28", prev, "H29", cur))
+
+
+def test_export_year_label_and_gaps(tmp_path):
+    import json
+    ef = load("export_funds.py", "export_funds")
+    assert ef.year_label(2019) == "令和元年度" and ef.year_label(2024) == "令和6年度" and ef.year_label(2017) == "平成29年度"
+    # H25（2013）にあり H27（2015）にない、残高のある基金: 2014 年度末の額が分からないので、警告して notes に書く
+    h = lambda end: {"no": 1, "kind": "積立", "holdings": {"現金": [end, 0, end, 0, end]}}  # noqa: E731
+    data = {"years": {"H25": {"福岡県甲基金": h(5), "福岡県乙基金": h(7)}, "H27": {"福岡県甲基金": h(5)}},
+            "ocr_years": [], "signs_fixed": {}, "names_fixed": {}}
+    (tmp_path / "funds.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    out, lines = ef.build(str(tmp_path), 2015)
+    assert any("乙基金" in x for x in lines) and any("乙基金" in n for n in out["notes"])
+    assert out["statements"][0]["source"] == "h25-zaisan"

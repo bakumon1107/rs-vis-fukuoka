@@ -282,7 +282,8 @@ export interface LocalFunds {
   /** 年度ごとの全基金の年度末現在高の合計（廃止した基金を含む） */
   totals: FundTotals[];
   /** 取り込んだ調書（年度・sources.json の id・テキストか OCR か） */
-  statements: { year: number; label: string; source: string; src: 'text' | 'ocr' }[];
+  /** partial: その年度の間に廃止した基金だけを取り込んだ調書（ほかの基金は次の年度の調書の前年度末） */
+  statements: { year: number; label: string; source: string; src: 'text' | 'ocr'; partial?: true }[];
   notes: string[];
   checks: { signs_fixed: number; names_fixed: number };
 }

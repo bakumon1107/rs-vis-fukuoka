@@ -2,7 +2,8 @@
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/extract_funds.py <年度>=<調書.pdf または OCR の結果のディレクトリ> [...] > funds.json
-    年度は決算年度（例 R6=272596.pdf R5=238290.pdf）。画像だけの年度は ocr/ocr_lines.py の出力ディレクトリを渡す
+    年度は決算年度（例 R6=272596.pdf R5=238290.pdf）。画像だけの年度は ocr/ocr_lines.py の出力ディレクトリを渡す。
+    年度の頭に「~」（~H24=…）を付けた年度は補助の年度: 次の年度の調書にない基金（その年度の間に廃止した基金）だけを使う
 
 構造（R6・R5・R2・H30・H25・H23 で確認。地方版の基金の設計 2章）:
     「○…資金を積み立てるために設置されたもの」（積立基金）と「○…定額の資金を運用するために設置されたもの」（運用基金）の下に、
@@ -20,8 +21,10 @@ import subprocess
 import sys
 
 Z2H = str.maketrans("０１２３４５６７８９", "0123456789")
-HEAD_RE = re.compile(r"^\s*[（(]\s*([0-9０-９]+)\s*[）)]\s*(福岡県\S*?基金)(?:\s|$)")
-NUM_RE = re.compile(r"(▲\s*)?(\d{1,3}(?:,\d{3})*(?:\.\d+)?|－|-)(?=\s|$)")
+# 基金の見出し。OCR は番号と名前の間にごみの1〜2字を挟むことがある（H24「(8)   1   福岡県環境保全基金」）
+HEAD_RE = re.compile(r"^\s*[（(]\s*([0-9０-９]+)\s*[）)]\s*(?:\S{1,2}\s+)?(福岡県\S*?基金)(?:\s|$)")
+# 額: 3桁ごとのコンマ（小数は土地の㎡）。左にも区切りを求める（OCR の「1234,567」を「234,567」と途中から読まない）
+NUM_RE = re.compile(r"(▲\s*)?(?<![\d,.])(\d{1,3}(?:,\d{3})*(?:\.\d+)?|－|-)(?=\s|$)")
 SECTION_STOCK = "資金を積み立てるために設置されたもの"
 SECTION_RUN = "定額の資金を運用するために設置されたもの"
 # 行の区分として読む名前（空白を除いた形）。縦書きの「動産」「不動産」の字が前に付くことがある
@@ -38,7 +41,8 @@ def clean_ocr_line(line: str) -> str:
     """OCR の行から、単位（「千円」）と括弧の注記（前年度の出納整理期間中増高の内数「(▲2,838)」）を除く。
     OCR は単位の行・注記の行を区分の行や額の行と1行にまとめ、「(」を「C」「1」と読む（「C ▲ 2,838)」「1 1,800,000)」）"""
     line = line.replace("千円", " ")
-    return re.sub(r"(?:^|\s)\S?\s*▲?\s*\d[\d,]*\s*[)）]", " ", line)
+    # 「(」の読み違いは「(」「（」「C」「1」だけ（任意の1字にすると区分名の「現 ▲52,639)」の「現」まで消す）
+    return re.sub(r"(?:^|\s)[(（C1]?\s*▲?\s*\d[\d,]*\s*[)）]", " ", line)
 
 
 def label_of(line: str):
@@ -87,6 +91,7 @@ def parse(text: str) -> dict:
     funds: dict = {}
     cur = None
     label = None
+    partial = ""  # 前の行の、区分の名前の切れ端（2行に割れた区分名）
     for ln in lines:
         f = re.sub(r"\s", "", ln)
         if SECTION_STOCK in f:
@@ -121,11 +126,34 @@ def parse(text: str) -> dict:
             label = None
             continue
         lb = label_of(ln)
+        compact = re.sub(r"\s", "", ln)
+        if not lb and partial and compact and not re.search(r"\d", compact):
+            # 区分の名前が注記を挟んで2行に割れる（H24「現 ▲52,639)」「金」）。つないで区分になれば区分
+            lb = label_of(partial + compact)
         if lb:
             label = lb
+            partial = ""
             cur.setdefault("labels", []).append(lb)
             continue
+        partial = compact if compact and not re.search(r"\d", compact) else ""
         vals = numbers(ln)
+        if vals is None and label:
+            # OCR が「▲」を「7」と読み、独立した1字の「7」になる（H29 減債基金の現金「83,224,249 7 29,207,769 …」）。
+            # 「▲」に戻して5つの額になれば使う（符号と値は check_rows・check_chain の検算で確かめる）。直した行は記録する
+            alt = re.sub(r"(?<=\s)7\s+(?=\d)", "▲", ln)
+            if alt != ln and numbers(alt) is not None:
+                vals = numbers(alt)
+                cur.setdefault("ocr_fixed", []).append(f"{label}: 「7」を「▲」に読み替えた（{ln.strip()[:50]}）")
+        if vals is None and label and re.fullmatch(r"\s*0(\s+0){3}\s*", ln):
+            # OCR が 0 を1つ読み落とした行（H24「0 0 0 0」）。4つの額が 0 なら、前年度末 + 増減 = 年度末・年度末 + 出納整理 = 出納閉鎖日
+            # から、欠けた額も 0 にしか決まらない（どの位置が欠けても）。記録して 0 で埋める
+            vals = [0, 0, 0, 0, 0]
+            cur.setdefault("ocr_fixed", []).append(f"{label}: 0 の4つの行の欠けた額を 0 とした")
+        if vals is None and label and len(re.findall(r"\d", ln)) >= 3:
+            # 区分の後の額の行が5つの額として読めない（OCR がコンマを「.」と読んだ・数が欠けた）。黙って区分を落とさず FAIL にする
+            cur.setdefault("rejected", []).append(f"{label}: {ln.strip()}")
+            label = None
+            continue
         if vals is not None and label:
             put(cur, label, vals)
             label = None
@@ -142,7 +170,9 @@ def parse(text: str) -> dict:
 
 def put(fund: dict, label: str, vals: list[int]):
     if label in fund["holdings"]:
-        raise SystemExit(f"基金 {fund['no']} の区分「{label}」が2度ある")
+        # 区分が2度ある: 次の基金の見出しを読めず、その行がこの基金に混ざった。止めずに記録して検算で FAIL にする（どの年度かが分かる）
+        fund.setdefault("rejected", []).append(f"区分「{label}」が2度ある（次の基金の見出しを読めていない）")
+        return
     fund["holdings"][label] = vals
 
 
@@ -153,6 +183,8 @@ def check_rows(year: str, funds: dict) -> list[str]:
             fails.append(f"{year} {name}: 区分の行がない")
         for ln in fd.get("unlabeled", []):
             fails.append(f"{year} {name}: 区分の名前の分からない額の行「{ln[:60]}」")
+        for ln in fd.get("rejected", []):
+            fails.append(f"{year} {name}: 額として読めない行「{ln[:60]}」")
         for lb, (start, chg, end, seiri, close) in fd["holdings"].items():
             if start + chg != end:
                 fails.append(f"{year} {name} {lb}: 前年度末 {start} + 増減 {chg} ≠ 年度末 {end}")
@@ -165,6 +197,8 @@ def check_rows(year: str, funds: dict) -> list[str]:
 RENAMES = {
     # R5 に改称（R4 末の有価証券 2,059,977・現金 41,876 千円が、R5 の前年度末と一致。2026-11-20）
     "福岡県こども育成基金": "福岡県出産・子育て安心基金",
+    # R4 に改称（R3 末の現金 2,508,273 千円が R4 の前年度末と一致。R3 の調書は画像・OCR。2026-11-20）
+    "福岡県緊急経済対策資金信用保証料補填臨時基金": "福岡県緊急経済対策資金等信用保証料補填臨時基金",
 }
 
 
@@ -176,6 +210,12 @@ def check_chain(prev_year: str, prev: dict, year: str, cur: dict) -> list[str]:
         p = prev.get(name)
         if p is None:
             continue
+        # 基金の合計でも比べる（片方の年度で区分の行が落ちると、区分ごとの比較だけでは気づけない）
+        p_end = sum(v[2] for v in p["holdings"].values())
+        c_start = sum(v[0] for v in fd["holdings"].values())
+        if p_end != c_start:
+            fails.append(f"{prev_year}→{year} {name}: 前の年度末の合計 {p_end} ≠ 前年度末の合計 {c_start}"
+                         f"（区分 {sorted(p['holdings'])} / {sorted(fd['holdings'])}）")
         for lb, vals in fd["holdings"].items():
             pv = p["holdings"].get(lb)
             if pv is not None and pv[2] != vals[0]:
@@ -183,7 +223,7 @@ def check_chain(prev_year: str, prev: dict, year: str, cur: dict) -> list[str]:
     return fails
 
 
-OCR_GLYPHS = str.maketrans({"减": "減", "债": "債", "齡": "齢", "產": "産", "增": "増", "·": "・", "电": "電"})
+OCR_GLYPHS = str.maketrans({"减": "減", "债": "債", "齡": "齢", "產": "産", "增": "増", "·": "・", "电": "電", "讓": "譲", "查": "査"})
 
 
 def canonical_names(year: str, funds: dict, known: set[str]) -> tuple[dict, list[str], list[str]]:
@@ -216,26 +256,44 @@ def main():
     pairs = [a.split("=", 1) for a in sys.argv[1:]]
     years = {}
     signs = {}
+    supplement = [y.lstrip("~") for y, _ in pairs if y.startswith("~")]
     for year, src in pairs:
+        year = year.lstrip("~")
         if os.path.isdir(src):
             # 画像の年度: ocr/ocr_lines.py の結果（ページごとのテキスト）。▲ の読み落としは検算で直す（fix_signs）
             txt = "\n".join(open(os.path.join(src, f), encoding="utf-8").read() for f in sorted(os.listdir(src)) if f.endswith(".txt"))
             years[year] = parse(txt)
-            signs[year] = fix_signs(years[year])
-            for s in signs[year]:
-                print(f"{year}: 符号を検算で直した: {s}", file=sys.stderr)
+            signs[year] = [f"{n} {x}" for n, fd in years[year].items() for x in fd.pop("ocr_fixed", [])] + fix_signs(years[year])
         else:
             txt = subprocess.run(["pdftotext", "-enc", "UTF-8", "-layout", src, "-"], capture_output=True, text=True, check=True).stdout
             years[year] = parse(txt)
     fails = []
     known = {n for y, fd in years.items() if y not in signs for n in fd}
     renamed = {}
+    name_fails = {}
     for y in signs:
-        years[y], log, f2 = canonical_names(y, years[y], known)
+        years[y], log, name_fails[y] = canonical_names(y, years[y], known)
         renamed[y] = log
-        fails += f2
         for s in log:
             print(s, file=sys.stderr)
+    # 補助の年度（「~H24=…」）: 次の年度の調書にない基金（その年度の間に廃止した基金）だけを残す。ほかの基金の年度末は
+    # 次の年度の調書の前年度末で足りる（読み取りの質の低い OCR の年度の行を全部は使わない）
+    for y in supplement:
+        nxt = next((x for x in years if YEAR_ORDER[x] == YEAR_ORDER[y] + 1), None)
+        if nxt is None:
+            fails.append(f"{y}: 補助の年度の次の年度の調書がない")
+            continue
+        keep = {n: fd for n, fd in years[y].items() if n not in years[nxt] and RENAMES.get(n, n) not in years[nxt]}
+        print(f"{y}: 補助の年度。次の年度（{nxt}）の調書にない基金 {len(keep)} を残す {sorted(keep)}", file=sys.stderr)
+        years[y] = keep
+        # 名前の寄せの失敗も、残した基金のものだけ（捨てた基金の名前の崩れは使わないので問わない）
+        name_fails[y] = [f for f in name_fails.get(y, []) if any(f.startswith(f"{y} {n}:") for n in keep)]
+        signs[y] = [s for s in signs[y] if any(s.startswith(f"{n} ") for n in years[y])]
+    for f2 in name_fails.values():
+        fails += f2
+    for y, ss in signs.items():
+        for s in ss:
+            print(f"{y}: OCR の読みを検算で直した: {s}", file=sys.stderr)
     for y, fd in years.items():
         fails += check_rows(y, fd)
         n_stock = sum(1 for v in fd.values() if v["kind"] == "積立")
@@ -247,12 +305,12 @@ def main():
             # 基金の廃止・新設（名前の読み違いで黙ってつながりの検算から漏れないよう、出入りを並べる）
             pa = {RENAMES.get(n, n) for n in years[a]}
             gone, new = sorted(pa - set(years[b])), sorted(set(years[b]) - pa)
-            if gone or new:
+            if (gone or new) and a not in supplement and b not in supplement:  # 補助の年度は一部の基金だけなので並べない
                 print(f"{a}→{b}: なくなった {gone} / 新しい {new}", file=sys.stderr)
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     json.dump({"unit": "千円", "columns": ["前年度末現在高", "決算年度中増減高", "決算年度末現在高", "出納整理期間中増高", "出納閉鎖日現在高"],
-               "years": years, "ocr_years": sorted(signs), "signs_fixed": signs, "names_fixed": renamed},
+               "years": years, "ocr_years": sorted(signs), "supplement_years": supplement, "signs_fixed": signs, "names_fixed": renamed},
               sys.stdout, ensure_ascii=False, indent=1)
     sys.exit(1 if fails else 0)
 

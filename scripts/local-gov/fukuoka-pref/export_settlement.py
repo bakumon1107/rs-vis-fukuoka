@@ -27,9 +27,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
 import export_funds  # noqa: E402
 
-# 基金の推移に取り込んだ財産に関する調書の年度（tests/regression.py の FUNDS_INPUTS と同じ）
-FUND_YEARS = ("H23", "H25", "H27", "H28", "H29", "H30", "R2", "R4", "R5", "R6")
-
 
 def val(v):
     return {"v": int(v), "src": "text"}
@@ -135,7 +132,7 @@ def build(work: str, special_slugs: dict[str, str]):
     file = {"schema_version": 1, "gov_id": "fukuoka-pref", "year": YEAR, "year_label": YEAR_LABEL, "basis": "settlement",
             "unit_source": "円", "accounts": accounts, "rows": rows, "revenue_by_kan": revenue, "checks": checks}
     # 基金の現在高（財産に関する調書。地方版の基金の設計）。資料の id は sources.json の「<年度>-zaisan」
-    funds, flines = export_funds.build(work, YEAR, {y: f"{y.lower()}-zaisan" for y in FUND_YEARS})
+    funds, flines = export_funds.build(work, YEAR)
     if funds:
         file["funds"] = funds
     return file, ok, lines + flines

@@ -33,9 +33,10 @@ EXPECTED = os.path.join(HERE, "expected", "regression.json")
 # (名前, スクリプト, 引数, 出力ファイル, 要約として比べる stderr の行の正規表現)
 # 基金の抽出（extract_funds.py）の入力: 年度 → 財産に関する調書（テキストの年度は PDF、画像の年度は OCR の結果）。
 # 引数は「年度=パス」の形でパスの頭が原本の置き場所にならないので、入力の有無は STEP_DEPS で確かめる
-FUNDS_INPUTS = [("H23", "{pdf:800079_62749591}"), ("H25", "{pdf:800079_62749605}"), ("H27", "{ocr:funds-h27}"),
-                ("H28", "{ocr:funds-h28}"), ("H29", "{ocr:funds-h29}"), ("H30", "{pdf:60772}"), ("R2", "{pdf:151877}"),
-                ("R4", "{ocr:funds-r4}"), ("R5", "{pdf:238290}"), ("R6", "{pdf:272596}")]
+# 「~」の年度は補助の年度（次の年度の調書にない基金だけを使う。H24・R3 は OCR の質が低く、ほかの基金は次の年度の前年度末で足りる）
+FUNDS_INPUTS = [("H23", "{pdf:800079_62749591}"), ("~H24", "{ocr:funds-h24}"), ("H25", "{pdf:800079_62749605}"),
+                ("H27", "{ocr:funds-h27}"), ("H28", "{ocr:funds-h28}"), ("H29", "{ocr:funds-h29}"), ("H30", "{pdf:60772}"),
+                ("R2", "{pdf:151877}"), ("~R3", "{ocr:funds-r3}"), ("R4", "{ocr:funds-r4}"), ("R5", "{pdf:238290}"), ("R6", "{pdf:272596}")]
 # 引数の {pdf:X} は <dir>/pdf/X.pdf、{ocr:X} は <dir>/ocr/X、{out:X} は前のステップの出力ファイル
 STEPS = [
     ("決算 款項目別明細表", "extract_kessan_kmk.py", ["{pdf:272595}"], "kessan-kmk.json", [r"^件数", r"^合計行", r"FAIL="]),
@@ -54,7 +55,7 @@ STEPS = [
     ("主要施策の成果（試作）", "extract_seika.py", ["{pdf:272597}"], "seika.json", [r"^施策 \d+ 件"]),
     # 基金の現在高（財産に関する調書。画像の年度は ocr/ocr_lines.py の結果。地方版の基金の設計）
     ("基金（財産に関する調書）", "extract_funds.py", [f"{y}={src}" for y, src in FUNDS_INPUTS], "funds.json",
-     [r"^[HR]\d+: 基金", r"符号を検算で直した|名前を寄せた", r"^[HR]\d+→", r"^FAIL"]),
+     [r"^[HR]\d+: 基金", r"OCR の読みを検算で直した|名前を寄せた|補助の年度", r"^[HR]\d+→", r"^FAIL"]),
     ("説明書 一般会計（OCR）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-ippan}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}",
       "--corrections", os.path.join(ROOT, "ocr", "corrections", "r8-ippan.json")], "setsumeisho-ocr.json",
@@ -140,8 +141,9 @@ def _export_deps():
     outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
             "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
             "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json", "setsumeisho-ndl.json",
-            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json",
-            "funds.json"]
+            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json"]
+    # 基金の抽出の出力（funds.json）は入れない: 基金のステップが飛ばされても（OCR の結果のない環境）、書き出しの回帰は流す。
+    # funds.json がなければ export_funds.build が基金を書かず、期待値の要約（「基金 N 件」の行）の差で気づける
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
         pdfs = [s["file"] for s in json.load(f)["sources"]]
     return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]

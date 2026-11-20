@@ -19,7 +19,8 @@ import cv2  # noqa: E402
 
 
 def to_lines(items: list[dict]) -> list[str]:
-    """文字枠を行にまとめる。中心の高さの差が、枠の高さの中央値の半分以内なら同じ行"""
+    """文字枠を行にまとめる。中心の高さと行の中心の高さ（行の最初の枠の中心）の差が、枠の高さの中央値の半分以内なら同じ行。
+    直前の枠と比べると、少し傾いたページで中心が少しずつ上がる枠が鎖のようにつながり、隣の行を1行にまとめる"""
     if not items:
         return []
     hs = sorted(d["y1"] - d["y0"] for d in items)
@@ -27,7 +28,7 @@ def to_lines(items: list[dict]) -> list[str]:
     rows: list[list[dict]] = []
     for d in sorted(items, key=lambda d: (d["y0"] + d["y1"]) / 2):
         cy = (d["y0"] + d["y1"]) / 2
-        if rows and abs(cy - rows[-1][-1]["cy"]) <= tol:
+        if rows and abs(cy - rows[-1][0]["cy"]) <= tol:
             rows[-1].append({**d, "cy": cy})
         else:
             rows.append([{**d, "cy": cy}])

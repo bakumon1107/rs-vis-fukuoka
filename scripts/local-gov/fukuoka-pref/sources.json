@@ -63,6 +63,8 @@
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/238290.pdf", "sha256": "d743956d2685f97cc84bbc0c813b12ac72ce441e8cdb0ec4d80e769555427a85", "retrieved": "2026-11-20"},
   {"id": "r4-zaisan", "title": "令和4年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "208106",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/208106.pdf", "sha256": "300aed5b22cc8225d8f52705cf1ebbfc79fb4717dadbc557d1d4765da30ec57c", "retrieved": "2026-11-20"},
+  {"id": "r3-zaisan", "title": "令和3年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "180331",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/180331.pdf", "sha256": "6f6dfc4baa6270264066faa6f45fc2ece792e8807f129791d4ae9bc3f275dfa0", "retrieved": "2026-11-20"},
   {"id": "r2-zaisan", "title": "令和2年度 実質収支・財産に関する調書（基金の現在高）", "file": "151877",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/attachment/151877.pdf", "sha256": "1405615eb01143bc2f83c3f7f695fd4d3a65b9c7544d2b6a0206b83252785d7e", "retrieved": "2026-11-20"},
   {"id": "h30-zaisan", "title": "平成30年度 実質収支・財産に関する調書（基金の現在高）", "file": "60772",
@@ -75,6 +77,8 @@
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749618_misc.pdf", "sha256": "55f9bf9307c7e2e8b92020feba4c51984c2b784316f404296b279172497bc056", "retrieved": "2026-11-20"},
   {"id": "h25-zaisan", "title": "平成25年度 実質収支・財産に関する調書（基金の現在高）", "file": "800079_62749605",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749605_misc.pdf", "sha256": "39f4a52b18ae7dd454e415cde2dd6868693c85ca75571e8cdb78118a7716bcdf", "retrieved": "2026-11-20"},
+  {"id": "h24-zaisan", "title": "平成24年度 実質収支・財産に関する調書（基金の現在高。画像。OCR）", "file": "800079_62749599",
+   "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749599_misc.pdf", "sha256": "1a240172b55faeecb075409b94f9eaac2ae1878b2534d786e6aee9521a4ae2e6", "retrieved": "2026-11-20"},
   {"id": "h23-zaisan", "title": "平成23年度 実質収支・財産に関する調書（基金の現在高）", "file": "800079_62749591",
    "url": "https://www.pref.fukuoka.lg.jp/uploaded/life/800079_62749591_misc.pdf", "sha256": "0cc70eb873d1f979595d615db74bd7a02fd7442a99382e63c0427269945612b8", "retrieved": "2026-11-20"}
  ]

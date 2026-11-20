@@ -42678,7 +42678,7 @@
      },
      {
       "year": 2017,
-      "end": 314930531000,
+      "end": 368947011000,
       "src": "ocr"
      },
      {
@@ -45120,6 +45120,16 @@
     "after_closing": 1218562000,
     "history": [
      {
+      "year": 2019,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2507000000,
+      "src": "text"
+     },
+     {
       "year": 2021,
       "end": 2508273000,
       "src": "ocr"
@@ -45139,6 +45149,9 @@
       "end": 1832230000,
       "src": "text"
      }
+    ],
+    "renamed_from": [
+     "緊急経済対策資金信用保証料補填臨時基金"
     ]
    },
    {
@@ -45576,7 +45589,7 @@
     "fiscal_adjustment": 8559720000,
     "debt_reduction": 270248095000,
     "other": 135926964000,
-    "src": "text"
+    "src": "ocr"
    },
    {
     "year": 2013,
@@ -45609,7 +45622,7 @@
    {
     "year": 2017,
     "fiscal_adjustment": 15536516000,
-    "debt_reduction": 314930531000,
+    "debt_reduction": 368947011000,
     "other": 88447468000,
     "src": "ocr"
    },
@@ -45671,6 +45684,13 @@
     "src": "text"
    },
    {
+    "year": 2012,
+    "label": "平成24年度",
+    "source": "h24-zaisan",
+    "src": "ocr",
+    "partial": true
+   },
+   {
     "year": 2013,
     "label": "平成25年度",
     "source": "h25-zaisan",
@@ -45707,6 +45727,13 @@
     "src": "text"
    },
    {
+    "year": 2021,
+    "label": "令和3年度",
+    "source": "r3-zaisan",
+    "src": "ocr",
+    "partial": true
+   },
+   {
     "year": 2022,
     "label": "令和4年度",
     "source": "r4-zaisan",
@@ -45731,8 +45758,8 @@
    "財政状況資料集・財務書類の附属明細書の基金の額は、定義が違い、財政調整基金・減債基金の額が調書と合わない"
   ],
   "checks": {
-   "signs_fixed": 2,
-   "names_fixed": 17
+   "signs_fixed": 4,
+   "names_fixed": 27
   }
  }
 }

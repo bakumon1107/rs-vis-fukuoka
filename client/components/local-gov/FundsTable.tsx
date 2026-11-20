@@ -53,7 +53,11 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov }: { rows: FundRo
                       {r.name}
                     </button>
                     {r.fund?.kind === 'operating' && <span className="ml-1 text-[10px] text-mirai-text-muted">運用基金</span>}
-                    {!r.fund && <span className="block text-[10px] text-mirai-text-muted">{asOfLabel}より後に設けた基金（現在高は決算から）</span>}
+                    {!r.fund && (
+                      <span className="block text-[10px] text-mirai-text-muted">
+                        {asOfLabel}の調書に同じ名前の基金がない（その後に設けたか、名前が違う）
+                      </span>
+                    )}
                     {r.fund?.renamed_from && (
                       <span className="block text-[10px] text-mirai-text-muted">旧 {r.fund.renamed_from.join('・')}</span>
                     )}

@@ -28,16 +28,25 @@ def short(name: str) -> str:
 
 
 def year_label(fy: int) -> str:
-    return f"令和{fy - 2018}年度" if fy >= 2019 else f"平成{fy - 1988}年度"
+    if fy >= 2019:
+        return "令和元年度" if fy == 2019 else f"令和{fy - 2018}年度"
+    return f"平成{fy - 1988}年度"
 
 
-def build(work: str, fiscal_year: int, source_ids: dict[str, str]) -> tuple[dict | None, list[str]]:
-    """funds.json があれば決算のファイルの funds を返す（なければ None）。source_ids: 年度（"R6" など）→ sources.json の id"""
+def source_id(year: str) -> str:
+    """調書の資料の id（sources.json の「<年度>-zaisan」。年度は "R6" など）"""
+    return f"{year.lower()}-zaisan"
+
+
+def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
+    """funds.json があれば決算のファイルの funds を返す（なければ None）"""
     path = os.path.join(work, "funds.json")
     if not os.path.exists(path):
         return None, ["基金: funds.json がない（基金の抽出のステップを飛ばした）"]
     data = json.load(open(path, encoding="utf-8"))
     years, ocr = data["years"], set(data.get("ocr_years", []))
+    # 補助の年度（その年度の間に廃止した基金だけを取り込んだ調書。extract_funds の「~」）
+    supplement = set(data.get("supplement_years", []))
     fy_of = {y: YEAR_ORDER[y] for y in years}
     latest = max(years, key=fy_of.get)
     if fy_of[latest] != fiscal_year:
@@ -60,6 +69,17 @@ def build(work: str, fiscal_year: int, source_ids: dict[str, str]) -> tuple[dict
         for name, fd in funds.items():
             ends[(rename(name), fy_of[y])] = (sum(v[2] for v in fd["holdings"].values()), src)
     all_years = sorted({fy for _, fy in ends})
+    # 調書を取り込んでいない年度（Y）は、次の年度の調書の前年度末で埋める。前の調書（Y-1）にあって次の調書（Y+1）にない基金は、
+    # Y の年度末の額が分からない（Y の間に廃止したか、Y+1 の間に廃止したか）。合計から黙って落とさないよう、数えて示す
+    imported = {fy_of[y] for y in years}
+    gaps = []
+    for fy in all_years:
+        if fy in imported or fy - 1 not in imported or fy + 1 not in imported:
+            continue
+        before = {n for (n, y) in ends if y == fy - 1}
+        missing = sorted(n for n in before if (n, fy) not in ends and ends[(n, fy - 1)][0] != 0)
+        if missing:
+            gaps.append(f"{fy} 年度末: 前の調書にあり残高のある基金が次の調書にない {missing}（この年度の合計に入らない）")
 
     items = []
     for name, fd in sorted(years[latest].items(), key=lambda kv: (kv[1]["kind"] != "積立", kv[1]["no"])):
@@ -92,7 +112,8 @@ def build(work: str, fiscal_year: int, source_ids: dict[str, str]) -> tuple[dict
         "as_of": {"year": fiscal_year, "label": f"{year_label(fiscal_year)}末"},
         "items": items,
         "totals": totals,
-        "statements": [{"year": fy_of[y], "label": year_label(fy_of[y]), "source": source_ids[y], "src": "ocr" if y in ocr else "text"}
+        "statements": [{"year": fy_of[y], "label": year_label(fy_of[y]), "source": source_id(y), "src": "ocr" if y in ocr else "text",
+                        **({"partial": True} if y in supplement else {})}
                        for y in sorted(years, key=fy_of.get)],
         "notes": [
             "残高は財産に関する調書（決算）の年度末現在高（3月31日）。出納閉鎖日（5月31日）の現在高は、出納整理期間中の増減を足した額",
@@ -102,5 +123,9 @@ def build(work: str, fiscal_year: int, source_ids: dict[str, str]) -> tuple[dict
         "checks": {"signs_fixed": sum(len(v) for v in data.get("signs_fixed", {}).values()),
                    "names_fixed": sum(len(v) for v in data.get("names_fixed", {}).values())},
     }
+    if gaps:
+        out["notes"].append("調書を取り込んでいない年度で、前の年度にあり次の年度の調書にない基金は、その年度の合計に入っていない: " +
+                            "；".join(gaps))
     lines = [f"基金 {len(items)} 件（{year_label(fiscal_year)}末 {sum(i['end'] for i in items):,} 円）。推移 {all_years[0]}〜{all_years[-1]} 年度"]
+    lines += [f"WARN 基金 {g}" for g in gaps]
     return out, lines
