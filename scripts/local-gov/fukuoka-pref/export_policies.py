@@ -5,7 +5,8 @@ export_fukuoka_pref.py の main から呼ぶ（予算の行が決まった後）
 
 - 範囲: 一般会計の事項だけ。特別会計・公営企業会計の事項（科目が「特別会計」「企業会計」）と債務負担行為（事項名に「債務負担行為」。
   予算額の欄は後年度にわたる限度額で、その年度の歳出ではない）は除き、件数と額を excluded に書く
-- 科目: 予算の目（一般会計の歳出）に結ぶ。項が決まらない科目（「9 ? 1」）は、予算にある目がちょうど1つならそれに決める。
+- 科目: 予算の目（一般会計の歳出）に結ぶ。項が決まらない科目（「9 ? 4」）は、予算にある目がちょうど1つならそれに決める。
+  目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KOU_FIXES）で決める
   予算にない科目は unmatched の印（資料の印字のまま。R8「認知症医療センター事業費」3-2-5）
 - 図に載らない経費（outside）: 一般会計の歳出から、施策別資料の事項の合計と、4つの決まった出費（諸支出金・人件費・公債費・制度融資）を
   引いた残りを「その他」にする。その他が負なら止める（重なりの数え方が合っていない）
@@ -14,6 +15,16 @@ export_fukuoka_pref.py の main から呼ぶ（予算の行が決まった後）
 import json
 import os
 import re
+
+# 項が字の位置で決まらず、予算にある目も2つある科目を、根拠を確かめて決める表。(事項名, 資料の科目) → 科目。
+# 字の位置で決まらないのは、目が3行で項の「1」「2」が1・2行目と2・3行目のちょうど真ん中に印字された事項（真ん中の目が
+# どちらの項にも同じ近さ）。同じ形の「災害対応力強化費」（9-?-4）は予算の目が 9-1-4 だけで、真ん中の目は上の項だった。
+# 「同じ近さなら上の項」を決まりにはしない（確かめた例が2件だけ）
+KOU_FIXES = {
+    # 説明欄の「少年警察ボランティア協会補助金」9,104 千円は、9-1-1 公安委員会費（節は報酬・旅費・交際費・需用費・委託料だけ）に
+    # 入らない。9-2-1 一般警察活動費には節「負担金、補助及び交付金」36,192 千円がある（R8 278133 p40。2026-11-20 確認）
+    ("少年補導員等活動費", "9 ? 1"): "9 2 1",
+}
 
 
 def _kamoku(text: str, budget_ids: set[str]):
@@ -45,6 +56,7 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     budget_ids = {r["id"] for r in expense}
     fails: list[str] = []
     out_items, excluded = [], {"special": [0, 0], "debt_burden": [0, 0]}
+    used_fixes: set[tuple[str, str]] = set()
     for it in items:
         amount = (it["予算額"] or 0) * 1000
         if "債務負担行為" in it["事項名"]:
@@ -58,7 +70,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         if it["予算額"] is None:
             fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
             continue
-        kamoku = [k for k in (_kamoku(t, budget_ids) for t in it["科目"]) if k]
+        used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KOU_FIXES)
+        kamoku = [k for k in (_kamoku(KOU_FIXES.get((it["事項名"], t), t), budget_ids) for t in it["科目"]) if k]
         pillar = None
         if it["柱"]:
             mm = re.match(r"^([１-９\d])．(.+)$", it["柱"])
@@ -70,6 +83,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             "notes": [e["text"] for e in it["説明"] if e.get("text")],
             "source": {"doc": it["source"], "page": it["pdf_page"]},
         })
+    # 直しの表の行が使われない（資料の読み取りが変わった）ときは、表を見直すよう止める
+    fails += [f"施策別資料: 項の直しの表の行が使われていない {k}" for k in sorted(set(KOU_FIXES) - used_fixes)]
     pillars = {}
     for it in items:
         mm = re.match(r"^([１-９\d])．(.+)$", it["柱"] or "")

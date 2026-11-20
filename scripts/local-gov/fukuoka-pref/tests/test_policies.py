@@ -31,8 +31,9 @@ def _item(name, kamoku, amount, **kw):
 def test_scope_kamoku_and_outside(tmp_path):
     items = [
         _item("災害対応力強化費", ["9 1 2", "9 ? 4", "9 2 1"], 1_000),       # 項が決まらない目4: 予算に 9-1-4 だけ → 9-1-4
-        _item("少年補導員等活動費", ["9 1 2", "9 ? 1", "9 2 2"], 500),      # 目1: 9-1-1・9-2-1 とも予算にある → 決めない
+        _item("架空の事業費", ["9 1 2", "9 ? 1", "9 2 2"], 500),            # 目1: 9-1-1・9-2-1 とも予算にある → 決めない
         _item("認知症医療センター事業費", ["3 2 5"], 100),                     # 予算にない科目
+        _item("少年補導員等活動費", ["9 1 2", "9 ? 1", "9 2 2"], 50),       # 同じ形でも、直しの表にある事項は表で決める
         _item("県立学校施設整備費（債務負担行為）", ["10 2 1"], 9_999),        # 除く（限度額）
         _item("林業改善資金助成事業費", ["特別会計"], 7),                       # 除く（特別会計）
     ]
@@ -40,7 +41,8 @@ def test_scope_kamoku_and_outside(tmp_path):
     pol, lines, fails = ep.build(str(tmp_path), ROWS)
     assert fails == []
     names = [i["name"] for i in pol["items"]]
-    assert names == ["災害対応力強化費", "少年補導員等活動費", "認知症医療センター事業費"]
+    assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費"]
+    assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1"}
     assert pol["excluded"] == {"special": {"count": 1, "amount": 7_000}, "debt_burden": {"count": 1, "amount": 9_999_000}}
     k = pol["items"][0]["kamoku"]
     assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4"}
@@ -58,3 +60,5 @@ def test_other_negative_fails(tmp_path):
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
     _, _, fails = ep.build(str(tmp_path), ROWS)
     assert any("その他" in f for f in fails)
+    # 直しの表の行が資料に出てこない（読み取りが変わった）ときも止める
+    assert any("直しの表の行が使われていない" in f for f in fails)
