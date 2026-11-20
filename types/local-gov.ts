@@ -226,6 +226,50 @@ export interface GeneralFund {
   checked_on: string;
 }
 
+/** 施策別資料の事項の科目（予算の目）。row は予算の目の行の ID（予算にない・項が決まらないときは null） */
+export interface PolicyKamoku {
+  kan: number;
+  kou: number | null;
+  moku: number;
+  row: string | null;
+  /** 資料の科目が予算の目にない（資料の印字のまま） */
+  unmatched?: true;
+  /** 項の字が行の間に印字されていて決まらない（款は決まる） */
+  kou_unresolved?: true;
+}
+
+export interface PolicyItem {
+  name: string;
+  /** 柱の番号（柱の外のグループ「地方分権の推進」は null） */
+  pillar: number | null;
+  /** 取組（施策別資料の区分） */
+  initiative: string | null;
+  /** 課名 */
+  division: string;
+  kamoku: PolicyKamoku[];
+  /** 科目に「外」の印（ほかの科目にもまたがる） */
+  other_kamoku?: true;
+  /** 円 */
+  amount: Yen;
+  previous: Yen | null;
+  is_new: boolean;
+  notes: string[];
+  source: { doc: string; page: number };
+}
+
+export interface LocalPolicies {
+  pillars: { no: number; name: string }[];
+  items: PolicyItem[];
+  /** 範囲から除いた事項（特別会計・公営企業会計の事項、債務負担行為） */
+  excluded: { special: { count: number; amount: Yen }; debt_burden: { count: number; amount: Yen } };
+  /** 図に載らない経費（一般会計の歳出 − 施策の事項。最後の other は差し引き） */
+  outside: { key: string; label: string; amount: Yen }[];
+  /** 一般会計の歳出の合計（円） */
+  expense_total: Yen;
+  /** 施策別資料の PDF のファイル名 */
+  source_docs: string[];
+}
+
 export interface LocalBudgetFile {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
@@ -244,6 +288,8 @@ export interface LocalBudgetFile {
    * 補正後（composed）では外す（一般財源の額が変わる）。説明文だけ composed.funding_notes に残る
    */
   general_fund?: GeneralFund;
+  /** 施策別資料の事項（当初予算だけ。バブル図）。補正後（composed）では外す */
+  policies?: LocalPolicies;
   /**
    * 補正後（当初 + Σ補正）として画面で組み立てたデータだけに付く（ファイルには書かない。app/lib/local-gov/supplement.ts）。
    * basis は 'initial' のまま（図の組み立ては当初と同じ）。rows の amount は補正後の額、before は当初の額

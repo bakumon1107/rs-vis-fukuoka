@@ -220,6 +220,21 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (gf.total !== general) err(`general_fund: total ${gf.total} ≠ 一般会計の歳出の財源内訳の一般財源の合計 ${general}`);
   }
 
+  // 施策別資料の事項（バブル図）: 当初予算だけ。事項の合計 + 図に載らない経費 = 一般会計の歳出の合計。科目の目は予算の行にある
+  const pol = file.policies;
+  if (pol) {
+    if (file.basis !== 'initial') err('policies は当初予算のファイルだけ');
+    const expense = file.rows.filter(r => r.account === 'general' && r.side === 'expense').reduce((s, r) => s + (r.amount.v ?? 0), 0);
+    if (pol.expense_total !== expense) err(`policies.expense_total ${pol.expense_total} ≠ 一般会計の歳出の合計 ${expense}`);
+    const sum = pol.items.reduce((s, it) => s + it.amount, 0) + pol.outside.reduce((s, o) => s + o.amount, 0);
+    if (sum !== pol.expense_total) err(`policies: 事項の合計 + 図に載らない経費 ${sum} ≠ 一般会計の歳出 ${pol.expense_total}`);
+    if (pol.outside.some(o => o.amount < 0)) err('policies.outside に負の額がある');
+    pol.items.forEach((it, i) => {
+      if (!Number.isInteger(it.amount) || it.amount < 0) err(`policies.items[${i}] ${it.name}: 額が 0 以上の整数でない`);
+      for (const k of it.kamoku) if (k.row && !rowIds.has(k.row)) err(`policies.items[${i}] ${it.name}: 科目の目 ${k.row} がない`);
+    });
+  }
+
   if (file.checks.rows !== file.rows.length) err(`checks.rows ${file.checks.rows} ≠ 目の行数 ${file.rows.length}`);
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);
 
