@@ -80,11 +80,6 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
             continue
         amount = it["予算額"] * 1000
-        if it.get("債務負担行為") is not None:
-            # 債務負担行為の限度額（後年度にわたる額で、この年度の歳出ではない）は数えるだけ。事項の今年度の額は載せる
-            # （同じセルに今年度の額と限度額が並ぶ。extract_shisaku.amounts_of）
-            excluded["debt_burden"][0] += 1
-            excluded["debt_burden"][1] += it["債務負担行為"] * 1000
         if it["事項名"] == LOANS_ITEM:
             # 制度融資の貸付金は、図に載らない経費の灰色の円（loans）で見せる（設計 3章）。事項の円に重ねて数えない
             loans_in_policies = amount
@@ -102,6 +97,14 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         if not it["科目"] or it["科目"] == ["外"]:
             # 科目の欄が読めない（目の字が取れず kamoku_lines が科目を返さない）事項を、科目なしで黙って載せない
             fails.append(f"施策別資料 {it['事項名']}: 科目がない {it['科目']}")
+            continue
+        if it.get("債務負担行為") is not None:
+            # 一般会計の事項の債務負担行為の限度額（後年度にわたる額で、この年度の歳出ではない）は数えるだけ。事項の今年度の額は載せる
+            # （同じセルに今年度の額と限度額が並ぶ。extract_shisaku.amounts_of）。特別会計の事項・制度融資は上で外したので数えない
+            excluded["debt_burden"][0] += 1
+            excluded["debt_burden"][1] += it["債務負担行為"] * 1000
+        if amount == 0:
+            # 今年度の額が 0（限度額だけの債務負担行為。R8「国際園芸博覧会出展事業費」）: 円がないので事項に入れない（件数と円の数をそろえる）
             continue
         used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KOU_FIXES)
         kamoku = []

@@ -73,6 +73,9 @@ def amounts_of(name_ws, amount_ws):
     for ln in lines_of(spill + amount_ws):
         s = "".join(w["text"] for w in ln).replace(" ", "").replace("（", "(").replace("）", ")")
         if re.fullmatch(r"\([\d,]+\)", s):
+            if prev is not None:
+                bad.append(f"前年度の括弧が2つ {s}")  # どちらが前年度か決められない（黙って後の数で上書きしない）
+                continue
             prev = int(s[1:-1].replace(",", ""))
         elif re.fullmatch(r"\d[\d,]*", s):
             plains.append(int(s.replace(",", "")))
@@ -200,6 +203,10 @@ def kamoku_lines(ws, notes: list | None = None) -> list[str]:
     return out + (["".join(other)] if other else [])
 
 
+HEAD_MARKS = ("○", "〇", "◯")
+NEW_MARKS = ("[新]", "［新］")
+
+
 def parse_expl(ws):
     """説明欄: 「○」（または「[新]」）で始まる内訳。行の右端（x0>440）の数字がその内訳の金額。"""
     # 内訳の額: 「○」の行に額があればそれ（下の「・」の細目の額は内訳の内訳なので足さない。R8 278133 p14「地域精神保健福祉対策費」:
@@ -210,22 +217,27 @@ def parse_expl(ws):
 
     def close():
         if cur and (cur["buf"] or cur["head"] is not None or cur["rest"]):
-            amount = cur["head"] if cur["head"] is not None else (sum(cur["rest"]) if cur["rest"] else None)
-            expl.append({"text": "".join(cur["buf"]), "amount": amount, "starts_new": cur["new"]})
+            if cur["head"] is not None:
+                amount, src = cur["head"], "head"
+            else:
+                amount, src = (sum(cur["rest"]), "sub") if cur["rest"] else (None, None)
+            # amount_from: 額が「○」の行のものか、細目の合計か（ページをまたぐ続きの足し方に使う。parse_pdf の最後で外す）
+            expl.append({"text": "".join(cur["buf"]), "amount": amount, "starts_new": cur["new"], "amount_from": src})
 
     for ln in lines_of(ws):
         t0 = ln[0]["text"]
-        is_head = t0 == "○" or t0.startswith("○") or t0 == "[新]"
+        # 見出しの印は「○」のほか「〇」（漢数字のゼロ。R8 278133 p37・p38）「◯」、新規の「[新]」「［新］」
+        is_head = t0 in HEAD_MARKS or t0.startswith(HEAD_MARKS) or t0 in NEW_MARKS
         if is_head or cur is None:
             close()
             cur = {"buf": [], "head": None, "rest": [], "new": is_head}
         line_amt = None
         for i, w in enumerate(ln):
             t = w["text"]
-            if is_head and t == "○":
+            if is_head and t in HEAD_MARKS:
                 continue  # 行頭の印（「[新]」の後に別の語で続く「○」も）
             if i == 0 and is_head:
-                cur["buf"].append(t.lstrip("○"))  # 「[新]」は文の頭に残す（新規の内訳の印）
+                cur["buf"].append(t.lstrip("".join(HEAD_MARKS)))  # 「[新]」は文の頭に残す（新規の内訳の印）
                 continue
             if re.fullmatch(r"[\d,]+", t) and w["x0"] > 440:
                 line_amt = int(t.replace(",", ""))
@@ -280,7 +292,11 @@ def parse_pdf(path):
                     if cont and not cont[0]["starts_new"] and items[-1]["説明"]:
                         last = items[-1]["説明"][-1]
                         last["text"] += cont[0]["text"]
-                        last["amount"] = last["amount"] if cont[0]["amount"] is None else cont[0]["amount"]
+                        # 前のページの内訳の額が「○」の行のものなら、続きの額は細目の額なので足さない。
+                        # 額がまだない・細目の合計なら、続きの細目の額を足す（細目がページをまたぐ）
+                        if last.get("amount_from") != "head" and cont[0]["amount"] is not None:
+                            last["amount"] = (last["amount"] or 0) + cont[0]["amount"]
+                            last["amount_from"] = "sub"
                         cont = cont[1:]
                     items[-1]["説明"] += [{k: v for k, v in c.items() if k != "starts_new"} for c in cont]
                     items[-1]["pdf_pages"].append(pi)
@@ -323,6 +339,9 @@ def parse_pdf(path):
                     **({"債務負担行為": limit} if debt else {}), **({"額の読めない字": bad_amounts} if bad_amounts else {}),
                     "source": os.path.basename(path), "pdf_page": pi, "pdf_pages": [pi],
                 })
+    for it in items:
+        for e in it["説明"]:
+            e.pop("amount_from", None)
     return items
 
 
@@ -345,9 +364,12 @@ def main():
             # 額の欄に、額として読めない字・数の合わない額がある（黙って最後の数を使わない）
             fail_lines.append(f"{it['source']} p{it['pdf_page']} {it['事項名']}: 額の欄が読めない {it['額の読めない字']}")
         amts = [e["amount"] for e in it["説明"]]
-        if len(amts) >= 2 and all(a is not None for a in amts) and it["予算額"] is not None:
-            if sum(amts) != it["予算額"]:
-                fail_lines.append(f"{it['source']} p{it['pdf_page']} {it['事項名']}: 内訳の合計 {sum(amts):,} ≠ 予算額 {it['予算額']:,}")
+        known = [a for a in amts if a is not None]
+        if it["予算額"] is not None and known:
+            # 内訳の額がすべて読めたら合計 = 予算額（内訳が1つでも）。一部だけ読めたときも、読めた額の合計が予算額を超えれば誤り
+            if (len(known) == len(amts) and sum(known) != it["予算額"]) or sum(known) > it["予算額"]:
+                fail_lines.append(f"{it['source']} p{it['pdf_page']} {it['事項名']}: 内訳の合計 {sum(known):,} ≠ 予算額 {it['予算額']:,}"
+                                  f"（内訳 {len(amts)}・額のある内訳 {len(known)}）")
     for f in fail_lines:
         print("FAIL " + f, file=sys.stderr)
     total = sum(it["予算額"] or 0 for it in items)

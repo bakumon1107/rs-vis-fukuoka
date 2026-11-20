@@ -37,8 +37,12 @@ def test_scope_kamoku_and_outside(tmp_path):
         # 債務負担行為の行: 今年度の額（200）は事項に載せ、限度額（9,999）だけを除いた分に数える
         _item("県立学校施設整備費", ["9 1 2"], 200, 債務負担行為=9_999),
         _item("林業改善資金助成事業費", ["特別会計"], 7),                       # 除く（特別会計）
-        # 制度融資は事項の円にせず灰色の円（説明書の事項と同じ額であること）
+        # 制度融資は事項の円にせず灰色の円（説明書の事項と同じ額であること）。限度額も数えない
         _item("中小企業振興資金融資費", ["7 1 1"], 900, 債務負担行為=3),
+        # 今年度の額が 0 で限度額だけ: 円がないので事項に入れない（限度額は数える）
+        _item("国際園芸博覧会出展事業費", ["9 1 2"], 0, 債務負担行為=13),
+        # 特別会計の事項の債務負担行為は、一般会計の範囲の外なので数えない
+        _item("流域下水道事業費", ["企業会計"], 5, 債務負担行為=100),
     ]
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, lines, fails = ep.build(str(tmp_path), ROWS)
@@ -46,7 +50,7 @@ def test_scope_kamoku_and_outside(tmp_path):
     names = [i["name"] for i in pol["items"]]
     assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費", "県立学校施設整備費"]
     assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1"}
-    assert pol["excluded"] == {"special": {"count": 1, "amount": 7_000}, "debt_burden": {"count": 2, "amount": 10_002_000}}
+    assert pol["excluded"] == {"special": {"count": 2, "amount": 12_000}, "debt_burden": {"count": 2, "amount": 10_012_000}}
     k = pol["items"][0]["kamoku"]
     assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4"}
     assert pol["items"][1]["kamoku"][1] == {"kan": 9, "kou": None, "moku": 3, "row": None, "unmatched": True}

@@ -260,7 +260,8 @@ export interface LocalPolicies {
   items: PolicyItem[];
   /**
    * special: 範囲から除いた事項（特別会計・公営企業会計）の件数と額。
-   * debt_burden: 債務負担行為のある事項の件数と限度額の合計（事項の今年度の額は items に入る。限度額は後年度にわたる額で入れない）
+   * debt_burden: 債務負担行為のある一般会計の事項（制度融資を除く）の件数と限度額の合計（事項の今年度の額は items に入る。
+   * 今年度の額が 0 の事項は items に入らない。限度額は後年度にわたる額で入れない）
    */
   excluded: { special: { count: number; amount: Yen }; debt_burden: { count: number; amount: Yen } };
   /** 図に載らない経費（一般会計の歳出 − 施策の事項。最後の other は差し引き） */

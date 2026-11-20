@@ -43,7 +43,19 @@ def test_explanation_head_and_sub_amounts():
     assert ex[2]["text"].startswith("[新]") and ex[0]["starts_new"]
     # 同じ行の字の高さが四捨五入の境をまたいでも、「○」と本文の順を入れ替えない
     ex = sh.parse_expl([_w(317, 158.46, "本文"), _w(305, 158.54, "○"), _w(526, 158.5, "10")])
-    assert ex == [{"text": "本文", "amount": 10, "starts_new": True}]
+    assert ex == [{"text": "本文", "amount": 10, "starts_new": True, "amount_from": "head"}]
+    # 見出しの印「〇」（漢数字のゼロ）も見出し。印は文に残さない
+    ex = sh.parse_expl([_w(305, 80, "〇砂浜の回復"), _w(526, 80, "5"), _w(305, 90, "○"), _w(317, 90, "次"), _w(526, 90, "6")])
+    assert [(e["text"], e["amount"]) for e in ex] == [("砂浜の回復", 5), ("次", 6)]
+    # 細目にだけ額がある内訳は amount_from が sub（ページをまたぐ続きの細目の額を足すため）
+    ex = sh.parse_expl([_w(305, 80, "○"), _w(317, 80, "設置"), _w(317, 90, "・手当"), _w(518, 90, "7")])
+    assert ex[0]["amount"] == 7 and ex[0]["amount_from"] == "sub"
+
+
+def test_amounts_two_previous_years_rejected():
+    # 前年度の括弧が2つ: どちらか決められないので読めない字にする（後の数で上書きしない）
+    _, prev, plains, bad = sh.amounts_of([], [_w(260, 90, "(100)"), _w(260, 100, "(200)"), _w(260, 110, "300")])
+    assert prev == 100 and plains == [300] and bad and "前年度の括弧が2つ" in bad[0]
 
 
 def test_division_lines():
