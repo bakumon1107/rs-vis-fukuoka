@@ -40,6 +40,15 @@ export default function LocalPoliciesPage() {
 
 type ColorMode = 'pillar' | 'kan';
 
+// 灰色の円（施策の円の外の経費）を押したときの説明。額は説明書（予算に関する説明書）の款・節・事項から数えた額
+const OUTSIDE_NOTES: Record<string, string> = {
+  other:
+    '一般会計の歳出から、施策の円の事項と、ほかの4つの灰色の円を引いた残り。人件費と施策の事項が重なる分は、ここが小さくなる形で差し引かれています。',
+  loans:
+    '施策別資料の事項（取組「中小企業の振興」）ですが、金融機関に預けて年度内に戻るお金で、ほかの事項と性格が違うので灰色の円で見せています。額は説明書の事項の額（施策別資料の額と同じ）。',
+  fixed: '説明書の款・節・事項から数えた額。施策別資料に事項として載らない、決まった出費です。',
+};
+
 function LocalPoliciesContent() {
   const { gov } = useParams<{ gov: string }>();
   // 年度は URL の year（サンキー図から渡す）。なければ当初予算の最新の年度
@@ -118,7 +127,7 @@ function LocalPoliciesContent() {
         <p className="text-sm">
           一般会計の歳出 {formatBudgetFromYen(policies.expense_total)} のうち、編成概要の施策別資料に載る事項 {policies.items.length} 件
           （計 <b>{formatBudgetFromYen(inPolicies)}</b>）を、県の総合計画の柱と取組で分けて円にしました。円の面積が予算額です。
-          施策別資料に載らない経費 {formatBudgetFromYen(outsideTotal)} は灰色の円です（同じ縮尺）。
+          施策の円の外の経費 {formatBudgetFromYen(outsideTotal)}（税の清算金・人件費・公債費・制度融資・その他）は灰色の円です（同じ縮尺）。
           円を押すとその円に寄り、事項を押すと内容を出します。
         </p>
 
@@ -161,7 +170,7 @@ function LocalPoliciesContent() {
           ))}
           <li className="flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded-full bg-slate-400/60" aria-hidden />
-            施策別資料に載らない経費
+            施策の円の外の経費
           </li>
         </ul>
 
@@ -211,12 +220,8 @@ function LocalPoliciesContent() {
             {outsideItem && (
               <section className="space-y-1 rounded-2xl bg-card p-3 text-sm shadow-soft">
                 <h2 className="font-bold">{outsideItem.label}</h2>
-                <p>{formatBudgetFromYen(outsideItem.amount)}（施策別資料に載らない経費）</p>
-                <p className="text-xs text-mirai-text-muted">
-                  {outsideItem.key === 'other'
-                    ? '一般会計の歳出から、施策別資料の事項と、ほかの4つの灰色の円を引いた残り。人件費と施策の事項が重なる分は、ここが小さくなる形で差し引かれています。'
-                    : '説明書の款・節・事項から数えた額。施策別資料に事項として載らない、決まった出費です。'}
-                </p>
+                <p>{formatBudgetFromYen(outsideItem.amount)}（施策の円の外の経費）</p>
+                <p className="text-xs text-mirai-text-muted">{OUTSIDE_NOTES[outsideItem.key] ?? OUTSIDE_NOTES.fixed}</p>
               </section>
             )}
 
@@ -278,7 +283,7 @@ function LocalPoliciesContent() {
             補正予算は入っていません（施策別資料は当初予算だけ）。
           </p>
           <p>
-            1つの事項が複数の款・目にまたがるときも、円は1つです（款で色分けするときは「款をまたぐ事項」の色）。
+            1つの事項が複数の款・目にまたがるときも、円は1つです（款で色分けするときは、複数の款にまたがる事項と、資料の科目に「外」のある事項を「款をまたぐ事項」の色に）。
             柱の外の「{OUTSIDE_PILLAR_NAME}」は、施策別資料で4つの柱の後に載る計画推進の基盤づくりの事項です。
           </p>
           <p>
@@ -298,7 +303,7 @@ function LocalPoliciesContent() {
                 </span>
               );
             })}
-            （{index.gov.name}）。金額は資料に印字された数字（千円単位）を円に直したもの。
+            （{index.gov.name}）。施策の円の金額は施策別資料に印字された数字（千円単位）を円に直したもの。灰色の円は予算に関する説明書の款・節・事項から数えた額。
           </p>
         </section>
       </main>

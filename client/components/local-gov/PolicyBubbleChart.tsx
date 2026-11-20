@@ -3,7 +3,7 @@
 /**
  * 施策のバブル図（表示専用）。一般会計の歳出の全体を1つの入れ子の円にする（d3-hierarchy の pack。円の面積が予算額に比例）:
  * - 「施策別資料の事項」の円（柱 → 取組 → 事項）
- * - 図に載らない経費の灰色の円（5つ）。同じ pack に並べるので縮尺は同じ
+ * - 施策の円の外の経費の灰色の円（5つ。制度融資は施策別資料の事項だが灰色で見せる）。同じ pack に並べるので縮尺は同じ
  * 設計: docs/local-gov/tasks/20261120_1500_地方版バブル図の設計.md 6章
  *
  * 操作: 円（施策・柱・取組）を押すとその円に寄る（viewBox を変える）。寄った円をもう一度押すか背景を押すと1つ外に戻る。
@@ -109,7 +109,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
         viewBox={`${vb.x} ${vb.y} ${vb.s} ${vb.s}`}
         className="h-auto w-full touch-manipulation select-none"
         role="img"
-        aria-label="一般会計の歳出の入れ子の円（施策別資料の事項を柱・取組で分けたものと、図に載らない経費。面積が予算額）。右の一覧からも選べます"
+        aria-label="一般会計の歳出の入れ子の円（施策別資料の事項を柱・取組で分けたものと、施策の円の外の経費。面積が予算額）。右の一覧からも選べます"
         onClick={() => onFocus(parentKey(focusNode))}
         // 押すと寄る先が変わり、ポインタの下の円も変わるので、前の円の説明を消す（円の onClick より先に）
         onClickCapture={() => setHover(null)}
@@ -159,7 +159,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
                   e.stopPropagation();
                   onOutside(d.key);
                 }}
-                onPointerMove={e => showTip(e, d.label, `${formatBudgetFromYen(d.amount)}（施策別資料に載らない）`)}
+                onPointerMove={e => showTip(e, d.label, `${formatBudgetFromYen(d.amount)}（施策の円の外の経費）`)}
               />
             );
           }

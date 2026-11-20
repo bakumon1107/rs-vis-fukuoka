@@ -74,7 +74,7 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
                     <span className="text-mirai-text-muted">
                       {/* 「?」は資料の印字ではなく、項の字が行の間にあって読み分けられなかった印（資料の誤りではない） */}
                       {k.printed.includes('?')
-                        ? '（資料の項の字が行の間にあり読み分けられないので、説明の内訳と予算の節で確かめて決めた）'
+                        ? '（資料の項の字が行の間にあり読み分けられないので、予算の目と説明の内訳で確かめて決めた）'
                         : `（資料の印字は ${k.printed.replace(/ /g, '-')}。予算の目の額と内訳で確かめて直した）`}
                     </span>
                   )}
