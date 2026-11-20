@@ -33,7 +33,10 @@ def is_header_row(name: str) -> bool:
 
 def words_in(words, col, y0, y1):
     a, b = COL[col]
-    return [w for w in words if a <= (w["x0"] + w["x1"]) / 2 < b and y0 <= (w["top"] + w["bottom"]) / 2 < y1]
+    # 区分の欄は左端で見る。縦書きの1字ずつのほか、横書きの長い区分名（R8 278133 p27「人権が尊重される心豊かな社会づくり」）は
+    # 字の中心が欄の右にはみ出す（中心で見ると区分が空になった。6件）
+    pos = (lambda w: w["x0"]) if col == "kubun" else (lambda w: (w["x0"] + w["x1"]) / 2)
+    return [w for w in words if a <= pos(w) < b and y0 <= (w["top"] + w["bottom"]) / 2 < y1]
 
 
 def text_of(ws):
@@ -124,7 +127,10 @@ def parse_pdf(path):
             t = text_of(head)
             m = re.match(r"^([１-９\d])．(.+)$", t)
             if m:
-                pillar = t
+                # 柱の名前は2行に折り返すことがある（「２．…子どもを安心して産み育」「てることができる」。R8 278133 p1）。
+                # 2行目は1行目のすぐ下（top 60〜70）の左寄せの字。表の列見出し（「区分」「課」…）は同じ高さでも字が1〜2字
+                second = [w for w in words if 60 <= w["top"] < 70 and w["x0"] < 100 and len(w["text"]) >= 3]
+                pillar = t + text_of(second)
             hl = hlines(page)
             item_b = bounds(hl, 143)
             kamoku_b = bounds(hl, 104)
@@ -170,6 +176,11 @@ def parse_pdf(path):
                 km = kamoku_lines(words_in(words, "kamoku", lo2 or y0, hi2 or y1))
                 lo3, hi3 = enclosing(kubun_b, y0, y1)
                 kubun = text_of(words_in(words, "kubun", lo3 or y0, hi3 or y1))
+                if not kubun and items and items[-1]["柱"] == pillar and items[-1]["区分"]:
+                    # 区分のセルに名前がない: 前のページの区分が続いている（R8 278133 p27 の警察本部の2事項。
+                    # 区分「社会的・経済的に厳しい状況にある方への支援」が p26 から続く。区分のセルには必ず名前があるので、
+                    # 名前のないセルは前のページからの続きだけ）
+                    kubun = items[-1]["区分"]
                 items.append({
                     "柱": pillar, "区分": kubun, "課名": ka, "科目": km, "新規": bool(words_in(words, "new", y0, y1)),
                     "事項名": name, "予算額": cur, "前年度": prev, "説明": expl,
