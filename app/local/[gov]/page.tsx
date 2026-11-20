@@ -200,6 +200,12 @@ function LocalGovContent() {
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
+          {/* 施策別資料の事項は当初予算のファイルにだけある（policies）。そのデータを見ているときだけ出す */}
+          {file.policies && (
+            <Link href={`/local/${gov}/policies?year=${file.year}`} className="text-sm text-primary-accent underline">
+              施策のバブル図
+            </Link>
+          )}
           <Link href={`/local/${gov}/funds`} className="text-sm text-primary-accent underline">
             基金
           </Link>
