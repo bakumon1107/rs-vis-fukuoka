@@ -83,8 +83,11 @@ class TestOcr:
         # テキストの年度では OCR の直しをしない（読めない行として FAIL）
         assert "現金" not in fu.parse(txt)["福岡県減債基金"]["holdings"]
         # 読み替えは1か所ずつ試し、検算の成り立つ1通りだけ（本当の額の 7 は変えない）
-        assert fu.seven_as_triangle("100   7   7   93   0   93") is None or fu.seven_as_triangle("100   7   7   93   0   93") == [100, -7, 93, 0, 93]
+        assert fu.seven_as_triangle("100   7   7   93   0   93") == [100, -7, 93, 0, 93]
         assert fu.seven_as_triangle("107   7   100   7   107") is None
+        # 行の頭の「7」も試す。ほかの ▲ の読み落としは後の fix_signs が直すので、符号を変えて成り立てば使う
+        assert fu.seven_as_triangle("7   100   0   100") is None  # 5つの額にならない
+        assert fu.seven_as_triangle("100   7   5   95   3   98") == [100, -5, 95, 3, 98]
 
     def test_h24_ocr_shapes(self):
         # 見出しの番号の後のごみ（「(8)   1   福岡県…」）・注記を挟んで割れた区分名（「現 ▲52,639)」「金」）・0 を1つ落とした行

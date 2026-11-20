@@ -33,6 +33,11 @@ const budget = {
       { name: '内訳', amount: v(30), parent: 1 },
       { name: '公共施設整備基金積立金', amount: v(30), parent: 2 },
     ]),
+    // 子が親より前に並んでいても重ねない
+    row('general/expense/2-1-8', 'expense', '財産管理費', 40, [
+      { name: '共助社会づくり基金積立金', amount: v(40), parent: 1 },
+      { name: '共助社会づくり基金積立金', amount: v(40) },
+    ]),
   ],
 } as unknown as LocalBudgetFile;
 
@@ -44,6 +49,7 @@ test('fundFlows: 繰入金・特別会計繰入金・積立金を名前で基金
   assert.deepEqual(byFund.get('財政調整基金')?.deposit.map(x => x.amount), [100]);
   assert.deepEqual(byFund.get('市町村振興基金')?.deposit.map(x => x.amount), [7]);
   assert.deepEqual(byFund.get('公共施設整備基金')?.deposit.map(x => x.amount), [30]);
+  assert.deepEqual(byFund.get('共助社会づくり基金')?.deposit.map(x => x.amount), [40]);
   assert.equal(byFund.has('地方公務員災害補償基金'), false);
   assert.equal(byFund.has('県債管理基金'), false);
 });
@@ -53,7 +59,7 @@ test('fundRows: 年度末現在高の多い順。予算にだけある基金は�
   const funds = { items: [fund('財政調整基金', 66_716_408_000), fund('減債基金', 749_255_770_000)] } as unknown as LocalFunds;
   const rows = fundRows(funds, fundFlows(budget));
   assert.deepEqual(rows.slice(0, 2).map(r => r.name), ['減債基金', '財政調整基金']);
-  assert.deepEqual(rows.slice(2).map(r => r.name).sort(), ['公共施設整備基金', '市町村振興基金', '文化芸術振興基金']);
+  assert.deepEqual(rows.slice(2).map(r => r.name).sort(), ['公共施設整備基金', '共助社会づくり基金', '市町村振興基金', '文化芸術振興基金']);
   assert.equal(rows[1].withdraw, 21_899_939_000);
   const culture = rows.find(r => r.name === '文化芸術振興基金');
   assert.equal(culture?.fund, null);

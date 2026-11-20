@@ -85,12 +85,14 @@ def numbers(line: str):
 
 def seven_as_triangle(ln: str):
     """OCR が「▲」を独立した「7」と読んだ行（H29 減債基金の現金「83,224,249 7 29,207,769 …」）。独立した「7」を1つずつ「▲」に
-    読み替え、5つの額になり 前年度末 + 増減 = 年度末・年度末 + 出納整理 = 出納閉鎖日 が成り立つものがちょうど1通りならその額"""
-    spots = [m.start() for m in re.finditer(r"(?<=\s)7(?=\s+\d)", ln)]
+    読み替え、5つの額になり、符号を変えれば 前年度末 ± 増減 = 年度末・年度末 ± 出納整理 = 出納閉鎖日 が成り立つものが
+    ちょうど1通りならその額（ほかの ▲ の読み落としは後の fix_signs が直す）"""
+    spots = [m.start() for m in re.finditer(r"(?:(?<=\s)|^)7(?=\s+\d)", ln)]
     found = []
     for p in spots:
         vals = numbers(ln[:p] + "▲" + ln[p + 1:])
-        if vals and vals[0] + vals[1] == vals[2] and vals[2] + vals[3] == vals[4]:
+        if vals and any(vals[0] + s1 * abs(vals[1]) == vals[2] for s1 in (1, -1)) and \
+                any(vals[2] + s2 * abs(vals[3]) == vals[4] for s2 in (1, -1)):
             found.append(vals)
     return found[0] if len(found) == 1 else None
 
@@ -307,7 +309,8 @@ def main():
             if end != 0:
                 fails.append(f"{y} {n}: 補助の年度で残した基金の年度末が 0 でない（{end}。改称か名前の読み違い。RENAMES を確かめる）")
         # 名前の寄せの失敗も、残した基金のものだけ（捨てた基金の名前の崩れは使わないので問わない）
-        name_fails[y] = [f for f in name_fails.get(y, []) if any(f.startswith(f"{y} {n}:") for n in keep)]
+        # ただし名前が2つの基金に寄る失敗はいつも残す（片方の基金の値が上書きで消えている。捨てた基金の名前でも、消えたのは残すべき基金かもしれない）
+        name_fails[y] = [f for f in name_fails.get(y, []) if any(f.startswith(f"{y} {n}:") for n in keep) or "寄せた名前が2つ" in f]
         signs[y] = [s for s in signs[y] if any(s.startswith(f"{n} ") for n in years[y])]
     for f2 in name_fails.values():
         fails += f2

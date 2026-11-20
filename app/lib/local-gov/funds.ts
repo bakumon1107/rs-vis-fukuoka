@@ -48,18 +48,21 @@ export function fundFlows(file: LocalBudgetFile): FundFlows {
       continue;
     }
     // 事項: 数えた事項の内訳（parent が数えた事項）は重ねない。親が基金の名前でない事項（「基金積立金」）なら内訳を数える
-    const counted = new Set<number>();
-    (r.items ?? []).forEach((it, i) => {
-      // 数えた事項の下（内訳・内訳の内訳）は全部重ねない。親が数えた事項の下なら、この事項も「数えた事項の下」に入れる
-      if (it.parent !== undefined && counted.has(it.parent)) {
-        counted.add(i);
-        return;
+    const items = r.items ?? [];
+    const match = (i: number) => DEPOSIT_ITEM_RE.exec(items[i].name) ?? DEPOSIT_MOKU_RE.exec(items[i].name);
+    // 祖先（親・親の親…）に基金の積立金として数える事項があれば、その下（内訳）なので重ねない。並び順によらず親をたどる
+    const underCounted = (i: number) => {
+      const seen = new Set<number>();
+      for (let p = items[i].parent; p !== undefined && !seen.has(p); p = items[p]?.parent) {
+        seen.add(p);
+        if (items[p] && match(p) && items[p].amount.v != null) return true;
       }
-      const m = DEPOSIT_ITEM_RE.exec(it.name) ?? DEPOSIT_MOKU_RE.exec(it.name);
-      if (m && it.amount.v != null) {
-        at(m[1]).deposit.push({ row: r.id, label: it.name, amount: it.amount.v });
-        counted.add(i);
-      }
+      return false;
+    };
+    items.forEach((it, i) => {
+      if (underCounted(i)) return;
+      const m = match(i);
+      if (m && it.amount.v != null) at(m[1]).deposit.push({ row: r.id, label: it.name, amount: it.amount.v });
     });
   }
   return { byFund };
