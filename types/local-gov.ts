@@ -226,16 +226,14 @@ export interface GeneralFund {
   checked_on: string;
 }
 
-/** 施策別資料の事項の科目（予算の目）。row は予算の目の行の ID（予算にない・項が決まらないときは null） */
+/** 施策別資料の事項の科目（予算の目）。row は予算の目の行の ID（予算にないときは null） */
 export interface PolicyKamoku {
   kan: number;
   kou: number | null;
   moku: number;
   row: string | null;
-  /** 資料の科目が予算の目にない（資料の印字のまま） */
+  /** 資料の科目が予算の目にない（資料の印字のまま。項が読み分けられず、予算にその款・目の目がないときは kou が null） */
   unmatched?: true;
-  /** 項の字が行の間に印字されていて決まらない（款は決まる） */
-  kou_unresolved?: true;
 }
 
 export interface PolicyItem {

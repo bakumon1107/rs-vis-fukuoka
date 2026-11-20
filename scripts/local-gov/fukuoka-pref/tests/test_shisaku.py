@@ -26,6 +26,15 @@ def test_division_lines():
     assert sh.division_of(ws) == "水・大気環境課、漁業管理課"
     assert sh.division_of([_w(70, 100, "財産活用課"), _w(70, 110, "外21課")]) == "財産活用課外21課"
     assert sh.division_of([_w(70, 100, "高齢者地域包括ケア"), _w(70, 110, "推進課")]) == "高齢者地域包括ケア推進課"
+    # 「…事務局」の次の行の課はその事務局の課（R8 277220「議会事務局」「総務課」）
+    assert sh.division_of([_w(70, 100, "議会事務局"), _w(70, 110, "総務課")]) == "議会事務局総務課"
+
+
+def test_kamoku_by_order_more_labels_than_rows():
+    # 字が目の行より多い（目の字を読み落とした）: どの行も決めない
+    notes: list = []
+    ws = [_w(107, 100, "９"), _w(120, 95, "１"), _w(120, 101, "２"), _w(120, 107, "３"), _w(133, 98, "１"), _w(133, 104, "２")]
+    assert sh.kamoku_lines(ws, notes) == ["9 ? 1", "9 ? 2"] and notes
 
 
 def test_kamoku_centered_kan_kou():

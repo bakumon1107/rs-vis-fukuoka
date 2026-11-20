@@ -6,7 +6,7 @@ export_fukuoka_pref.py の main から呼ぶ（予算の行が決まった後）
 - 範囲: 一般会計の事項だけ。特別会計・公営企業会計の事項（科目が「特別会計」「企業会計」）と債務負担行為（事項名に「債務負担行為」。
   予算額の欄は後年度にわたる限度額で、その年度の歳出ではない）は除き、件数と額を excluded に書く
 - 科目: 予算の目（一般会計の歳出）に結ぶ。項が決まらない科目（「9 ? 4」）は、予算にある目がちょうど1つならそれに決める。
-  目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KOU_FIXES）で決める
+  目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KOU_FIXES）で決める。表になければ止める（項なしで黙って載せない）
   予算にない科目は unmatched の印（資料の印字のまま。R8「認知症医療センター事業費」3-2-5）
 - 図に載らない経費（outside）: 一般会計の歳出から、施策別資料の事項の合計と、4つの決まった出費（諸支出金・人件費・公債費・制度融資）を
   引いた残りを「その他」にする。その他が負なら止める（重なりの数え方が合っていない）
@@ -31,17 +31,19 @@ KOU_FIXES = {
 
 
 def _kamoku(text: str, budget_ids: set[str]):
-    """「款 項 目」→ 科目の dict。項が「?」なら予算にある目がちょうど1つのときだけ決める"""
+    """「款 項 目」→ 科目の dict。読めない形なら None。項が「?」なら、予算にある目がちょうど1つのときだけ決める。
+    予算に目がなければ unmatched の印（項は None）。2つ以上あれば "ambiguous"（呼び出し側が止める。KOU_FIXES に根拠を書いて足す）"""
     m = re.fullmatch(r"(\d+) (\d+|\?) (\d+)", text)
     if not m:
         return None
     kan, kou, moku = m.group(1), m.group(2), m.group(3)
     if kou == "?":
         cands = [i for i in budget_ids if re.fullmatch(rf"general/expense/{kan}-\d+-{moku}", i)]
-        if len(cands) == 1:
-            kou = cands[0].split("/")[-1].split("-")[1]
-        else:
-            return {"kan": int(kan), "kou": None, "moku": int(moku), "row": None, "kou_unresolved": True}
+        if len(cands) > 1:
+            return "ambiguous"
+        if not cands:
+            return {"kan": int(kan), "kou": None, "moku": int(moku), "row": None, "unmatched": True}
+        kou = cands[0].split("/")[-1].split("-")[1]
     row = f"general/expense/{kan}-{kou}-{moku}"
     out = {"kan": int(kan), "kou": int(kou), "moku": int(moku), "row": row if row in budget_ids else None}
     if out["row"] is None:
@@ -90,7 +92,10 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         kamoku = []
         for t in it["科目"]:
             k = _kamoku(KOU_FIXES.get((it["事項名"], t), t), budget_ids)
-            if k:
+            if k == "ambiguous":
+                # 項が読み分けられず、予算にその款・目の目が2つ以上ある: 黙って項なしで載せない
+                fails.append(f"施策別資料 {it['事項名']}: 科目 {t!r} の項が決まらない（予算に候補が2つ以上。根拠を確かめて KOU_FIXES に足す）")
+            elif k:
                 kamoku.append(k)
             elif t != "外":
                 # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
@@ -151,8 +156,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         "source_docs": sorted({i["source"]["doc"] for i in out_items}),
     }
     n_unmatched = sum(1 for i in out_items for k in i["kamoku"] if k.get("unmatched"))
-    n_unresolved = sum(1 for i in out_items for k in i["kamoku"] if k.get("kou_unresolved"))
+    # 項が決まらない科目は止めるので、要約には直しの表で項を決めた数を出す
     lines = [f"施策別資料 事項 {len(out_items)} 件（{in_policies:,} 円）。除いた: 特別会計 {excluded['special'][0]}・"
-             f"債務負担行為 {excluded['debt_burden'][0]}。科目: 予算にない {n_unmatched}・項が決まらない {n_unresolved}。"
+             f"債務負担行為 {excluded['debt_burden'][0]}。科目: 予算にない {n_unmatched}・項を直しの表で決めた {len(used_fixes)}。"
              f"図に載らない経費のその他 {other:,} 円"]
     return policies, lines, fails

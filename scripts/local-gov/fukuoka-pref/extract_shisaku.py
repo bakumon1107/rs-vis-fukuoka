@@ -59,7 +59,8 @@ def division_of(ws) -> str:
     for top in sorted(lines):
         t = "".join(w["text"] for w in sorted(lines[top], key=lambda w: w["x0"]))
         # 「外21課」（ほか 21 課）は前の課の続き（「財産活用課外21課」。R8「公用車への電動車導入費」）
-        if out and (not out[-1].endswith(DIVISION_ENDS) or t.startswith("外")):
+        # 「…事務局」の次の行の課はその事務局の課（「議会事務局」「総務課」→ 議会事務局総務課。R8 277220 の5事項。事務局だけの課名はない）
+        if out and (not out[-1].endswith(DIVISION_ENDS) or t.startswith("外") or out[-1].endswith("事務局")):
             out[-1] += t
         else:
             out.append(t)
@@ -102,8 +103,8 @@ def kamoku_lines(ws, notes: list | None = None) -> list[str]:
     項「1」が目 1・3 の真ん中、項「2」が目 5・6 の真ん中。277214 p3「ワンヘルス教育推進費」: 款「10」の高さ 307.8 が
     目 4・1・2 の真ん中 307.85 → 5-3-1・10-1-4・10-8-1・10-9-2。前の行から受け継ぐと 5-1-4 と誤る）。
     款・項の字ごとに、目の行のかたまり（縦の真ん中が字の高さ）を当てる（by_range。いちばん近い字を当てると、長いセルの端の行が
-    隣の短いセルの字に近くなり、黙って別の款・項になる）。かたまりに分けられないときだけ、いちばん近い字を当て（同じ近さなら「?」）、
-    notes に書く（main の WARN で知らせる）。
+    隣の短いセルの字に近くなり、黙って別の款・項になる）。かたまりに分けられないときは by_order（最初と最後の行だけ決め、間の行は「?」。
+    字が1種類ならどの行もその字）で、「?」が残れば notes に書く（main の WARN で知らせる。「?」は書き出しが予算の目と直しの表で決める）。
     目のない字の並び（「企業会計」「特別会計」「外」）はそのまま返す"""
     cols: list[list[dict]] = [[], [], []]
     other = []
@@ -126,12 +127,6 @@ def kamoku_lines(ws, notes: list | None = None) -> list[str]:
     rows = sorted(cols[2], key=lambda w: w["top"])
     tops = [m["top"] for m in rows]
 
-    def nearest(cands, y):
-        if not cands:
-            return "?"
-        ds = sorted((abs(c["top"] - y), c["text"]) for c in cands)
-        return "?" if len(ds) > 1 and abs(ds[0][0] - ds[1][0]) < 0.5 and ds[0][1] != ds[1][1] else ds[0][1]
-
     def by_range(cands):
         """字ごとに、続いた目の行のかたまりを当てる（結合セルの字は、かたまりの縦の真ん中に印字される）。上の字から順に、
         かたまりの最初の行と最後の行の真ん中が字の高さと合う最後の行を1つに決める。決まらない・行が余るときは None"""
@@ -152,7 +147,10 @@ def kamoku_lines(ws, notes: list | None = None) -> list[str]:
         最初の字、最後の行は最後の字に決まる。その間の行は、字が1つなら決まり、2つ以上なら決めない（「?」。書き出しが予算の目と
         確かめた直しの表で決める）。いちばん近い字は当てない（長いセルの端の行が隣のセルの字に近くなり、黙って誤る）"""
         labels = [c["text"] for c in sorted(cands, key=lambda c: c["top"])]
+        if len(labels) > len(tops):
+            return ["?"] * len(tops)  # 字が目の行より多い（目の字を読み落とした）: どの行も決めない
         if len(set(labels)) == 1:
+            # 字が1種類なら、どの行もその款・項（R8 の款の列で、字がかたまりの真ん中からずれた3件。どれも予算の目で確かめた）
             return [labels[0]] * len(tops)
         return [labels[0]] + ["?"] * (len(tops) - 2) + [labels[-1]] if len(tops) >= 2 else ["?"]
 
@@ -282,7 +280,7 @@ def main():
         # 区分（取組）が空: 読み取りの失敗（区分のセルには必ず名前がある。前のページからの続きは parse_pdf で埋めた）
         missing = [k for k in ("事項名", "予算額", "課名", "区分", "柱") if not it[k]] + \
             (["科目"] if not it["科目"] or any(not re.fullmatch(r"\d+ \d+ \d+", k) for k in it["科目"]) else []) + \
-            (["科目の当て方"] if it.get("科目の当て方") else [])  # 款・項をいちばん近い字で当てた（かたまりに分けられない）
+            (["科目の当て方"] if it.get("科目の当て方") else [])  # 款・項が目の行のかたまりに分けられず、間の行を「?」にした
         if missing:
             warns += 1
             print(f"WARN {it['source']} p{it['pdf_page']} {it['事項名']}: 欠け {missing} 科目={it['科目']}", file=sys.stderr)
