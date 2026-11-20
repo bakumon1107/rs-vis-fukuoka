@@ -76,6 +76,25 @@ def test_unreadable_kamoku_mixed_accounts_and_missing_file_fail(tmp_path):
     assert fails and "shisaku.json" in fails[0]
 
 
+def test_unread_fields_pillar_and_fixed_costs(tmp_path):
+    items = [
+        _item("取組の読めない事項", ["9 1 2"], 10, 区分=""),
+        _item("柱の読めない事項", ["9 1 2"], 10, 柱=None),
+        _item("基盤の事項", ["9 1 2"], 10, 柱="計画推進の基盤づくり", 区分="行政改革の推進"),
+        _item("特別会計の事項", ["特別会計", "外"], 7),   # 「外」があっても特別会計の事項として除く
+    ]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    pol, _, fails = ep.build(str(tmp_path), ROWS)
+    fails = [f for f in fails if "直しの表" not in f]  # この入力には直しの表の事項がない（その FAIL は別のテストで見る）
+    assert len(fails) == 2 and "区分" in fails[0] and "柱" in fails[1]
+    assert [(i["name"], i["pillar"]) for i in pol["items"]] == [("基盤の事項", None)]
+    assert pol["excluded"]["special"]["count"] == 1
+    # 4つの決まった出費のどれかが 0（名前が変わった）なら止める（円が消えて「その他」に黙って入らないよう）
+    rows = [r for r in ROWS if r["kan"]["name"] != "公債費"] + [_row("general/expense/12-1-1", "公債", 2_000_000)]
+    _, _, fails = ep.build(str(tmp_path), rows)
+    assert any("公債費" in f and "が 0" in f for f in fails)
+
+
 def test_other_negative_fails(tmp_path):
     items = [_item("大きすぎる事項", ["9 1 2"], 30_000)]  # 3,000万円 > 歳出 2,350万円
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")

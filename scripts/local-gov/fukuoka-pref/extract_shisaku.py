@@ -44,6 +44,29 @@ def text_of(ws):
     return "".join(w["text"] for w in ws)
 
 
+OUTSIDE_PILLAR_HEAD = "計画推進の基盤づくり"
+DIVISION_ENDS = ("課", "室", "本部", "局", "所", "センター", "部", "庁")
+
+
+def division_of(ws) -> str:
+    """課の欄 → 課名。複数の課が担当する事項は、課が1行ずつ縦に並ぶ（R8 278133 p40「教員の働き方改革推進費」は5課）。
+    行ごとに分けて「、」でつなぐ。課名の終わり（課・室・本部…）で終わらない行は、長い課名の折り返しとして次の行とつなぐ。
+    「外」で始まる行（「外21課」）は前の課の続き"""
+    lines: dict[int, list] = {}
+    for w in ws:
+        lines.setdefault(round(w["top"]), []).append(w)
+    out: list[str] = []
+    for top in sorted(lines):
+        t = "".join(w["text"] for w in sorted(lines[top], key=lambda w: w["x0"]))
+        # 「外21課」（ほか 21 課）は前の課の続き（「財産活用課外21課」。R8「公用車への電動車導入費」）
+        if out and (not out[-1].endswith(DIVISION_ENDS) or t.startswith("外")):
+            out[-1] += t
+        else:
+            out.append(t)
+    # 区切りは「、」（課名そのものに「・」がある: 「自動車・水素産業振興課」「水・大気環境課」「九博・世界遺産・文化施設課」）
+    return "、".join(out)
+
+
 def hlines(page):
     out = []
     for r in page.rects:
@@ -69,12 +92,18 @@ def enclosing(bs, y0, y1):
 KAMOKU_SPLIT = (117, 130)
 
 
-def kamoku_lines(ws) -> list[str]:
+# 結合セルの字の高さと、かたまりの最初・最後の目の行の真ん中の差の許し（pt。R8 で 0.05〜0.5）
+RANGE_TOL = 1.5
+
+
+def kamoku_lines(ws, notes: list | None = None) -> list[str]:
     """科目の欄の字 → ["款 項 目", ...]。複数の科目にまたがる事項は、目の字ごとに1つの科目。款・項は結合したセルで、
     またがる目の行の縦の真ん中に1回だけ印字される（R8 278133 p1「中小企業成長投資・賃上げ応援費」: 款「7」が全部の目の真ん中、
     項「1」が目 1・3 の真ん中、項「2」が目 5・6 の真ん中。277214 p3「ワンヘルス教育推進費」: 款「10」の高さ 307.8 が
     目 4・1・2 の真ん中 307.85 → 5-3-1・10-1-4・10-8-1・10-9-2。前の行から受け継ぐと 5-1-4 と誤る）。
-    目の字ごとに、款・項はいちばん高さの近い字を当てる。同じ近さの字が2つあれば決めない（「?」。main の WARN で知らせる）。
+    款・項の字ごとに、目の行のかたまり（縦の真ん中が字の高さ）を当てる（by_range。いちばん近い字を当てると、長いセルの端の行が
+    隣の短いセルの字に近くなり、黙って別の款・項になる）。かたまりに分けられないときだけ、いちばん近い字を当て（同じ近さなら「?」）、
+    notes に書く（main の WARN で知らせる）。
     目のない字の並び（「企業会計」「特別会計」「外」）はそのまま返す"""
     cols: list[list[dict]] = [[], [], []]
     other = []
@@ -94,12 +123,48 @@ def kamoku_lines(ws) -> list[str]:
             return [f"{kan} {kou} ?"] + (["".join(other)] if other else [])
         return ["".join(other)] if other else []
 
+    rows = sorted(cols[2], key=lambda w: w["top"])
+    tops = [m["top"] for m in rows]
+
     def nearest(cands, y):
         if not cands:
             return "?"
         ds = sorted((abs(c["top"] - y), c["text"]) for c in cands)
         return "?" if len(ds) > 1 and abs(ds[0][0] - ds[1][0]) < 0.5 and ds[0][1] != ds[1][1] else ds[0][1]
-    out = [f"{nearest(cols[0], m['top'])} {nearest(cols[1], m['top'])} {m['text']}" for m in sorted(cols[2], key=lambda w: w["top"])]
+
+    def by_range(cands):
+        """字ごとに、続いた目の行のかたまりを当てる（結合セルの字は、かたまりの縦の真ん中に印字される）。上の字から順に、
+        かたまりの最初の行と最後の行の真ん中が字の高さと合う最後の行を1つに決める。決まらない・行が余るときは None"""
+        labels = sorted(cands, key=lambda c: c["top"])
+        out, s = [None] * len(tops), 0
+        for i, c in enumerate(labels):
+            ends = [e for e in range(s, len(tops)) if abs((tops[s] + tops[e]) / 2 - c["top"]) <= RANGE_TOL]
+            if i == len(labels) - 1:
+                ends = [e for e in ends if e == len(tops) - 1]
+            if len(ends) != 1:
+                return None
+            out[s:ends[0] + 1] = [c["text"]] * (ends[0] + 1 - s)
+            s = ends[0] + 1
+        return out if s == len(tops) else None
+
+    def by_order(cands):
+        """かたまりに分けられないとき（字が行の間に半行ずれて印字された。R8 で5件）: セルは上から字の順に並ぶので、最初の行は
+        最初の字、最後の行は最後の字に決まる。その間の行は、字が1つなら決まり、2つ以上なら決めない（「?」。書き出しが予算の目と
+        確かめた直しの表で決める）。いちばん近い字は当てない（長いセルの端の行が隣のセルの字に近くなり、黙って誤る）"""
+        labels = [c["text"] for c in sorted(cands, key=lambda c: c["top"])]
+        if len(set(labels)) == 1:
+            return [labels[0]] * len(tops)
+        return [labels[0]] + ["?"] * (len(tops) - 2) + [labels[-1]] if len(tops) >= 2 else ["?"]
+
+    cells = []
+    for col in (cols[0], cols[1]):
+        r = by_range(col) if col else None
+        if r is None:
+            r = by_order(col) if col else ["?"] * len(tops)
+            if col and "?" in r and notes is not None:
+                notes.append("款・項の字の位置が目の行のかたまりと合わず、最初と最後の行だけ決めた")
+        cells.append(r)
+    out = [f"{cells[0][i]} {cells[1][i]} {m['text']}" for i, m in enumerate(rows)]
     return out + (["".join(other)] if other else [])
 
 
@@ -140,6 +205,10 @@ def parse_pdf(path):
                 wrapped = max((w["x1"] for w in head), default=0) >= 450
                 second = [w for w in words if 60 <= w["top"] < 70 and w["x0"] < 100 and len(w["text"]) >= 3] if wrapped else []
                 pillar = t + text_of(second)
+            elif t.startswith(OUTSIDE_PILLAR_HEAD):
+                # 4つの柱の後の「計画推進の基盤づくり」（番号のない見出し。R8 277220）。柱の外のグループとして名前で持つ
+                # （柱が読めない None と分ける。書き出しは None を止める）
+                pillar = OUTSIDE_PILLAR_HEAD
             hl = hlines(page)
             item_b = bounds(hl, 143)
             kamoku_b = bounds(hl, 104)
@@ -181,9 +250,10 @@ def parse_pdf(path):
                         prev = int(s2[:-1])
                 expl = [{k: v for k, v in c.items() if k != "starts_new"} for c in parse_expl(words_in(words, "expl", y0, y1))]
                 lo, hi = enclosing(ka_b, y0, y1)
-                ka = text_of(words_in(words, "ka", lo or y0, hi or y1))
+                ka = division_of(words_in(words, "ka", lo or y0, hi or y1))
                 lo2, hi2 = enclosing(kamoku_b, y0, y1)
-                km = kamoku_lines(words_in(words, "kamoku", lo2 or y0, hi2 or y1))
+                km_notes: list[str] = []
+                km = kamoku_lines(words_in(words, "kamoku", lo2 or y0, hi2 or y1), km_notes)
                 lo3, hi3 = enclosing(kubun_b, y0, y1)
                 kubun = text_of(words_in(words, "kubun", lo3 or y0, hi3 or y1))
                 if kubun:
@@ -195,7 +265,8 @@ def parse_pdf(path):
                     # 名前が出た後の空のセルは読み取りの失敗として空のまま残す（main の WARN で知らせる）
                     kubun = items[-1]["区分"]
                 items.append({
-                    "柱": pillar, "区分": kubun, "課名": ka, "科目": km, "新規": bool(words_in(words, "new", y0, y1)),
+                    "柱": pillar, "区分": kubun, "課名": ka, "科目": km, **({"科目の当て方": km_notes} if km_notes else {}),
+                    "新規": bool(words_in(words, "new", y0, y1)),
                     "事項名": name, "予算額": cur, "前年度": prev, "説明": expl,
                     "source": os.path.basename(path), "pdf_page": pi, "pdf_pages": [pi],
                 })
@@ -209,8 +280,9 @@ def main():
     fails = warns = 0
     for it in items:
         # 区分（取組）が空: 読み取りの失敗（区分のセルには必ず名前がある。前のページからの続きは parse_pdf で埋めた）
-        missing = [k for k in ("事項名", "予算額", "課名", "区分") if not it[k]] + \
-            (["科目"] if not it["科目"] or any(not re.fullmatch(r"\d+ \d+ \d+", k) for k in it["科目"]) else [])
+        missing = [k for k in ("事項名", "予算額", "課名", "区分", "柱") if not it[k]] + \
+            (["科目"] if not it["科目"] or any(not re.fullmatch(r"\d+ \d+ \d+", k) for k in it["科目"]) else []) + \
+            (["科目の当て方"] if it.get("科目の当て方") else [])  # 款・項をいちばん近い字で当てた（かたまりに分けられない）
         if missing:
             warns += 1
             print(f"WARN {it['source']} p{it['pdf_page']} {it['事項名']}: 欠け {missing} 科目={it['科目']}", file=sys.stderr)

@@ -16,6 +16,9 @@ import json
 import os
 import re
 
+# 4つの柱の後の、番号のない見出し（extract_shisaku.OUTSIDE_PILLAR_HEAD と同じ。柱の外のグループ）
+OUTSIDE_PILLAR_HEAD = "計画推進の基盤づくり"
+
 # 項が字の位置で決まらず、予算にある目も2つある科目を、根拠を確かめて決める表。(事項名, 資料の科目) → 科目。
 # 字の位置で決まらないのは、目が3行で項の「1」「2」が1・2行目と2・3行目のちょうど真ん中に印字された事項（真ん中の目が
 # どちらの項にも同じ近さ）。同じ形の「災害対応力強化費」（9-?-4）は予算の目が 9-1-4 だけで、真ん中の目は上の項だった。
@@ -69,7 +72,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             excluded["debt_burden"][0] += 1
             excluded["debt_burden"][1] += amount
             continue
-        special = [("特別会計" in k or "企業会計" in k) for k in it["科目"]]
+        # 「外」（ほかの科目にもまたがる印）は会計を示さないので、特別会計かどうかの判定から外す
+        special = [("特別会計" in k or "企業会計" in k) for k in it["科目"] if k != "外"]
         if special and all(special):
             excluded["special"][0] += 1
             excluded["special"][1] += amount
@@ -91,10 +95,19 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             elif t != "外":
                 # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
                 fails.append(f"施策別資料 {it['事項名']}: 科目が読めない {t!r}")
-        pillar = None
-        if it["柱"]:
-            mm = re.match(r"^([１-９\d])．(.+)$", it["柱"])
-            pillar = int(mm.group(1).translate(str.maketrans("１２３４５６７８９", "123456789"))) if mm else None
+        # 事項名・課名・取組（区分）・柱が読めない事項を、名前のない円・「（取組なし）」・柱の外として黙って載せない
+        empty = [k for k in ("事項名", "課名", "区分", "柱") if not it[k]]
+        if empty:
+            fails.append(f"施策別資料 {it['事項名'] or '（名前なし）'} {it['source']} p{it['pdf_page']}: 読めない {empty}")
+            continue
+        mm = re.match(r"^([１-９\d])．(.+)$", it["柱"])
+        if mm:
+            pillar = int(mm.group(1).translate(str.maketrans("１２３４５６７８９", "123456789")))
+        elif it["柱"] == OUTSIDE_PILLAR_HEAD:
+            pillar = None  # 4つの柱の外（計画推進の基盤づくり）
+        else:
+            fails.append(f"施策別資料 {it['事項名']}: 柱の見出しが分からない {it['柱']!r}")
+            continue
         out_items.append({
             "name": it["事項名"], "pillar": pillar, "initiative": it["区分"] or None, "division": it["課名"],
             "kamoku": kamoku, **({"other_kamoku": True} if "外" in it["科目"] else {}),
@@ -122,6 +135,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         {"key": "debt_service", "label": "公債費（款「公債費」。借金の返済と利子）", "amount": kan_sum("公債費")},
         {"key": "loans", "label": "中小企業の制度融資の貸付金（中小企業振興資金融資費）", "amount": loans},
     ]
+    # 4つの決まった出費は名前で数えるので、名前が変わると 0 になり、円が消えて額が「その他」に黙って入る。0 なら止める
+    fails += [f"施策別資料: 図に載らない経費「{o['label']}」が 0（款・事項の名前が変わった？）" for o in outside if o["amount"] <= 0]
     other = total - in_policies - sum(o["amount"] for o in outside)
     if other < 0:
         fails.append(f"施策別資料: 図に載らない経費の「その他」が負（{other:,} 円。重なりの数え方が合っていない）")
