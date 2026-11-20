@@ -35,11 +35,22 @@ function LocalFundsContent() {
   const rows = useMemo(() => (funds ? fundRows(funds, flows) : []), [funds, flows]);
 
   if (settlement.status === 'loading') return <LoadingSpinner fullscreen />;
-  if (settlement.status === 'error') return <p className="p-4 text-sm">読み込めませんでした: {settlement.message}</p>;
-  if (!funds) return <p className="p-4 text-sm">この自治体の基金のデータはまだありません。</p>;
+  // ヘッダーは固定で重なるので、エラー・データなしのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+  if (settlement.status === 'error' || !funds) {
+    return (
+      <div className="min-h-screen bg-mirai-surface">
+        <AppHeader current="/" />
+        <p className={`px-4 pt-4 text-sm ${settlement.status === 'error' ? 'text-destructive' : ''}`}>
+          {settlement.status === 'error' ? `読み込めませんでした: ${settlement.message}` : 'この自治体の基金のデータはまだありません。'}
+        </p>
+      </div>
+    );
+  }
 
   const { index } = settlement;
   const budgetLabel = initial.status === 'ready' ? `${initial.dataset.label}当初予算` : '当初予算';
+  // 予算の予定は、当初予算を読めたときだけ額を出す（読み込み中・失敗を「予定なし（0円）」と見せない）
+  const plan = initial.status;
   const latest = funds.totals[funds.totals.length - 1];
   const total = latest.fiscal_adjustment + latest.debt_reduction + latest.other;
   // 残高のある基金の数（調書に載るが額が「－」・0 の基金は数えない）
@@ -73,10 +84,15 @@ function LocalFundsContent() {
           <h2 className="text-base font-bold">基金ごとの現在高（{funds.as_of.label}）と{budgetLabel}の予定</h2>
           <p className="text-xs text-mirai-text-muted">
             現在高は{funds.as_of.label}（決算）、積み立て・取り崩しは{budgetLabel}の予定で、時点が違います
-            （{budgetLabel}の積み立て 計 {formatBudgetFromYen(deposit)}・取り崩し 計 {formatBudgetFromYen(withdraw)}）。
+            {plan === 'ready'
+              ? `（${budgetLabel}の積み立て 計 ${formatBudgetFromYen(deposit)}・取り崩し 計 ${formatBudgetFromYen(withdraw)}）`
+              : plan === 'loading'
+                ? '（当初予算を読み込み中）'
+                : `（当初予算を読み込めませんでした: ${initial.status === 'error' ? initial.message : ''}）`}
+            。
             取り崩しは一般会計の歳入「〇〇基金繰入金」、積み立ては歳出の「〇〇基金積立金」を名前で結んだもの。基金の名前を押すと内訳を開きます。
           </p>
-          <FundsTable rows={rows} asOfLabel={funds.as_of.label} budgetLabel={budgetLabel} gov={gov} />
+          <FundsTable rows={rows} asOfLabel={funds.as_of.label} budgetLabel={budgetLabel} gov={gov} plan={plan} />
         </section>
 
         <section className="space-y-1 text-xs text-mirai-text-muted">

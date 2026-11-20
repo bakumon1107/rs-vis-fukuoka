@@ -5,17 +5,15 @@
 
 使い方:
     PYLIB=$D/pylib3 python3 -P scripts/local-gov/fukuoka-pref/ocr/ocr_lines.py <PDF> <出力ディレクトリ> <PDFページ範囲 例 59-70>
-出力: <出力ディレクトリ>/p0059.txt …（1行 = 高さの近い文字枠を左から並べたもの。文字枠の間は3つ以上の空白）。既にあるページは飛ばす
+出力: <出力ディレクトリ>/p0059.txt …（1行 = 高さの近い文字枠を左から並べたもの。文字枠の間は3つ以上の空白）。既にあるページは飛ばす。
+      範囲のページがそろったら done.json（PDF の名前とページの範囲）を書く。extract_funds.py は done.json のないディレクトリを読まない
 エンジン: ocr_pages.make_engine（PP-OCRv6 の日本語。OCR_ENGINE で切り替え）。▲ を読み落とすことがあるので、符号は
 extract_funds.py が検算（前年度末 + 増減 = 年度末）で確かめる
 """
+import json
 import os
 import sys
 import tempfile
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ocr_pages import make_engine, ocr_region, render  # noqa: E402  （ocr_pages が PYLIB を sys.path に足す）
-import cv2  # noqa: E402
 
 
 def to_lines(items: list[dict]) -> list[str]:
@@ -36,6 +34,10 @@ def to_lines(items: list[dict]) -> list[str]:
 
 
 def main():
+    # OCR のエンジン（cv2・ocr_pages）は OCR するときだけ読み込む（to_lines・write_done はエンジンなしで使える・テストできる）
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from ocr_pages import make_engine, ocr_region, render  # noqa: E402  （ocr_pages が PYLIB を sys.path に足す）
+    import cv2  # noqa: E402
     pdf, outdir, rng = sys.argv[1], sys.argv[2], sys.argv[3]
     a, b = (int(x) for x in rng.split("-"))
     os.makedirs(outdir, exist_ok=True)
@@ -52,6 +54,20 @@ def main():
                 f.write("\n".join(lines) + "\n")
             os.replace(out + ".partial", out)
             print(f"p{p}: {len(lines)} 行", file=sys.stderr)
+    # 範囲のページがすべてそろったら、完了の印を書く。extract_funds.py は印のないディレクトリ（途中で止まった OCR）を読まない
+    write_done(outdir, os.path.basename(pdf), a, b)
+
+
+DONE = "done.json"
+
+
+def write_done(outdir: str, pdf_name: str, first: int, last: int):
+    missing = [p for p in range(first, last + 1) if not os.path.exists(os.path.join(outdir, f"p{p:04d}.txt"))]
+    if missing:
+        raise SystemExit(f"ページがそろっていない {missing[:5]}…（完了の印を書かない）")
+    with open(os.path.join(outdir, DONE + ".partial"), "w", encoding="utf-8") as f:
+        json.dump({"pdf": pdf_name, "pages": [first, last]}, f)
+    os.replace(os.path.join(outdir, DONE + ".partial"), os.path.join(outdir, DONE))
 
 
 if __name__ == "__main__":

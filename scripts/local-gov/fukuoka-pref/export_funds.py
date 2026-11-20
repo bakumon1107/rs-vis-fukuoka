@@ -44,6 +44,12 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
     if not os.path.exists(path):
         return None, ["基金: funds.json がない（基金の抽出のステップを飛ばした）"]
     data = json.load(open(path, encoding="utf-8"))
+    # 抽出の検算の失敗（extract_funds の fails）があれば止める。抽出は失敗しても funds.json を書くので（終了コードは 1）、
+    # 終了コードを見ずに書き出すと、検算の通らない額が決算のファイルに入る。古い funds.json（fails がない）も止める
+    if "fails" not in data:
+        raise SystemExit("基金: funds.json に fails がない（古い抽出の出力。extract_funds.py を流し直す）")
+    if data["fails"]:
+        raise SystemExit("基金: 抽出の検算が通っていない:\n" + "\n".join(data["fails"]))
     years, ocr = data["years"], set(data.get("ocr_years", []))
     # 補助の年度（その年度の間に廃止した基金だけを取り込んだ調書。extract_funds の「~」）
     supplement = set(data.get("supplement_years", []))
@@ -130,7 +136,9 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
         "notes": [
             "残高は財産に関する調書（決算）の年度末現在高（3月31日）。出納閉鎖日（5月31日）の現在高は、出納整理期間中の増減を足した額",
             "調書を取り込んでいない年度の年度末現在高は、次の年度の調書の前年度末現在高",
-            "財政状況資料集・財務書類の附属明細書の基金の額は、定義が違い、財政調整基金・減債基金の額が調書と合わない",
+            # 理由は確かめていないので「定義が違う」と言い切らない（設計 2章）。確かめた範囲（額が合わないこと）だけを書く
+            "財政状況資料集・財務書類の附属明細書の基金の額は、財政調整基金・減債基金の額が調書と一致しない（R6 で確認。"
+            "財政調整基金の現金の額は、財政状況資料集の財政調整基金・附属明細書の減債基金の流動資産と同じ。違いの理由は未確認）",
         ],
         "checks": {"signs_fixed": sum(len(v) for v in data.get("signs_fixed", {}).values()),
                    "names_fixed": sum(len(v) for v in data.get("names_fixed", {}).values())},

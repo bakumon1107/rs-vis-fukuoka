@@ -236,8 +236,13 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       if (f.holdings.reduce((s, h) => s + h.after_closing, 0) !== f.after_closing) err(`funds ${f.name}: 区分の出納閉鎖日の合計 ≠ after_closing`);
       const last = f.history.find(h => h.year === funds.as_of.year);
       if (!last || last.end !== f.end) err(`funds ${f.name}: 推移の ${funds.as_of.year} 年度の値が年度末現在高と違う`);
+      // 過年度の推移も1円単位の整数（合計の比較は ≧ なので、端数があっても通ってしまう）
+      for (const h of f.history) if (!isYen(h.end) || h.end < 0) err(`funds ${f.name} ${h.year}: 推移の額が 0 以上の整数でない`);
     }
     for (const t of funds.totals) {
+      if (![t.fiscal_adjustment, t.debt_reduction, t.other].every(n => isYen(n) && n >= 0)) {
+        err(`funds.totals ${t.year}: 額が 0 以上の整数でない`);
+      }
       const current = funds.items.reduce((s, f) => s + (f.history.find(h => h.year === t.year)?.end ?? 0), 0);
       if (t.fiscal_adjustment + t.debt_reduction + t.other < current) err(`funds.totals ${t.year}: 合計が今ある基金の推移の合計より小さい`);
     }

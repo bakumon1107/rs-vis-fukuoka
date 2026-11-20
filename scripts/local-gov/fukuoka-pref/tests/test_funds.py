@@ -62,10 +62,26 @@ class TestOcr:
         assert fu.label_of("般   会   計   貸   付   金") == "一般会計貸付金"  # 「一」を落とす
 
     def test_fund_with_no_figures(self):
-        # OCR は「－」を読まない: 区分の行だけの基金は 0 として持ち、印を付ける
+        # OCR は「－」を読まない: 区分の行だけの基金は、原本で全部「－」と確かめた年度・基金（NO_FIGURES_CONFIRMED）だけ 0 にして印を付ける
         txt = "資金を積み立てるために設置されたもの\n(4)   福岡県県営林造成事業振興基金\n有   価   証   券\n現   金\n"
-        f = fu.parse(txt)["福岡県県営林造成事業振興基金"]
+        funds = fu.parse(txt, ocr=True)
+        assert funds["福岡県県営林造成事業振興基金"]["holdings"] == {}  # parse では 0 にしない
+        assert fu.fill_no_figures("H28", funds) == []
+        f = funds["福岡県県営林造成事業振興基金"]
         assert f["no_figures"] and f["holdings"]["現金"] == [0, 0, 0, 0, 0]
+        # 表にない年度（額の行を丸ごと読み落としたのと区別できない）は 0 にせず、検算で FAIL
+        funds = fu.parse(txt, ocr=True)
+        assert len(fu.fill_no_figures("H24", funds)) == 1
+        assert any("区分の行がない" in x for x in fu.check_rows("H24", funds))
+
+    def test_label_without_figures_fails(self):
+        # 区分の名前を読んだのに額が入らなかった区分（「現金」の後の額の行が5つに足りない）を黙って落とさない
+        txt = ("資金を積み立てるために設置されたもの\n(1)   福岡県財政調整基金\n有   価   証   券\n0   0   0   0   0\n"
+               "現   金\n0   0\n(2)   福岡県減債基金\n現   金\n1   0   1   0   1\n")
+        funds = fu.parse(txt)
+        assert list(funds["福岡県財政調整基金"]["holdings"]) == ["有価証券"]
+        assert any("現金" in x and "額の行がない" in x for x in fu.check_rows("R6", funds))
+        assert fu.check_rows("R6", {"福岡県減債基金": funds["福岡県減債基金"]}) == []
 
     def test_signs_fixed_only_by_arithmetic(self):
         funds = {"a": {"holdings": {"現金": [100, 20, 80, 5, 75], "有価証券": [100, 20, 130, 0, 130]}}}
@@ -112,6 +128,10 @@ class TestOcr:
         out, log, fails = fu.canonical_names("H28", funds, known)
         assert set(out) == {"福岡県減債基金", "福岡県アンビシャス外国留学支援基金", "福岡県架空基金"}
         assert len(log) == 2 and len(fails) == 1 and "架空" in fails[0]
+        # 字形の表・確かめた名前の表にない崩れは、似ていても寄せない（別の基金かもしれない）。似た名前は FAIL に候補として書く
+        out, log, fails = fu.canonical_names("H28", {"福岡県高齢者等保険福祉基金": {}}, known)
+        assert list(out) == ["福岡県高齢者等保険福祉基金"] and log == []
+        assert len(fails) == 1 and "福岡県高齢者等保健福祉基金" in fails[0]
 
 
 def test_short_name_keeps_ken_ei_ken_ritsu():
@@ -145,7 +165,26 @@ def test_export_year_label_and_gaps(tmp_path):
     h = lambda end: {"no": 1, "kind": "積立", "holdings": {"現金": [end, 0, end, 0, end]}}  # noqa: E731
     data = {"years": {"H25": {"福岡県甲基金": h(5), "福岡県乙基金": h(7)}, "H27": {"福岡県甲基金": h(5)}},
             "ocr_years": [], "signs_fixed": {}, "names_fixed": {}}
-    (tmp_path / "funds.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "funds.json").write_text(json.dumps({**data, "fails": []}, ensure_ascii=False), encoding="utf-8")
     out, lines = ef.build(str(tmp_path), 2015)
     assert any("乙基金" in x for x in lines) and any("乙基金" in n for n in out["notes"])
     assert out["statements"][0]["source"] == "h25-zaisan"
+    # 抽出の検算が通っていない funds.json・fails のない古い funds.json は、決算のファイルに書かずに止める
+    import pytest
+    for bad in ({**data, "fails": ["H27 甲基金: 前年度末 + 増減 ≠ 年度末"]}, data):
+        (tmp_path / "funds.json").write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        with pytest.raises(SystemExit):
+            ef.build(str(tmp_path), 2015)
+
+
+def test_ocr_done_marker(tmp_path):
+    # ocr_lines.py は範囲のページがそろったときだけ完了の印を書く（途中で止まった OCR を抽出に渡さない）
+    import json
+    import pytest
+    ol = load("ocr/ocr_lines.py", "ocr_lines")
+    (tmp_path / "p0001.txt").write_text("a", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        ol.write_done(str(tmp_path), "x.pdf", 1, 2)
+    (tmp_path / "p0002.txt").write_text("b", encoding="utf-8")
+    ol.write_done(str(tmp_path), "x.pdf", 1, 2)
+    assert json.loads((tmp_path / "done.json").read_text(encoding="utf-8")) == {"pdf": "x.pdf", "pages": [1, 2]}

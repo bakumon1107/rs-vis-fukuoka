@@ -178,10 +178,40 @@ def parse(text: str, ocr: bool = False) -> dict:
     for fd in funds.values():
         labels = fd.pop("labels", [])
         if not fd["holdings"] and labels and not fd.get("rejected") and not fd.get("unlabeled"):
-            # 区分の行だけで額がない基金（県営林造成事業振興基金。テキストの年度は全部「－」で、OCR は「－」を読まない）。0 として持ち、印を付ける
+            # 区分の行だけで額がない基金（OCR は「－」を読まない）。ここでは 0 にしない（額の行を丸ごと読み落としたのと区別できない）。
+            # main で、原本で全部「－」と確かめた年度・基金（NO_FIGURES_CONFIRMED）だけ 0 にする。それ以外は「区分の行がない」で FAIL
+            fd["labels_only"] = list(dict.fromkeys(labels))
+            continue
+        # 区分の名前を読んだのに額が入らなかった区分（「現金」の後の額の行が5つに足りず、次の基金に移った、など）を黙って落とさない
+        noted = {r.split(":", 1)[0] for r in fd.get("rejected", [])}
+        for lb in dict.fromkeys(labels):
+            if lb not in fd["holdings"] and lb not in noted:
+                fd.setdefault("rejected", []).append(f"{lb}: 区分の名前の後に額の行がない")
+    return funds
+
+
+# 区分の行だけで額のない基金（OCR は「－」を読まない）のうち、原本の画像で全部「－」と確かめた年度・基金（2026-11-20）。
+# ここにあるものだけ 0 として持ち、印（no_figures）を付ける
+NO_FIGURES_CONFIRMED = {
+    # 有価証券・現金とも5列すべて「－」（H27 p58・H28 p58・H29 p57・R4 p61 の画像で確認）
+    ("H27", "福岡県県営林造成事業振興基金"), ("H28", "福岡県県営林造成事業振興基金"),
+    ("H29", "福岡県県営林造成事業振興基金"), ("R4", "福岡県県営林造成事業振興基金"),
+}
+
+
+def fill_no_figures(year: str, funds: dict) -> list[str]:
+    """区分の行だけの基金を、確かめた表にあれば 0 で埋める。表にない基金は残し（check_rows が「区分の行がない」で FAIL）、記録を返す"""
+    log = []
+    for name, fd in funds.items():
+        labels = fd.pop("labels_only", None)
+        if labels is None:
+            continue
+        if (year, name) in NO_FIGURES_CONFIRMED:
             fd["holdings"] = {lb: [0, 0, 0, 0, 0] for lb in labels}
             fd["no_figures"] = True
-    return funds
+        else:
+            log.append(f"{year} {name}: 区分の行だけで額がない（原本で全部「－」なら NO_FIGURES_CONFIRMED に足す）")
+    return log
 
 
 def put(fund: dict, label: str, vals: list[int]):
@@ -242,21 +272,28 @@ def check_chain(prev_year: str, prev: dict, year: str, cur: dict) -> list[str]:
 OCR_GLYPHS = str.maketrans({"减": "減", "债": "債", "齡": "齢", "產": "産", "增": "増", "·": "・", "电": "電", "讓": "譲", "查": "査"})
 
 
+# OCR の読みの崩れのうち、字形の表（OCR_GLYPHS）で直せないもの。確かめた名前だけ（2026-11-20）。
+# 小書きの「ャ」を大きい「ヤ」と読む: テキストの年度（H23・H25・H30・R2・R5・R6 の PDF の文字）の名前はすべて「アンビシャス」で、
+# 「アンビシヤス」の基金はない。OCR の年度（H27・H28・H29・R4）の前年度末は、前の年度のこの基金の年度末と一致する（check_chain）
+OCR_NAME_FIXES = {
+    "福岡県アンビシヤス外国留学支援基金": "福岡県アンビシャス外国留学支援基金",
+}
+
+
 def canonical_names(year: str, funds: dict, known: set[str]) -> tuple[dict, list[str], list[str]]:
-    """OCR の年度の基金の名前を、テキストの年度にある名前に寄せる（OCR は簡体字・小書きの崩れ「减债」「アンビシヤス」を出す）。
-    字形を直してから、いちばん近い名前（difflib の比が 0.85 以上で、ちょうど1つ）に寄せる。寄せた記録と、寄せられない名前（FAIL）を返す"""
+    """OCR の年度の基金の名前を、テキストの年度にある名前に直す（OCR は簡体字・異体字・小書きの崩れ「减债」「アンビシヤス」を出す）。
+    直すのは字形の表（OCR_GLYPHS）と、画像で確かめた名前の表（OCR_NAME_FIXES）だけ。似ているだけの名前には寄せない
+    （原本が別の名前の基金でも、検算は額しか確かめないので通ってしまう）。直した記録と、テキストの年度にない名前（FAIL）を返す。
+    FAIL には似た名前を候補として書く（画像で確かめて OCR_NAME_FIXES に足すため）"""
     import difflib
     out, log, fails = {}, [], []
     for name, fd in funds.items():
         n = name.translate(OCR_GLYPHS)
+        n = OCR_NAME_FIXES.get(n, n)
         if n not in known:
             close = difflib.get_close_matches(n, sorted(known), n=2, cutoff=0.85)
-            if len(close) == 1 or (len(close) == 2 and difflib.SequenceMatcher(None, n, close[0]).ratio() >
-                                   difflib.SequenceMatcher(None, n, close[1]).ratio() + 0.05):
-                n = close[0]
-            else:
-                fails.append(f"{year} {name}: テキストの年度に同じ名前の基金がない（候補 {close}。画像で確かめる）")
-                n = name
+            fails.append(f"{year} {name}: テキストの年度に同じ名前の基金がない（似た名前 {close}。画像で確かめて OCR_NAME_FIXES に足す）")
+            n = name
         if n != name:
             log.append(f"{year}: 名前を寄せた: {name} → {n}")
         if n in out:
@@ -278,7 +315,16 @@ def main():
         year = year.lstrip("~")
         if os.path.isdir(src):
             # 画像の年度: ocr/ocr_lines.py の結果（ページごとのテキスト）。▲ の読み落としは検算で直す（fix_signs。名前を寄せた後で記録する）
-            txt = "\n".join(open(os.path.join(src, f), encoding="utf-8").read() for f in sorted(os.listdir(src)) if f.endswith(".txt"))
+            # OCR を終えた印（done.json。ocr_lines.py が範囲のページがそろったときに書く）のないディレクトリは読まない
+            # （途中で止まった OCR だと、一部の基金だけの年度になる）。印の範囲のページだけを読む
+            done = os.path.join(src, "done.json")
+            if not os.path.exists(done):
+                raise SystemExit(f"{year}: {src} に done.json がない（OCR が終わっていない。ocr_lines.py を流し直す）")
+            first, last = json.load(open(done, encoding="utf-8"))["pages"]
+            pages = [os.path.join(src, f"p{p:04d}.txt") for p in range(first, last + 1)]
+            if not all(os.path.exists(p) for p in pages):
+                raise SystemExit(f"{year}: {src} のページがそろっていない（done.json の範囲 {first}-{last}）")
+            txt = "\n".join(open(p, encoding="utf-8").read() for p in pages)
             years[year] = parse(txt, ocr=True)
             signs[year] = []
         else:
@@ -314,9 +360,14 @@ def main():
         # 名前の寄せの失敗も、残した基金のものだけ（捨てた基金の名前の崩れは使わないので問わない）
         # ただし名前が2つの基金に寄る失敗はいつも残す（片方の基金の値が上書きで消えている。捨てた基金の名前でも、消えたのは残すべき基金かもしれない）
         name_fails[y] = [f for f in name_fails.get(y, []) if any(f.startswith(f"{y} {n}:") for n in keep) or "寄せた名前が2つ" in f]
-        signs[y] = [s for s in signs[y] if any(s.startswith(f"{n} ") for n in years[y])]
+        if y in signs:  # テキスト（PDF）の補助の年度には OCR の読みの直しの記録がない
+            signs[y] = [s for s in signs[y] if any(s.startswith(f"{n} ") for n in years[y])]
     for f2 in name_fails.values():
         fails += f2
+    # 区分の行だけの基金は、原本で確かめた年度・基金だけ 0 にする（名前を直し、補助の年度で残す基金を決めた後で表を引く）
+    for y in years:
+        for s in fill_no_figures(y, years[y]):
+            print(s, file=sys.stderr)
     for y, ss in signs.items():
         for s in ss:
             print(f"{y}: OCR の読みを検算で直した: {s}", file=sys.stderr)
@@ -336,7 +387,9 @@ def main():
     for f in fails:
         print("FAIL " + f, file=sys.stderr)
     json.dump({"unit": "千円", "columns": ["前年度末現在高", "決算年度中増減高", "決算年度末現在高", "出納整理期間中増高", "出納閉鎖日現在高"],
-               "years": years, "ocr_years": sorted(signs), "supplement_years": supplement, "signs_fixed": signs, "names_fixed": renamed},
+               "years": years, "ocr_years": sorted(signs), "supplement_years": supplement, "signs_fixed": signs, "names_fixed": renamed,
+               # 検算の失敗（書き出し export_funds.build はこれが空でなければ止める。終了コードを見ない使い方でも通さない）
+               "fails": fails},
               sys.stdout, ensure_ascii=False, indent=1)
     sys.exit(1 if fails else 0)
 

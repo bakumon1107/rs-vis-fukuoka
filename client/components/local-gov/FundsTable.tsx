@@ -23,8 +23,18 @@ function Spark({ values }: { values: number[] }) {
   );
 }
 
-export function FundsTable({ rows, asOfLabel, budgetLabel, gov }: { rows: FundRow[]; asOfLabel: string; budgetLabel: string; gov: string }) {
+interface Props {
+  rows: FundRow[];
+  asOfLabel: string;
+  budgetLabel: string;
+  gov: string;
+  /** 当初予算の読み込みの状態。ready のときだけ予定の額を出す（読み込み中・失敗を「予定なし」と見せない） */
+  plan: 'loading' | 'error' | 'ready';
+}
+
+export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
   const [open, setOpen] = useState<string | null>(null);
+  const planCell = (v: number) => (plan === 'ready' ? yen(v) : plan === 'loading' ? '…' : '?');
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] text-sm">
@@ -64,8 +74,8 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov }: { rows: FundRo
                   </td>
                   <td className="whitespace-nowrap py-1 text-right">{r.fund ? (r.fund.no_figures ? '記載なし' : yen(r.fund.end)) : '—'}</td>
                   <td className="py-1 text-center">{r.fund && <Spark values={r.fund.history.map(h => h.end)} />}</td>
-                  <td className="whitespace-nowrap py-1 text-right">{yen(r.deposit)}</td>
-                  <td className="whitespace-nowrap py-1 text-right">{yen(r.withdraw)}</td>
+                  <td className="whitespace-nowrap py-1 text-right">{planCell(r.deposit)}</td>
+                  <td className="whitespace-nowrap py-1 text-right">{planCell(r.withdraw)}</td>
                 </tr>
                 {isOpen && (
                   <tr className="bg-mirai-surface">
@@ -94,7 +104,11 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov }: { rows: FundRo
                           </tbody>
                         </table>
                       )}
-                      {r.refs.length > 0 ? (
+                      {plan !== 'ready' ? (
+                        <p className="text-mirai-text-muted">
+                          {plan === 'loading' ? '当初予算を読み込み中です' : '当初予算を読み込めなかったので、予定は分かりません'}
+                        </p>
+                      ) : r.refs.length > 0 ? (
                         <ul className="list-disc pl-4">
                           {r.refs.map(x => (
                             <li key={`${x.row}-${x.label}`}>
