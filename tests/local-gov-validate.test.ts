@@ -107,6 +107,11 @@ test('施策別資料の事項（policies）: 当初予算だけ。事項 + 図�
     .some(e => e.includes('整数でない')));
   assert.ok(errs(pol({ items: [item({ kamoku: [{ kan: 9, kou: 1, moku: 1, row: 'general/expense/9-1-1' }] })] }))
     .some(e => e.includes('科目の目')));
+  // 目がないのに「予算にない」の印がない・outside の key の重なり
+  assert.ok(errs(pol({ items: [item({ kamoku: [{ kan: 3, kou: 2, moku: 5, row: null }] })] })).some(e => e.includes('印がない')));
+  assert.ok(errs(pol({ items: [item({ kamoku: [{ kan: 3, kou: 2, moku: 5, row: null, unmatched: true }] })] })).length === 0);
+  assert.ok(errs(pol({ outside: [{ key: 'other', label: 'a', amount: total - 1_000 }, { key: 'other', label: 'b', amount: 0 }] }))
+    .some(e => e.includes('key が重なる')));
 });
 
 test('ID は会計/歳入歳出/款-項-目', () => {
