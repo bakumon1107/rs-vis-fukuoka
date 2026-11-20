@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { hierarchy, pack, type HierarchyCircularNode } from 'd3-hierarchy';
 import type { PolicyItem } from '@/types/local-gov';
-import { type PolicyGroup, type PolicyLeaf, type PolicyRoot, MUTED_COLOR, fitLabel } from '@/app/lib/local-gov/policies';
+import { type PolicyGroup, type PolicyLeaf, type PolicyRoot, MUTED_COLOR, chordPx, fitLabel, fitWidth } from '@/app/lib/local-gov/policies';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
 export interface OutsideCircle {
@@ -28,6 +28,8 @@ type Circle = HierarchyCircularNode<Datum>;
 const SIZE = 1000;
 /** ツールチップの最大の幅（max-w-64 = 16rem）。右端からはみ出さないよう左の位置を抑える */
 const TIP_WIDTH = 256;
+/** 施策・柱の円の名前の、円の上端からの深さ（px。字の中心） */
+const TOP_LABEL_DEPTH = 24;
 
 interface Props {
   tree: PolicyRoot;
@@ -216,8 +218,9 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
               if (focusNode && focusNode !== n && !(d.kind === 'pillar' && focusNode.data.kind === 'root')) return null;
               if (rpx < 50) return null;
               const name = d.kind === 'root' ? `施策別資料の事項 ${formatBudgetFromYen(n.value ?? 0)}` : d.name;
-              const l = fitLabel(name, rpx, 13);
-              return l ? text(n.x, n.y - n.r + px(14), l, 13, 'fill-slate-600 font-bold', `l:${d.key}`) : null;
+              // 上端の近くでは円が狭いので、字の上端の高さでの円の幅（弦）に収まる字数で切る（はみ出して隣の円を隠さないよう）
+              const l = fitWidth(name, chordPx(rpx, TOP_LABEL_DEPTH - 7), 13);
+              return l ? text(n.x, n.y - n.r + px(TOP_LABEL_DEPTH), l, 13, 'fill-slate-600 font-bold', `l:${d.key}`) : null;
             }
             if (d.kind === 'initiative') {
               if (rpx < 34 || (focusNode && focusNode === n)) return null;

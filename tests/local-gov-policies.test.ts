@@ -5,7 +5,9 @@ import {
   OTHER_KAN_COLOR,
   SERIES_COLORS,
   bigItems,
+  chordPx,
   colorScheme,
+  fitWidth,
   fitLabel,
   focusPath,
   initiativeLeaves,
@@ -88,6 +90,13 @@ test('sourceForDoc: PDF のファイル名で資料を探し、サンキー図�
   const sources = [{ id: 'x', url: 'https://example.jp/uploaded/attachment/278133.pdf', title: '施策別資料（柱2。名前の検索に使用）' }];
   assert.equal(sourceForDoc(sources, '278133.pdf')?.title, '施策別資料（柱2）');
   assert.equal(sourceForDoc(sources, '8133.pdf'), undefined);
+});
+
+test('chordPx・fitWidth: 円の上端近くの名前は、その高さの円の幅で切る', () => {
+  assert.equal(chordPx(100, 100), 200); // 真ん中は直径
+  assert.equal(Math.round(chordPx(166, 17)), 2 * Math.round(Math.sqrt(2 * 166 * 17 - 17 * 17)));
+  assert.equal(chordPx(10, 50), 20); // 深さが半径を超えたら直径
+  assert.equal(fitWidth('あいうえおかきく', 65, 13), 'あいうえ…');
 });
 
 test('fitLabel: 円に収まらない名前は切り、小さすぎる円は空', () => {

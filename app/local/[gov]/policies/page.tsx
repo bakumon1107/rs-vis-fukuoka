@@ -144,7 +144,8 @@ function LocalPoliciesContent() {
                 setHideBig(e.target.checked);
                 if (selected !== null && e.target.checked && big.has(selected)) setSelected(null);
                 // 外すと施策の円が灰色の円に比べて小さくなるので、施策の円に寄って小さな事項を見やすくする
-                if (e.target.checked && focus === null) setFocus(POLICIES_KEY);
+                // 寄っていた円（取組など）が外した後になくなるときも、施策の円に寄り直す（寄り先を残すと、外すのをやめたときに前の円へ跳ぶ）
+                if (e.target.checked && (focus === null || !focusPath(policyTree(policies, big), focus))) setFocus(POLICIES_KEY);
               }}
             />
             {BIG_ITEM_YEN / 100_000_000}億円以上の事項（{big.size} 件・計 {formatBudgetFromYen(bigTotal)}）を外す

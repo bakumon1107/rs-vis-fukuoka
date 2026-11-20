@@ -185,9 +185,20 @@ export function colorScheme(p: LocalPolicies, mode: 'pillar' | 'kan', kanName: M
   };
 }
 
-/** 円の中に収まるように名前を切る（1文字の幅を fontPx とみなす。収まらなければ空） */
-export function fitLabel(name: string, radiusPx: number, fontPx: number): string {
-  const max = Math.floor((radiusPx * 1.6) / fontPx);
+/** 幅 widthPx に収まるように名前を切る（1文字の幅を fontPx とみなす。3文字に満たなければ空） */
+export function fitWidth(name: string, widthPx: number, fontPx: number): string {
+  const max = Math.floor(widthPx / fontPx);
   if (max < 3) return '';
   return name.length <= max ? name : `${name.slice(0, max - 1)}…`;
+}
+
+/** 円の真ん中に置く名前（円の中ほどの幅 1.6r に収める） */
+export function fitLabel(name: string, radiusPx: number, fontPx: number): string {
+  return fitWidth(name, radiusPx * 1.6, fontPx);
+}
+
+/** 半径 r の円の、上端から depth の高さでの幅（弦の長さ）。depth が r を超えれば直径 */
+export function chordPx(radiusPx: number, depthPx: number): number {
+  const h = Math.min(Math.max(depthPx, 0), radiusPx);
+  return 2 * Math.sqrt(2 * radiusPx * h - h * h);
 }
