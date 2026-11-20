@@ -87,7 +87,9 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
   const pxPerUnit = width / vb.s;
   const px = (v: number) => v / pxPerUnit;
 
-  const showTip = (e: React.MouseEvent, title: string, sub: string) => {
+  // 円の説明はマウス・ペンだけ（指で触ったときは、押したあとに説明が残って別の円に重なるので出さない）
+  const showTip = (e: React.PointerEvent, title: string, sub: string) => {
+    if (e.pointerType === 'touch') return;
     const box = wrapRef.current?.getBoundingClientRect();
     if (box) setHover({ x: e.clientX - box.left, y: e.clientY - box.top, title, sub });
   };
@@ -107,8 +109,10 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
         role="img"
         aria-label="一般会計の歳出の入れ子の円（施策別資料の事項を柱・取組で分けたものと、図に載らない経費。面積が予算額）。右の一覧からも選べます"
         onClick={() => onFocus(parentKey(focusNode))}
-        // 円の外（背景）に動いたら、前の円の説明を消す（円の上では円の onMouseMove が出し直す）
-        onMouseMove={e => {
+        // 押すと寄る先が変わり、ポインタの下の円も変わるので、前の円の説明を消す（円の onClick より先に）
+        onClickCapture={() => setHover(null)}
+        // 円の外（背景）に動いたら、前の円の説明を消す（円の上では円の onPointerMove が出し直す）
+        onPointerMove={e => {
           if (e.target === e.currentTarget) setHover(null);
         }}
       >
@@ -132,7 +136,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
                   e.stopPropagation();
                   onSelect(d.index, initiativeOf(n));
                 }}
-                onMouseMove={e => showTip(e, d.name, formatBudgetFromYen(d.value))}
+                onPointerMove={e => showTip(e, d.name, formatBudgetFromYen(d.value))}
               />
             );
           }
@@ -153,7 +157,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
                   e.stopPropagation();
                   onOutside(d.key);
                 }}
-                onMouseMove={e => showTip(e, d.label, `${formatBudgetFromYen(d.amount)}（施策別資料に載らない）`)}
+                onPointerMove={e => showTip(e, d.label, `${formatBudgetFromYen(d.amount)}（施策別資料に載らない）`)}
               />
             );
           }
@@ -173,7 +177,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
                 e.stopPropagation();
                 onFocus(isFocus ? parentKey(n) : d.key);
               }}
-              onMouseMove={e => showTip(e, d.kind === 'root' ? '施策別資料の事項' : d.name, formatBudgetFromYen(n.value ?? 0))}
+              onPointerMove={e => showTip(e, d.kind === 'root' ? '施策別資料の事項' : d.name, formatBudgetFromYen(n.value ?? 0))}
             />
           );
         })}
@@ -221,8 +225,8 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
               return l ? text(n.x, n.y, l, 11, 'fill-slate-800', `l:${d.key}`) : null;
             }
             if (d.kind === 'item') {
-              // 事項の名前は取組（か柱）に寄っているときだけ
-              if (!focusNode || (focusNode.data.kind !== 'initiative' && focusNode.data.kind !== 'pillar') || rpx < 22) return null;
+              // 事項の名前は取組に寄っているときだけ（柱に寄っているときは取組の名前を円の真ん中に出すので、重ねない）
+              if (!focusNode || focusNode.data.kind !== 'initiative' || rpx < 22) return null;
               const l = fitLabel(d.name, rpx, 11);
               return l ? text(n.x, n.y, l, 11, 'fill-slate-900', `li:${d.index}`) : null;
             }

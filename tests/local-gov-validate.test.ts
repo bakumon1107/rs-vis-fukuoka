@@ -83,6 +83,32 @@ test('一般財源の中身: 行の合計 = total = 財源内訳の一般財源�
   );
 });
 
+test('施策別資料の事項（policies）: 当初予算だけ。事項 + 図に載らない経費 = 一般会計の歳出。負の額・ない目・額の誤りを検出', () => {
+  const total = 17_854_435_000;
+  const item = (over: object = {}) => ({
+    name: '事業', pillar: 1, initiative: '取組', division: '課', amount: 1_000, previous: null, is_new: false, notes: [],
+    kamoku: [{ kan: 2, kou: 1, moku: 1, row: 'general/expense/2-1-1' }], source: { doc: 'a.pdf', page: 1 }, ...over,
+  });
+  const pol = (over: object = {}) => ({
+    pillars: [{ no: 1, name: '柱' }], items: [item()],
+    excluded: { special: { count: 0, amount: 0 }, debt_burden: { count: 0, amount: 0 } },
+    outside: [{ key: 'other', label: 'その他', amount: total - 1_000 }], expense_total: total, source_docs: ['a.pdf'], ...over,
+  });
+  const errs = (p: object, over: Partial<LocalBudgetFile> = {}) =>
+    validateBudgetFile(file([row()], { policies: p as LocalBudgetFile['policies'], ...over })).errors;
+  assert.deepEqual(errs(pol()), []);
+  assert.ok(errs(pol(), { basis: 'settlement' }).some(e => e.includes('当初予算のファイルだけ')));
+  assert.ok(errs(pol({ expense_total: total + 1 })).some(e => e.includes('expense_total')));
+  assert.ok(errs(pol({ outside: [{ key: 'other', label: 'その他', amount: total }] })).some(e => e.includes('事項の合計 + 図に載らない経費')));
+  assert.ok(errs(pol({ items: [item({ amount: 2_000 })], outside: [{ key: 'other', label: 'その他', amount: total - 2_000 }, { key: 'x', label: 'x', amount: 0 }] })).length === 0);
+  assert.ok(errs(pol({ items: [item({ amount: 1_000 + total })], outside: [{ key: 'other', label: 'その他', amount: -total }] }))
+    .some(e => e.includes('負の額')));
+  assert.ok(errs(pol({ items: [item({ amount: 0.5 })], outside: [{ key: 'other', label: 'その他', amount: total - 0.5 }] }))
+    .some(e => e.includes('整数でない')));
+  assert.ok(errs(pol({ items: [item({ kamoku: [{ kan: 9, kou: 1, moku: 1, row: 'general/expense/9-1-1' }] })] }))
+    .some(e => e.includes('科目の目')));
+});
+
 test('ID は会計/歳入歳出/款-項-目', () => {
   assert.equal(expectedRowId(row()), 'general/expense/2-1-1');
   const r = validateBudgetFile(file([row({ id: 'general/expense/2-1-9' })]));

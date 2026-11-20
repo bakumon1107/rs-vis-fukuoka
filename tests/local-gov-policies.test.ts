@@ -48,9 +48,9 @@ test('policyTree: 柱は番号順で柱の外は最後。取組の下に事項�
   assert.deepEqual(((hidden.children[1].children[0] as PolicyGroup).children).map(c => c.name), ['丙']);
 });
 
-test('initiativeTotals: 取組ごとの合計の多い順。外した事項は数えない', () => {
+test('initiativeTotals: 取組ごとの合計の多い順。外した事項・額 0 の事項は数えない（円のない取組は出さない）', () => {
   assert.deepEqual(initiativeTotals(policies).map(t => [t.name, t.amount]), [
-    ['取組A', 30_000_000_200], ['取組B', 500], ['行政改革', 100], ['取組C', 0],
+    ['取組A', 30_000_000_200], ['取組B', 500], ['行政改革', 100],
   ]);
   assert.equal(initiativeTotals(policies, bigItems(policies))[0].name, '取組B');
 });

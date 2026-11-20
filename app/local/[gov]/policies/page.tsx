@@ -61,7 +61,15 @@ function LocalPoliciesContent() {
   const totals = useMemo(() => (policies ? initiativeTotals(policies, hidden ?? undefined) : []), [policies, hidden]);
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
-  if (state.status === 'error') return <p className="p-4 text-sm">読み込めませんでした: {state.message}</p>;
+  if (state.status === 'error') {
+    // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる。サンキー図のページと同じ）
+    return (
+      <div className="min-h-screen bg-mirai-surface">
+        <AppHeader current="/" />
+        <p className="px-4 pt-4 text-sm text-destructive">読み込めませんでした: {state.message}</p>
+      </div>
+    );
+  }
   if (!policies || !tree || !scheme || !file) {
     return (
       <div className="min-h-screen bg-mirai-surface">

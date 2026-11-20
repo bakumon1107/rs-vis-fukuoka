@@ -82,11 +82,11 @@ export interface InitiativeTotal {
   count: number;
 }
 
-/** 取組ごとの合計（多い順）。hidden の事項は数えない */
+/** 取組ごとの合計（多い順）。hidden の事項と額 0 の事項は数えない（policyTree と同じ。円のない取組を一覧に出さない） */
 export function initiativeTotals(p: LocalPolicies, hidden: ReadonlySet<number> = new Set()): InitiativeTotal[] {
   const m = new Map<string, InitiativeTotal>();
   p.items.forEach((it, i) => {
-    if (hidden.has(i)) return;
+    if (hidden.has(i) || it.amount <= 0) return;
     const k = initiativeKey(it);
     const e = m.get(k) ?? { key: k, name: it.initiative ?? '（取組なし）', pillar: it.pillar, amount: 0, count: 0 };
     e.amount += it.amount;
