@@ -72,7 +72,10 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
                   {k.unmatched && <span className="text-mirai-text-muted">（資料の科目が予算の目にない。資料の印字のまま）</span>}
                   {k.printed && (
                     <span className="text-mirai-text-muted">
-                      （資料の印字は {k.printed.replace(/ /g, '-')}。予算の目の額と内訳で確かめて直した）
+                      {/* 「?」は資料の印字ではなく、項の字が行の間にあって読み分けられなかった印（資料の誤りではない） */}
+                      {k.printed.includes('?')
+                        ? '（資料の項の字が行の間にあり読み分けられないので、説明の内訳と予算の節で確かめて決めた）'
+                        : `（資料の印字は ${k.printed.replace(/ /g, '-')}。予算の目の額と内訳で確かめて直した）`}
                     </span>
                   )}
                 </li>
@@ -81,6 +84,9 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
             {item.other_kamoku && <li className="text-mirai-text-muted">ほかの科目にもまたがる（資料に「外」）</li>}
           </ul>
           {item.kamoku.length > 1 && <p className="text-mirai-text-muted">額は科目ごとに分かれていません（資料は事項の合計だけ）。</p>}
+          {item.exceeds_moku && (
+            <p className="text-mirai-text-muted">事項の額が科目の目の予算額を超えています（資料の科目は1つですが、ほかの目にもまたがるとみられます）。</p>
+          )}
         </dd>
       </dl>
       {item.notes.length > 0 && (
