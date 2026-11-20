@@ -200,6 +200,9 @@ function LocalGovContent() {
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
+          <Link href={`/local/${gov}/funds`} className="text-sm text-primary-accent underline">
+            基金
+          </Link>
         </div>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">

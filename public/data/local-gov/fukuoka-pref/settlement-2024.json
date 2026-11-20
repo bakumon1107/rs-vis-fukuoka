@@ -42499,5 +42499,3267 @@
    "節_事項別明細書": "予算現額のある目 284 のうち節あり 284（節なし 0）",
    "歳入の調定額の式": "64/64 款"
   }
+ },
+ "funds": {
+  "as_of": {
+   "year": 2024,
+   "label": "令和6年度末"
+  },
+  "items": [
+   {
+    "name": "財政調整基金",
+    "kind": "stock",
+    "no": 1,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 60739168000,
+      "change": -7396921000,
+      "end": 53342247000,
+      "closing_change": 14131389000,
+      "after_closing": 67473636000
+     },
+     {
+      "kind": "一般会計貸付金",
+      "start": 2800000000,
+      "change": 10574161000,
+      "end": 13374161000,
+      "closing_change": 9879647000,
+      "after_closing": 23253808000
+     }
+    ],
+    "end": 66716408000,
+    "after_closing": 90727444000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 8595855000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 8547889000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 8559720000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 8579440000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 9597683000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 11746678000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 13841400000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 15536516000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 19348265000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 19391693000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 21440152000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 36194550000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 54934922000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 63539168000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 66716408000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "減債基金",
+    "kind": "stock",
+    "no": 2,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 571378160000,
+      "change": 39654640000,
+      "end": 611032800000,
+      "closing_change": 7502500000,
+      "after_closing": 618535300000
+     },
+     {
+      "kind": "現金",
+      "start": 145721979000,
+      "change": -7499009000,
+      "end": 138222970000,
+      "closing_change": 20710536000,
+      "after_closing": 158933506000
+     }
+    ],
+    "end": 749255770000,
+    "after_closing": 777468806000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 176639394000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 220424789000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 270248095000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 288452592000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 304894967000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 339190559000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 356404406000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 368947011000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 395700702000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 425508625000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 477486947000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 511453973000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 606995206000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 717100139000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 749255770000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "公共施設整備基金",
+    "kind": "stock",
+    "no": 3,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 13106978000,
+      "change": 14398000,
+      "end": 13121376000,
+      "closing_change": 0,
+      "after_closing": 13121376000
+     }
+    ],
+    "end": 13121376000,
+    "after_closing": 13121376000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 12137300000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 2715284000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 2730096000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 2744857000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 13453803000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 2773610000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 8760120000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 8768108000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 5203950000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 5207713000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 5211251000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 2612798000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 2613627000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 13106978000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 13121376000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "県営林造成事業振興基金",
+    "kind": "stock",
+    "no": 4,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     }
+    ],
+    "end": 0,
+    "after_closing": 0,
+    "history": [
+     {
+      "year": 2010,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 0,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "災害救助基金",
+    "kind": "stock",
+    "no": 5,
+    "holdings": [
+     {
+      "kind": "備蓄物資",
+      "start": 75126000,
+      "change": 2151000,
+      "end": 77277000,
+      "closing_change": 0,
+      "after_closing": 77277000
+     },
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 1587153000,
+      "change": 77072000,
+      "end": 1664225000,
+      "closing_change": 0,
+      "after_closing": 1664225000
+     }
+    ],
+    "end": 1741502000,
+    "after_closing": 1741502000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 2616841000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 2669479000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 2536518000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 2536423000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 2544799000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 2553390000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 2581999000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 2804997000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 3055672000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 1650482000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 1642339000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 1611384000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 1602348000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 1662279000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 1741502000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "県営住宅敷金積立基金",
+    "kind": "stock",
+    "no": 6,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 947254000,
+      "change": 0,
+      "end": 947254000,
+      "closing_change": 0,
+      "after_closing": 947254000
+     },
+     {
+      "kind": "現金",
+      "start": 431580000,
+      "change": -4521000,
+      "end": 427059000,
+      "closing_change": 0,
+      "after_closing": 427059000
+     }
+    ],
+    "end": 1374313000,
+    "after_closing": 1374313000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 1609303000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 1604993000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 1593861000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 1584965000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 1556890000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1536786000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 1504786000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 1493230000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 1483384000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 1446829000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 1421442000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 1406389000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 1392569000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 1378834000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 1374313000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "地域づくり基金",
+    "kind": "stock",
+    "no": 7,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 3030039000,
+      "change": 0,
+      "end": 3030039000,
+      "closing_change": 0,
+      "after_closing": 3030039000
+     },
+     {
+      "kind": "現金",
+      "start": 648061000,
+      "change": 3906000,
+      "end": 651967000,
+      "closing_change": 13721000,
+      "after_closing": 665688000
+     }
+    ],
+    "end": 3682006000,
+    "after_closing": 3695727000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 5024891000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 4866071000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 4878583000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 4882740000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 4886975000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 4891553000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 4656306000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 4571560000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 4577750000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 4570184000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 3595912000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 3631358000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 3664071000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 3678100000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 3682006000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "環境保全基金",
+    "kind": "stock",
+    "no": 8,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 451968000,
+      "change": -219000000,
+      "end": 232968000,
+      "closing_change": 0,
+      "after_closing": 232968000
+     },
+     {
+      "kind": "現金",
+      "start": 5967000,
+      "change": 199583000,
+      "end": 205550000,
+      "closing_change": -16807000,
+      "after_closing": 188743000
+     }
+    ],
+    "end": 438518000,
+    "after_closing": 421711000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 4510134000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 3571128000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 2724042000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 3832992000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 3070446000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1855931000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 941800000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 775884000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 680807000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 619126000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 548746000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 503049000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 482969000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 457935000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 438518000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "高齢者等保健福祉基金",
+    "kind": "stock",
+    "no": 9,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 2441090000,
+      "change": 19000000,
+      "end": 2460090000,
+      "closing_change": 0,
+      "after_closing": 2460090000
+     },
+     {
+      "kind": "現金",
+      "start": 228379000,
+      "change": -92300000,
+      "end": 136079000,
+      "closing_change": -61377000,
+      "after_closing": 74702000
+     }
+    ],
+    "end": 2596169000,
+    "after_closing": 2534792000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 2929804000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 2865525000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 4414860000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 4308422000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 4217983000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 4152383000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 4113845000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 4071510000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 3603594000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 3356252000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2841822000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 2775014000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 2732302000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 2669469000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 2596169000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "中山間地域等ふるさと・水と土保全基金",
+    "kind": "stock",
+    "no": 10,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 648024000,
+      "change": 0,
+      "end": 648024000,
+      "closing_change": 0,
+      "after_closing": 648024000
+     },
+     {
+      "kind": "現金",
+      "start": 193715000,
+      "change": -14840000,
+      "end": 178875000,
+      "closing_change": 0,
+      "after_closing": 178875000
+     }
+    ],
+    "end": 826899000,
+    "after_closing": 826899000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 1028428000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 1014435000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 1000660000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 984666000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 969552000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 953031000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 937169000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 917190000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 899836000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 884751000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 876621000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 867572000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 853072000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 841739000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 826899000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "はつらつ高齢社会づくり基金",
+    "kind": "stock",
+    "no": 11,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 999944000,
+      "change": 0,
+      "end": 999944000,
+      "closing_change": 0,
+      "after_closing": 999944000
+     },
+     {
+      "kind": "現金",
+      "start": 100000,
+      "change": 0,
+      "end": 100000,
+      "closing_change": 0,
+      "after_closing": 100000
+     }
+    ],
+    "end": 1000044000,
+    "after_closing": 1000044000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 1000044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 1000044000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 1000044000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "出産・子育て安心基金",
+    "kind": "stock",
+    "no": 12,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 2059977000,
+      "change": 0,
+      "end": 2059977000,
+      "closing_change": 0,
+      "after_closing": 2059977000
+     },
+     {
+      "kind": "現金",
+      "start": 10085472000,
+      "change": -186008000,
+      "end": 9899464000,
+      "closing_change": -391505000,
+      "after_closing": 9507959000
+     }
+    ],
+    "end": 11959441000,
+    "after_closing": 11567936000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2101853000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 2101853000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 12145449000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 11959441000,
+      "src": "text"
+     }
+    ],
+    "renamed_from": [
+     "こども育成基金"
+    ]
+   },
+   {
+    "name": "介護保険財政安定化基金",
+    "kind": "stock",
+    "no": 13,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 7069425000,
+      "change": 0,
+      "end": 7069425000,
+      "closing_change": 0,
+      "after_closing": 7069425000
+     },
+     {
+      "kind": "現金",
+      "start": 1402282000,
+      "change": 9305000,
+      "end": 1411587000,
+      "closing_change": 0,
+      "after_closing": 1411587000
+     }
+    ],
+    "end": 8481012000,
+    "after_closing": 8481012000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 12907271000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 12765710000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 8111631000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 8240204000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 8369943000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 8411662000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 8437638000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 8445332000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 8450959000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 8457070000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 8462817000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 8467114000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 8469590000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 8471707000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 8481012000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "ぼた山防護施設維持等基金",
+    "kind": "stock",
+    "no": 14,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 756562000,
+      "change": 0,
+      "end": 756562000,
+      "closing_change": 0,
+      "after_closing": 756562000
+     },
+     {
+      "kind": "現金",
+      "start": 206332000,
+      "change": 12896000,
+      "end": 219228000,
+      "closing_change": 0,
+      "after_closing": 219228000
+     }
+    ],
+    "end": 975790000,
+    "after_closing": 975790000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 844731000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 856309000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 866109000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 879387000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 888675000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 898228000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 906978000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 915684000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 902182000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 902182000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 925363000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 937908000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 950302000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 962894000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 975790000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "森林整備地域活動支援基金",
+    "kind": "stock",
+    "no": 15,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 60537000,
+      "change": -513000,
+      "end": 60024000,
+      "closing_change": -570000,
+      "after_closing": 59454000
+     }
+    ],
+    "end": 60024000,
+    "after_closing": 59454000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 150226000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 88937000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 120165000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 102901000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 83842000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 71382000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 65725000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 65595000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 63843000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 63525000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 61857000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 61866000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 61093000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 60537000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 60024000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "産業廃棄物税基金",
+    "kind": "stock",
+    "no": 16,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 87703000,
+      "change": 0,
+      "end": 87703000,
+      "closing_change": 0,
+      "after_closing": 87703000
+     },
+     {
+      "kind": "現金",
+      "start": 212197000,
+      "change": 11413000,
+      "end": 223610000,
+      "closing_change": -161226000,
+      "after_closing": 62384000
+     }
+    ],
+    "end": 311313000,
+    "after_closing": 150087000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 350281000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 278726000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 267344000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 274046000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 296913000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 262489000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 256769000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 283629000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 288323000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 296891000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 293297000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 276520000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 277671000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 299900000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 311313000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "森林環境税基金",
+    "kind": "stock",
+    "no": 17,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 2267155000,
+      "change": 42664000,
+      "end": 2309819000,
+      "closing_change": -1563114000,
+      "after_closing": 746705000
+     }
+    ],
+    "end": 2309819000,
+    "after_closing": 746705000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 1536667000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 1408049000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 1401638000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 1448720000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 1572224000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1704911000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 1779487000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 1861598000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 1819970000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 2402878000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2407056000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 2273766000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 2265985000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 2267155000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 2309819000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "後期高齢者医療財政安定化基金",
+    "kind": "stock",
+    "no": 18,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 6211750000,
+      "change": 6823000,
+      "end": 6218573000,
+      "closing_change": 0,
+      "after_closing": 6218573000
+     }
+    ],
+    "end": 6218573000,
+    "after_closing": 6218573000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 2348043000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 5063815000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 5582489000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 6103785000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 6137133000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 6167722000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 6186769000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 6192411000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 6196537000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 6201018000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 6205231000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 6208382000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 6210198000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 6211750000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 6218573000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "アンビシャス外国留学支援基金",
+    "kind": "stock",
+    "no": 19,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 67347000,
+      "change": -10920000,
+      "end": 56427000,
+      "closing_change": -9715000,
+      "after_closing": 46712000
+     }
+    ],
+    "end": 56427000,
+    "after_closing": 46712000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 300517000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 294196000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 276278000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 249240000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 222493000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 200182000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 180444000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 160664000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 146845000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 130148000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 110209000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 92650000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 80125000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 67347000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 56427000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "子育て応援基金",
+    "kind": "stock",
+    "no": 20,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 3869886000,
+      "change": -1993373000,
+      "end": 1876513000,
+      "closing_change": -200482000,
+      "after_closing": 1676031000
+     }
+    ],
+    "end": 1876513000,
+    "after_closing": 1676031000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 17346824000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 20790115000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 27341330000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 20061284000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 22060513000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 12614899000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 6611930000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 3423690000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 745648000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 536960000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2975864000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 3963290000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 4216901000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 3869886000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 1876513000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "共助社会づくり基金",
+    "kind": "stock",
+    "no": 21,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 23663000,
+      "change": -152000,
+      "end": 23511000,
+      "closing_change": -3723000,
+      "after_closing": 19788000
+     }
+    ],
+    "end": 23511000,
+    "after_closing": 19788000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 272000000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 225120000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 104735000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 13463000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 15904000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 8405000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 2032000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 17545000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 12608000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 11420000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 10671000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 13887000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 18476000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 23663000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 23511000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "農地中間管理事業支援基金",
+    "kind": "stock",
+    "no": 22,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 100320000,
+      "change": 247790000,
+      "end": 348110000,
+      "closing_change": -31451000,
+      "after_closing": 316659000
+     }
+    ],
+    "end": 348110000,
+    "after_closing": 316659000,
+    "history": [
+     {
+      "year": 2012,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 1012024000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 2132565000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1991524000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 1039182000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 707044000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 504418000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 381824000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 292937000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 198187000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 151072000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 100320000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 348110000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "地域医療介護総合確保基金",
+    "kind": "stock",
+    "no": 23,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 16401420000,
+      "change": -2658006000,
+      "end": 13743414000,
+      "closing_change": -6145410000,
+      "after_closing": 7598004000
+     }
+    ],
+    "end": 13743414000,
+    "after_closing": 7598004000,
+    "history": [
+     {
+      "year": 2014,
+      "end": 3130669000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 12888243000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 12604190000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 11546739000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 11740670000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 12886632000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 14881101000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 16404376000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 19872104000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 16401420000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 13743414000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "国民健康保険財政安定化基金",
+    "kind": "stock",
+    "no": 24,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 12147321000,
+      "change": 2921570000,
+      "end": 15068891000,
+      "closing_change": 0,
+      "after_closing": 15068891000
+     }
+    ],
+    "end": 15068891000,
+    "after_closing": 15068891000,
+    "history": [
+     {
+      "year": 2014,
+      "end": 0,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 767200000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 2318429000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 9779983000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 10393289000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 10400805000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 9232192000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 9236880000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 9239581000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 12147321000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 15068891000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "森林環境譲与税基金",
+    "kind": "stock",
+    "no": 25,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 126217000,
+      "change": 200000,
+      "end": 126417000,
+      "closing_change": -69669000,
+      "after_closing": 56748000
+     }
+    ],
+    "end": 126417000,
+    "after_closing": 56748000,
+    "history": [
+     {
+      "year": 2019,
+      "end": 45442000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 96421000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 115803000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 129968000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 126217000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 126417000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "宿泊税基金",
+    "kind": "stock",
+    "no": 26,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 758487000,
+      "change": 80209000,
+      "end": 838696000,
+      "closing_change": -340619000,
+      "after_closing": 498077000
+     }
+    ],
+    "end": 838696000,
+    "after_closing": 498077000,
+    "history": [
+     {
+      "year": 2019,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 242752000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 319144000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 758487000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 838696000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "日田彦山線沿線地域振興基金",
+    "kind": "stock",
+    "no": 27,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 834392000,
+      "change": -141018000,
+      "end": 693374000,
+      "closing_change": -147050000,
+      "after_closing": 546324000
+     }
+    ],
+    "end": 693374000,
+    "after_closing": 546324000,
+    "history": [
+     {
+      "year": 2019,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 1003315000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 1006800000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 975128000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 834392000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 693374000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "緊急経済対策資金等信用保証料補填臨時基金",
+    "kind": "stock",
+    "no": 28,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 2420871000,
+      "change": -588641000,
+      "end": 1832230000,
+      "closing_change": -613668000,
+      "after_closing": 1218562000
+     }
+    ],
+    "end": 1832230000,
+    "after_closing": 1218562000,
+    "history": [
+     {
+      "year": 2019,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 2507000000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 2508273000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 2195579000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 2420871000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 1832230000,
+      "src": "text"
+     }
+    ],
+    "renamed_from": [
+     "緊急経済対策資金信用保証料補填臨時基金"
+    ]
+   },
+   {
+    "name": "職員退職手当基金",
+    "kind": "stock",
+    "no": 29,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 0,
+      "change": 7523576000,
+      "end": 7523576000,
+      "closing_change": -7523576000,
+      "after_closing": 0
+     }
+    ],
+    "end": 7523576000,
+    "after_closing": 0,
+    "history": [
+     {
+      "year": 2022,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2023,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 7523576000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "公立学校情報機器整備基金",
+    "kind": "stock",
+    "no": 30,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 0,
+      "change": 5240028000,
+      "end": 5240028000,
+      "closing_change": 9183114000,
+      "after_closing": 14423142000
+     }
+    ],
+    "end": 5240028000,
+    "after_closing": 14423142000,
+    "history": [
+     {
+      "year": 2022,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2023,
+      "end": 0,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 5240028000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "土地開発基金",
+    "kind": "operating",
+    "no": 1,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 379475000,
+      "change": 85108000,
+      "end": 464583000,
+      "closing_change": -7180000,
+      "after_closing": 457403000
+     },
+     {
+      "kind": "貸付金",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     }
+    ],
+    "end": 464583000,
+    "after_closing": 457403000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 5020128000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 5025417000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 4536402000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 1974413000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 2175241000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 1988646000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 1437993000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 1433665000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 1481279000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 1647703000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 454989000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 530911000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 463085000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 379475000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 464583000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "市町村振興基金",
+    "kind": "operating",
+    "no": 2,
+    "holdings": [
+     {
+      "kind": "有価証券",
+      "start": 1667936000,
+      "change": 0,
+      "end": 1667936000,
+      "closing_change": 0,
+      "after_closing": 1667936000
+     },
+     {
+      "kind": "現金",
+      "start": 381426000,
+      "change": -117108000,
+      "end": 264318000,
+      "closing_change": 0,
+      "after_closing": 264318000
+     },
+     {
+      "kind": "貸付金",
+      "start": 14035500000,
+      "change": 117108000,
+      "end": 14152608000,
+      "closing_change": 0,
+      "after_closing": 14152608000
+     }
+    ],
+    "end": 16084862000,
+    "after_closing": 16084862000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 18726931000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 18726931000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 18726931000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 18676661000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 18583619000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 18583619000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 16649754000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 16191927000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 16084862000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 16084862000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 16084862000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 16084863000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 16084862000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 16084862000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 16084862000,
+      "src": "text"
+     }
+    ]
+   },
+   {
+    "name": "県立美術館美術品取得基金",
+    "kind": "operating",
+    "no": 3,
+    "holdings": [
+     {
+      "kind": "美術作品",
+      "start": 0,
+      "change": 20900000,
+      "end": 20900000,
+      "closing_change": 0,
+      "after_closing": 20900000
+     },
+     {
+      "kind": "有価証券",
+      "start": 0,
+      "change": 0,
+      "end": 0,
+      "closing_change": 0,
+      "after_closing": 0
+     },
+     {
+      "kind": "現金",
+      "start": 200000000,
+      "change": -20900000,
+      "end": 179100000,
+      "closing_change": 0,
+      "after_closing": 179100000
+     }
+    ],
+    "end": 200000000,
+    "after_closing": 200000000,
+    "history": [
+     {
+      "year": 2010,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2011,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2012,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2013,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2014,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2015,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2016,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2017,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2018,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2019,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2020,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2021,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2022,
+      "end": 200000000,
+      "src": "ocr"
+     },
+     {
+      "year": 2023,
+      "end": 200000000,
+      "src": "text"
+     },
+     {
+      "year": 2024,
+      "end": 200000000,
+      "src": "text"
+     }
+    ]
+   }
+  ],
+  "totals": [
+   {
+    "year": 2010,
+    "fiscal_adjustment": 8595855000,
+    "debt_reduction": 176639394000,
+    "other": 172572746000,
+    "src": "text"
+   },
+   {
+    "year": 2011,
+    "fiscal_adjustment": 8547889000,
+    "debt_reduction": 220424789000,
+    "other": 152321956000,
+    "src": "text"
+   },
+   {
+    "year": 2012,
+    "fiscal_adjustment": 8559720000,
+    "debt_reduction": 270248095000,
+    "other": 135926964000,
+    "src": "text"
+   },
+   {
+    "year": 2013,
+    "fiscal_adjustment": 8579440000,
+    "debt_reduction": 288452592000,
+    "other": 121881456000,
+    "src": "text"
+   },
+   {
+    "year": 2014,
+    "fiscal_adjustment": 9597683000,
+    "debt_reduction": 304894967000,
+    "other": 117896018000,
+    "src": "ocr"
+   },
+   {
+    "year": 2015,
+    "fiscal_adjustment": 11746678000,
+    "debt_reduction": 339190559000,
+    "other": 91205032000,
+    "src": "ocr"
+   },
+   {
+    "year": 2016,
+    "fiscal_adjustment": 13841400000,
+    "debt_reduction": 356404406000,
+    "other": 86030354000,
+    "src": "ocr"
+   },
+   {
+    "year": 2017,
+    "fiscal_adjustment": 15536516000,
+    "debt_reduction": 368947011000,
+    "other": 88447468000,
+    "src": "ocr"
+   },
+   {
+    "year": 2018,
+    "fiscal_adjustment": 19348265000,
+    "debt_reduction": 395700702000,
+    "other": 82425452000,
+    "src": "text"
+   },
+   {
+    "year": 2019,
+    "fiscal_adjustment": 19391693000,
+    "debt_reduction": 425508625000,
+    "other": 82350395000,
+    "src": "text"
+   },
+   {
+    "year": 2020,
+    "fiscal_adjustment": 21440152000,
+    "debt_reduction": 477486947000,
+    "other": 87270937000,
+    "src": "text"
+   },
+   {
+    "year": 2021,
+    "fiscal_adjustment": 36194550000,
+    "debt_reduction": 511453973000,
+    "other": 85333689000,
+    "src": "ocr"
+   },
+   {
+    "year": 2022,
+    "fiscal_adjustment": 54934922000,
+    "debt_reduction": 606995206000,
+    "other": 88623719000,
+    "src": "ocr"
+   },
+   {
+    "year": 2023,
+    "fiscal_adjustment": 63539168000,
+    "debt_reduction": 717100139000,
+    "other": 108629031000,
+    "src": "text"
+   },
+   {
+    "year": 2024,
+    "fiscal_adjustment": 66716408000,
+    "debt_reduction": 749255770000,
+    "other": 119217431000,
+    "src": "text"
+   }
+  ],
+  "statements": [
+   {
+    "year": 2011,
+    "label": "平成23年度",
+    "source": "h23-zaisan",
+    "src": "text"
+   },
+   {
+    "year": 2012,
+    "label": "平成24年度",
+    "source": "h24-zaisan",
+    "src": "ocr",
+    "partial": true
+   },
+   {
+    "year": 2013,
+    "label": "平成25年度",
+    "source": "h25-zaisan",
+    "src": "text"
+   },
+   {
+    "year": 2015,
+    "label": "平成27年度",
+    "source": "h27-zaisan",
+    "src": "ocr"
+   },
+   {
+    "year": 2016,
+    "label": "平成28年度",
+    "source": "h28-zaisan",
+    "src": "ocr"
+   },
+   {
+    "year": 2017,
+    "label": "平成29年度",
+    "source": "h29-zaisan",
+    "src": "ocr"
+   },
+   {
+    "year": 2018,
+    "label": "平成30年度",
+    "source": "h30-zaisan",
+    "src": "text"
+   },
+   {
+    "year": 2020,
+    "label": "令和2年度",
+    "source": "r2-zaisan",
+    "src": "text"
+   },
+   {
+    "year": 2021,
+    "label": "令和3年度",
+    "source": "r3-zaisan",
+    "src": "ocr",
+    "partial": true
+   },
+   {
+    "year": 2022,
+    "label": "令和4年度",
+    "source": "r4-zaisan",
+    "src": "ocr"
+   },
+   {
+    "year": 2023,
+    "label": "令和5年度",
+    "source": "r5-zaisan",
+    "src": "text"
+   },
+   {
+    "year": 2024,
+    "label": "令和6年度",
+    "source": "r6-zaisan",
+    "src": "text"
+   }
+  ],
+  "notes": [
+   "残高は財産に関する調書（決算）の年度末現在高（3月31日）。出納閉鎖日（5月31日）の現在高は、出納整理期間中の増減を足した額",
+   "調書を取り込んでいない年度の年度末現在高は、次の年度の調書の前年度末現在高",
+   "財政状況資料集・財務書類の附属明細書の基金の額は、財政調整基金・減債基金の額が調書と一致しない（R6 で確認。財政調整基金の現金の額は、財政状況資料集の財政調整基金・附属明細書の減債基金の流動資産と同じ。違いの理由は未確認）"
+  ],
+  "checks": {
+   "signs_fixed": 4,
+   "names_fixed": 27
+  }
  }
 }

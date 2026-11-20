@@ -83,6 +83,36 @@ test('一般財源の中身: 行の合計 = total = 財源内訳の一般財源�
   );
 });
 
+test('基金（funds）: 決算のファイルだけ。区分の検算・合計・推移の決算年度の値・推移と年度ごとの合計の整数を確かめる', () => {
+  const holding = { kind: '現金', start: 100, change: 20, end: 120, closing_change: 5, after_closing: 125 };
+  const fund = (over: object = {}) => ({
+    name: '財政調整基金', kind: 'stock', no: 1, holdings: [holding], end: 120, after_closing: 125,
+    history: [{ year: 2023, end: 100, src: 'text' }, { year: 2024, end: 120, src: 'text' }], ...over,
+  });
+  const funds = (over: object = {}) => ({
+    as_of: { year: 2024, label: '令和6年度末' }, items: [fund()],
+    totals: [{ year: 2023, fiscal_adjustment: 100, debt_reduction: 0, other: 0, src: 'text' },
+      { year: 2024, fiscal_adjustment: 120, debt_reduction: 0, other: 0, src: 'text' }],
+    statements: [], notes: [], checks: { signs_fixed: 0, names_fixed: 0 }, ...over,
+  });
+  const errs = (f: object, over: Partial<LocalBudgetFile> = {}) =>
+    validateBudgetFile(file([row()], { basis: 'settlement', funds: f as LocalBudgetFile['funds'], ...over })).errors
+      .filter(e => e.startsWith('funds'));
+  assert.deepEqual(errs(funds()), []);
+  assert.ok(errs(funds(), { basis: 'initial' }).some(e => e.includes('決算のファイルだけ')));
+  assert.ok(errs(funds({ items: [fund({ holdings: [{ ...holding, end: 121 }], end: 121, history: [{ year: 2024, end: 121, src: 'text' }] })] }))
+    .some(e => e.includes('前年度末 + 増減')));
+  assert.ok(errs(funds({ items: [fund({ end: 119 })] })).some(e => e.includes('区分の年度末の合計')));
+  assert.ok(errs(funds({ items: [fund({ history: [{ year: 2024, end: 1, src: 'text' }] })] })).some(e => e.includes('推移の 2024')));
+  // 過年度の推移・年度ごとの合計の端数（合計の比較は ≧ なので、整数の確かめがないと通る）
+  assert.ok(errs(funds({ items: [fund({ history: [{ year: 2023, end: 100.5, src: 'text' }, { year: 2024, end: 120, src: 'text' }] })] }))
+    .some(e => e.includes('推移の額')));
+  assert.ok(errs(funds({ totals: [{ year: 2023, fiscal_adjustment: 100, debt_reduction: 0, other: 0.5, src: 'text' }] }))
+    .some(e => e.includes('funds.totals 2023: 額')));
+  assert.ok(errs(funds({ totals: [{ year: 2024, fiscal_adjustment: 100, debt_reduction: 0, other: 0, src: 'text' }] }))
+    .some(e => e.includes('今ある基金の推移の合計より小さい')));
+});
+
 test('ID は会計/歳入歳出/款-項-目', () => {
   assert.equal(expectedRowId(row()), 'general/expense/2-1-1');
   const r = validateBudgetFile(file([row({ id: 'general/expense/2-1-9' })]));
