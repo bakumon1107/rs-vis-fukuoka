@@ -33,9 +33,12 @@ export interface PolicyGroup {
   pillar: number | null;
   children: (PolicyGroup | PolicyLeaf)[];
 }
+/** 施策の円の key（寄るときの ID） */
+export const POLICIES_KEY = 'root';
+
 export interface PolicyRoot {
   kind: 'root';
-  key: 'root';
+  key: typeof POLICIES_KEY;
   name: string;
   children: PolicyGroup[];
 }
@@ -59,7 +62,7 @@ export function policyTree(p: LocalPolicies, hidden: ReadonlySet<number> = new S
     ig.children.push({ kind: 'item', index, name: it.name, value: it.amount, item: it });
   });
   const order = (g: PolicyGroup) => (g.pillar === null ? Number.MAX_SAFE_INTEGER : g.pillar);
-  return { kind: 'root', key: 'root', name: '施策', children: [...pillars.values()].sort((a, b) => order(a) - order(b)) };
+  return { kind: 'root', key: POLICIES_KEY, name: '施策', children: [...pillars.values()].sort((a, b) => order(a) - order(b)) };
 }
 
 /** 大きな事項（境以上）の添字 */
@@ -93,11 +96,48 @@ export function initiativeTotals(p: LocalPolicies, hidden: ReadonlySet<number> =
   return [...m.values()].sort((a, b) => b.amount - a.amount);
 }
 
-/** 事項の款（科目の款がすべて同じならその番号、またがれば 'multi'、科目がなければ null） */
+/**
+ * 事項の款（科目の款がすべて同じならその番号、またがれば 'multi'、科目がなければ null）。
+ * 資料の科目に「外」（ほかの科目にもまたがる）の印があれば、書かれていない款があるかもしれないので 'multi'
+ */
 export function itemKan(it: PolicyItem): number | 'multi' | null {
   const kans = new Set(it.kamoku.map(k => k.kan));
+  if (it.other_kamoku) return 'multi';
   if (kans.size === 0) return null;
   return kans.size === 1 ? [...kans][0] : 'multi';
+}
+
+/** 寄る円の key（施策の円・柱・取組）が木にあれば、全体からの道すじを返す（ないとき = 外した事項だけの取組などは null） */
+export function focusPath(tree: PolicyRoot, focus: string): { key: string; label: string }[] | null {
+  if (focus === tree.key) return [{ key: tree.key, label: '施策別資料の事項' }];
+  for (const p of tree.children) {
+    const plabel = p.pillar === null ? p.name : `${p.pillar}. ${p.name}`;
+    if (p.key === focus) return [{ key: tree.key, label: '施策別資料の事項' }, { key: p.key, label: plabel }];
+    for (const c of p.children) {
+      if (c.kind === 'initiative' && c.key === focus) {
+        return [{ key: tree.key, label: '施策別資料の事項' }, { key: p.key, label: plabel }, { key: c.key, label: c.name }];
+      }
+    }
+  }
+  return null;
+}
+
+/** 取組の事項（添字つき。額の多い順）。木から取るので、外した事項は入らない */
+export function initiativeLeaves(tree: PolicyRoot, key: string): PolicyLeaf[] {
+  for (const p of tree.children) {
+    for (const c of p.children) {
+      if (c.kind === 'initiative' && c.key === key) {
+        return (c.children.filter(x => x.kind === 'item') as PolicyLeaf[]).sort((a, b) => b.value - a.value);
+      }
+    }
+  }
+  return [];
+}
+
+/** 施策別資料の PDF のファイル名から出典の資料を探す。名前の「。名前の検索に使用」はサンキー図での使い道の注記なので外す */
+export function sourceForDoc<T extends { url: string; title: string }>(sources: T[], doc: string): T | undefined {
+  const s = sources.find(x => x.url.endsWith(`/${doc}`));
+  return s ? { ...s, title: s.title.replace('。名前の検索に使用', '') } : undefined;
 }
 
 export interface ColorLegend {

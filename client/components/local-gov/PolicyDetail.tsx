@@ -59,7 +59,11 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
               return (
                 <li key={i}>
                   {row ? (
-                    <Link href={`/local/${gov}?view=general&sel=${encodeURIComponent(`moku:${row.id}`)}`} className="text-primary-accent underline">
+                    // 同じ年度の当初予算のサンキー図で、その目を選んだ状態で開く
+                    <Link
+                      href={`/local/${gov}?year=${file.year}&view=general&sel=${encodeURIComponent(`moku:${row.id}`)}`}
+                      className="text-primary-accent underline"
+                    >
                       {label}
                     </Link>
                   ) : (

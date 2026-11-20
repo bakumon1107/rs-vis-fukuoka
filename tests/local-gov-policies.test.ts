@@ -7,9 +7,12 @@ import {
   bigItems,
   colorScheme,
   fitLabel,
+  focusPath,
+  initiativeLeaves,
   initiativeTotals,
   itemKan,
   policyTree,
+  sourceForDoc,
   type PolicyGroup,
 } from '../app/lib/local-gov/policies';
 import type { LocalPolicies, PolicyItem } from '../types/local-gov';
@@ -64,6 +67,27 @@ test('itemKan と色: 款をまたぐ事項は multi。款の色は全事項の�
   assert.equal(p.colorOf(policies.items[1]), SERIES_COLORS[0]);
   assert.equal(p.colorOf(policies.items[3]), SERIES_COLORS[2]); // 柱の外は柱の数の次
   assert.notEqual(OTHER_KAN_COLOR, MUTED_COLOR);
+});
+
+test('itemKan: 資料に「外」の印があれば、款が1つでも款をまたぐ事項', () => {
+  assert.equal(itemKan({ ...policies.items[0], other_kamoku: true }), 'multi');
+});
+
+test('focusPath・initiativeLeaves: 木にある円だけ道すじを返す。外した事項だけの取組は null', () => {
+  const t = policyTree(policies);
+  assert.deepEqual(focusPath(t, 'i:2:取組A')?.map(c => c.label), ['施策別資料の事項', '2. 柱二', '取組A']);
+  assert.deepEqual(focusPath(t, 'p:none')?.map(c => c.key), ['root', 'p:none']);
+  assert.deepEqual(initiativeLeaves(t, 'i:2:取組A').map(l => [l.name, l.index]), [['甲', 0], ['丙', 2]]);
+  // 取組B の事項（乙 500円）だけを外すと、取組B の円はなくなる
+  const hidden = policyTree(policies, new Set([1]));
+  assert.equal(focusPath(hidden, 'i:1:取組B'), null);
+  assert.deepEqual(initiativeLeaves(hidden, 'i:1:取組B'), []);
+});
+
+test('sourceForDoc: PDF のファイル名で資料を探し、サンキー図の使い道の注記を外す', () => {
+  const sources = [{ id: 'x', url: 'https://example.jp/uploaded/attachment/278133.pdf', title: '施策別資料（柱2。名前の検索に使用）' }];
+  assert.equal(sourceForDoc(sources, '278133.pdf')?.title, '施策別資料（柱2）');
+  assert.equal(sourceForDoc(sources, '8133.pdf'), undefined);
 });
 
 test('fitLabel: 円に収まらない名前は切り、小さすぎる円は空', () => {

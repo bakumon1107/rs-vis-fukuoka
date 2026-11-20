@@ -9,21 +9,24 @@
  */
 import Link from 'next/link';
 import { Suspense, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { AppHeader } from '@/components/navigation/AppHeader';
-import { useLocalBudget } from '@/client/hooks/useLocalBudget';
-import { POLICIES_KEY, PolicyBubbleChart } from '@/client/components/local-gov/PolicyBubbleChart';
+import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
+import { PolicyBubbleChart } from '@/client/components/local-gov/PolicyBubbleChart';
 import { PolicyDetail } from '@/client/components/local-gov/PolicyDetail';
 import {
   BIG_ITEM_YEN,
   OUTSIDE_PILLAR_NAME,
+  POLICIES_KEY,
   bigItems,
   colorScheme,
-  initiativeKey,
+  focusPath,
+  initiativeLeaves,
   initiativeTotals,
   kanNames,
   policyTree,
+  sourceForDoc,
 } from '@/app/lib/local-gov/policies';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
@@ -39,7 +42,9 @@ type ColorMode = 'pillar' | 'kan';
 
 function LocalPoliciesContent() {
   const { gov } = useParams<{ gov: string }>();
-  const state = useLocalBudget(gov, undefined, 'initial');
+  // 年度は URL の year（サンキー図から渡す）。なければ当初予算の最新の年度
+  const searchParams = useSearchParams();
+  const state = useLocalBudget(gov, yearFromQuery(searchParams.get('year')), 'initial');
   const [colorMode, setColorMode] = useState<ColorMode>('pillar');
   const [hideBig, setHideBig] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
@@ -73,25 +78,11 @@ function LocalPoliciesContent() {
   const item = selected !== null ? policies.items[selected] ?? null : null;
   const outsideItem = selectedOutside ? policies.outside.find(o => o.key === selectedOutside) ?? null : null;
 
-  // 寄っている円の道すじ（全体 › 施策 › 柱 › 取組）
-  const crumbs: { key: string | null; label: string }[] = [{ key: null, label: '全体' }];
-  if (focus) {
-    crumbs.push({ key: POLICIES_KEY, label: '施策別資料の事項' });
-    const m = /^([pi]):([^:]+)(?::(.+))?$/.exec(focus);
-    if (m) {
-      const p = m[2] === 'none' ? null : Number(m[2]);
-      const pname = p === null ? OUTSIDE_PILLAR_NAME : `${p}. ${policies.pillars.find(x => x.no === p)?.name ?? ''}`;
-      crumbs.push({ key: `p:${m[2]}`, label: pname });
-      if (m[1] === 'i') crumbs.push({ key: focus, label: m[3] ?? '' });
-    }
-  }
-  const focusedInitiative = focus?.startsWith('i:') ? focus : null;
-  const initiativeItems = focusedInitiative
-    ? policies.items
-        .map((it, i) => ({ it, i }))
-        .filter(({ it, i }) => initiativeKey(it) === focusedInitiative && !hidden?.has(i))
-        .sort((a, b) => b.it.amount - a.it.amount)
-    : [];
+  // 寄っている円の道すじ（全体 › 施策 › 柱 › 取組）。寄り先が木にない（外した事項だけの取組など）ときは全体として扱う（図も全体に戻る）
+  const path = focus ? focusPath(tree, focus) : null;
+  const crumbs: { key: string | null; label: string }[] = [{ key: null, label: '全体' }, ...(path ?? [])];
+  const focusedInitiative = path && focus?.startsWith('i:') ? focus : null;
+  const initiativeItems = focusedInitiative ? initiativeLeaves(tree, focusedInitiative) : [];
 
   const select = (i: number, ik: string) => {
     setSelected(i === selected ? null : i);
@@ -99,11 +90,9 @@ function LocalPoliciesContent() {
     // 取組の外から押したら、その取組に寄る（中の事項の名前が読める大きさにする）
     if (ik && focus !== ik) setFocus(ik);
   };
-  // 資料の名前の「。名前の検索に使用」はサンキー図での使い道の注記なので、このページでは外す
-  const sourceOf = (doc: string) => {
-    const s = index.sources.find(x => x.url.endsWith(`/${doc}`));
-    return s ? { ...s, title: s.title.replace('。名前の検索に使用', '') } : undefined;
-  };
+  const sourceOf = (doc: string) => sourceForDoc(index.sources, doc);
+  // サンキー図へ戻るときは同じ年度の当初予算を開く
+  const sankeyHref = `/local/${gov}?year=${file.year}`;
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -114,7 +103,7 @@ function LocalPoliciesContent() {
             {index.gov.name} {dataset.label}当初予算 施策のバブル図
           </h1>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
-          <Link href={`/local/${gov}`} className="text-sm text-primary-accent underline">
+          <Link href={sankeyHref} className="text-sm text-primary-accent underline">
             予算・決算の流れ（サンキー図）へ
           </Link>
         </div>
@@ -226,7 +215,7 @@ function LocalPoliciesContent() {
               <section className="rounded-2xl bg-card p-3 shadow-soft">
                 <h2 className="mb-2 text-sm font-bold">この取組の事項（{initiativeItems.length} 件・多い順）</h2>
                 <ul className="max-h-[32rem] space-y-0.5 overflow-y-auto text-sm">
-                  {initiativeItems.map(({ it, i }) => (
+                  {initiativeItems.map(({ item: it, index: i }) => (
                     <li key={i}>
                       <button
                         type="button"

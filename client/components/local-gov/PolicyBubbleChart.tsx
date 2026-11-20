@@ -26,8 +26,8 @@ type Datum = AllRoot | PolicyRoot | PolicyGroup | PolicyLeaf | OutsideLeaf;
 type Circle = HierarchyCircularNode<Datum>;
 
 const SIZE = 1000;
-/** 施策の円の key（寄るときの ID） */
-export const POLICIES_KEY = 'root';
+/** ツールチップの最大の幅（max-w-64 = 16rem）。右端からはみ出さないよう左の位置を抑える */
+const TIP_WIDTH = 256;
 
 interface Props {
   tree: PolicyRoot;
@@ -107,6 +107,10 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
         role="img"
         aria-label="一般会計の歳出の入れ子の円（施策別資料の事項を柱・取組で分けたものと、図に載らない経費。面積が予算額）。右の一覧からも選べます"
         onClick={() => onFocus(parentKey(focusNode))}
+        // 円の外（背景）に動いたら、前の円の説明を消す（円の上では円の onMouseMove が出し直す）
+        onMouseMove={e => {
+          if (e.target === e.currentTarget) setHover(null);
+        }}
       >
         {nodes.map(n => {
           const d = n.data;
@@ -230,7 +234,7 @@ export function PolicyBubbleChart({ tree, outside, colorOf, focus, onFocus, sele
       {hover && (
         <div
           className="pointer-events-none absolute z-10 max-w-64 rounded-md border border-mirai-border bg-card px-2 py-1 text-xs shadow-soft"
-          style={{ left: Math.max(0, Math.min(hover.x + 12, width - 220)), top: hover.y + 12 }}
+          style={{ left: Math.max(0, Math.min(hover.x + 12, width - TIP_WIDTH)), top: hover.y + 12 }}
         >
           <div className="font-bold">{hover.title}</div>
           <div className="text-mirai-text-muted">{hover.sub}</div>
