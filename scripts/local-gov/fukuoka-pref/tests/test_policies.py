@@ -66,6 +66,11 @@ def test_unreadable_kamoku_mixed_accounts_and_missing_file_fail(tmp_path):
     pol, _, fails = ep.build(str(tmp_path), ROWS)
     assert len(fails) == 2 and "'? 1 4'" in fails[0] and "またがる" in fails[1]
     assert pol["items"][-1]["other_kamoku"] and len(pol["items"][-1]["kamoku"]) == 1
+    # 科目のない事項・予算額の読めない除く事項（債務負担行為）も止める
+    items = [_item("科目のない事項", [], 10), _item("額のない（債務負担行為）", ["10 2 1"], None)]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert any("科目がない" in f for f in fails) and any("予算額が読めない" in f for f in fails)
     # 施策別資料の抽出の結果がない作業ディレクトリでは止める（公開データから policies が黙って消えないよう）
     _, _, fails = ep.build(str(tmp_path / "none"), ROWS)
     assert fails and "shisaku.json" in fails[0]

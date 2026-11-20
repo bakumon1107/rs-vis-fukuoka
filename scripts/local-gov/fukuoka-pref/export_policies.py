@@ -60,7 +60,11 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     out_items, excluded = [], {"special": [0, 0], "debt_burden": [0, 0]}
     used_fixes: set[tuple[str, str]] = set()
     for it in items:
-        amount = (it["予算額"] or 0) * 1000
+        # 予算額が読めない事項は、除く事項（債務負担行為・特別会計）でも止める（除いた額が黙って少なくならないよう）
+        if it["予算額"] is None:
+            fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
+            continue
+        amount = it["予算額"] * 1000
         if "債務負担行為" in it["事項名"]:
             excluded["debt_burden"][0] += 1
             excluded["debt_burden"][1] += amount
@@ -74,8 +78,9 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             # 一般会計と特別会計にまたがる事項: 額が会計ごとに分かれていないので、除いても入れても一般会計の分がずれる。人が決める
             fails.append(f"施策別資料 {it['事項名']}: 一般会計と特別会計の科目にまたがる {it['科目']}（額を分けられない）")
             continue
-        if it["予算額"] is None:
-            fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
+        if not it["科目"] or it["科目"] == ["外"]:
+            # 科目の欄が読めない（目の字が取れず kamoku_lines が科目を返さない）事項を、科目なしで黙って載せない
+            fails.append(f"施策別資料 {it['事項名']}: 科目がない {it['科目']}")
             continue
         used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KOU_FIXES)
         kamoku = []

@@ -86,6 +86,12 @@ def kamoku_lines(ws) -> list[str]:
         cx = (w["x0"] + w["x1"]) / 2
         cols[0 if cx < KAMOKU_SPLIT[0] else 1 if cx < KAMOKU_SPLIT[1] else 2].append({**w, "text": t})
     if not cols[2]:
+        if cols[0] or cols[1]:
+            # 款・項の字はあるのに目の字がない（目の字が項の列に寄った、など）: 黙って科目を落とさず、決まらない科目として返す
+            # （main の WARN、書き出し export_policies の FAIL で知らせる）
+            kan = "".join(c["text"] for c in cols[0]) or "?"
+            kou = "".join(c["text"] for c in cols[1]) or "?"
+            return [f"{kan} {kou} ?"] + (["".join(other)] if other else [])
         return ["".join(other)] if other else []
 
     def nearest(cands, y):
