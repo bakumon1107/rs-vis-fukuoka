@@ -141,6 +141,7 @@ def parse(text: str, ocr: bool = False) -> dict:
         # 区分と額が同じ行（どの額も「－」の基金・OCR の行）。区分だけの行より先に見る（区分の名前は行の頭の字で決まるので）
         mm = re.match(r"^(\s*[^\d▲－-]+?)\s{2,}([\d▲－-].*)$", ln)
         if mm and label_of(mm.group(1)) and numbers(mm.group(2)) is not None:
+            unconsumed(cur, label)  # 前の区分に額の行が入らないまま、区分と額が同じ行の次の区分になった
             put(cur, label_of(mm.group(1)), numbers(mm.group(2)))
             cur.setdefault("labels", []).append(label_of(mm.group(1)))
             label = None

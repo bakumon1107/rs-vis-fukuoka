@@ -87,6 +87,12 @@ class TestOcr:
                "現   金\n0   0\n")
         funds = fu.parse(txt)
         assert any("現金" in x and "額の行がない" in x for x in fu.check_rows("R6", funds))
+        # 次の区分が「区分と額が同じ行」でも、前の区分の読めない額を見逃さない
+        txt = ("資金を積み立てるために設置されたもの\n(1)   福岡県財政調整基金\n有   価   証   券\n0   0   0   0   0\n"
+               "現   金\n0   0\n一   般   会   計   貸   付   金      0   0   0   0   0\n")
+        funds = fu.parse(txt)
+        assert list(funds["福岡県財政調整基金"]["holdings"]) == ["有価証券", "一般会計貸付金"]
+        assert any("現金" in x and "額の行がない" in x for x in fu.check_rows("R6", funds))
 
     def test_signs_fixed_only_by_arithmetic(self):
         funds = {"a": {"holdings": {"現金": [100, 20, 80, 5, 75], "有価証券": [100, 20, 130, 0, 130]}}}
