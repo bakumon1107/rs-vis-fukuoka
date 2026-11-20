@@ -24,7 +24,9 @@ ROWS = [
 
 def _real(fails):
     """表の見直しを促す失敗（R8 の直しの表・例外の表の行が、この小さな入力では使われない）を除く。それは test_tables_unused で見る"""
-    return [f for f in fails if "直しの表の行が使われていない" not in f and "OVER_MOKU_OK の目" not in f]
+    # 制度融資の事項がない入力も同じ（test_loans_item_must_appear_once で見る）
+    return [f for f in fails if "直しの表の行が使われていない" not in f and "OVER_MOKU_OK の目" not in f
+            and "中小企業振興資金融資費 の事項がない" not in f]
 
 
 def _item(name, kamoku, amount, **kw):
@@ -57,7 +59,8 @@ def test_scope_kamoku_and_outside(tmp_path):
     assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1", "printed": "9 ? 1"}
     assert pol["excluded"] == {"special": {"count": 2, "amount": 12_000}, "debt_burden": {"count": 2, "amount": 10_012_000}}
     k = pol["items"][0]["kamoku"]
-    assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4"}
+    # 項を予算の目（1つだけ）で決めた科目にも、資料の読みを残す
+    assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4", "printed": "9 ? 4"}
     assert pol["items"][1]["kamoku"][1] == {"kan": 9, "kou": None, "moku": 3, "row": None, "unmatched": True}
     assert pol["items"][2]["kamoku"][0]["unmatched"]
     assert pol["pillars"] == [{"no": 3, "name": "感染症や災害に負けない強靭な社会をつくる"}]
@@ -130,15 +133,20 @@ def test_moku_total_fixes_and_tables(tmp_path, monkeypatch):
     # 直しの表で別の目に直すと止まらず、直した科目に資料の印字が残る
     monkeypatch.setattr(ep, "KAMOKU_FIXES", {("大きい事項", "9 2 1"): "9 1 2"})
     pol, _, fails = ep.build(str(tmp_path), ROWS)
-    assert fails == [] and pol["items"][0]["kamoku"][0] == {"kan": 9, "kou": 1, "moku": 2, "row": "general/expense/9-1-2", "printed": "9 2 1"}
+    assert _real(fails) == [] and pol["items"][0]["kamoku"][0] == {"kan": 9, "kou": 1, "moku": 2, "row": "general/expense/9-1-2", "printed": "9 2 1"}
     # 例外の表に理由を書いた目は止めない。表の行が使われない（超えていない）ときは見直しを促す
     monkeypatch.setattr(ep, "KAMOKU_FIXES", {})
     monkeypatch.setattr(ep, "OVER_MOKU_OK", {"general/expense/9-2-1": "理由", "general/expense/9-1-4": "理由"})
     _, _, fails = ep.build(str(tmp_path), ROWS)
-    assert fails == ["施策別資料: OVER_MOKU_OK の目 general/expense/9-1-4 はもう超えていない（表を見直す）"]
-    # 例外の目の事項には、額が目を超える印を付ける
+    assert [f for f in fails if "の事項がない" not in f] == ["施策別資料: OVER_MOKU_OK の目 general/expense/9-1-4 はもう超えていない（表を見直す）"]
+    # 例外の目の事項には、その事項だけで目の額を超えるときに印を付ける（ここではどちらも1件では 300 万円を超えない）
     pol, _, _ = ep.build(str(tmp_path), ROWS)
-    assert all(i.get("exceeds_moku") for i in pol["items"])
+    assert not any(i.get("exceeds_moku") for i in pol["items"])
+    items_big = [_item("大きい事項", ["9 2 1"], 3_500), _item("もう1つ", ["9 2 1"], 100)]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items_big, "fails": []}, ensure_ascii=False), encoding="utf-8")
+    pol, _, _ = ep.build(str(tmp_path), ROWS)
+    assert [i["name"] for i in pol["items"] if i.get("exceeds_moku")] == ["大きい事項"]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     # 直しの表の行き先が予算の目にないときは止める（「印字のまま」と「直した」を並べない）
     monkeypatch.setattr(ep, "OVER_MOKU_OK", {})
     monkeypatch.setattr(ep, "KAMOKU_FIXES", {("大きい事項", "9 2 1"): "9 9 9", ("もう1つ", "9 2 1"): "9 1 2"})
@@ -157,6 +165,14 @@ def test_moku_total_fixes_and_tables(tmp_path, monkeypatch):
     monkeypatch.setattr(ep, "OVER_MOKU_OK", {})
     _, _, fails = ep.build(str(tmp_path), ROWS)
     assert any("柱 3 の名前が2通り" in f for f in fails)
+
+
+def test_loans_item_must_appear_once(tmp_path):
+    # 制度融資の事項がない（名前が変わった）・2度ある: 施策の円と灰色の円で二重に数える・片方が消えるので止める
+    for items, word in (([_item("甲", ["9 1 2"], 1)], "の事項がない"),
+                        ([_item("中小企業振興資金融資費", ["7 1 1"], 900)] * 2, "2度ある")):
+        (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
+        assert any(word in f for f in ep.build(str(tmp_path), ROWS)[2])
 
 
 def test_other_negative_fails(tmp_path):

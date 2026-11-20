@@ -59,7 +59,8 @@ def _kamoku(text: str, budget_ids: set[str]):
             return "ambiguous"
         if not cands:
             return {"kan": int(kan), "kou": None, "moku": int(moku), "row": None, "unmatched": True}
-        kou = cands[0].split("/")[-1].split("-")[1]
+        # 予算にある目が1つなので決まる。資料の読み（「9 ? 4」）を printed に残す（画面は「読み分けられないので決めた」と出す）
+        return {"kan": int(kan), "kou": int(cands[0].split("/")[-1].split("-")[1]), "moku": int(moku), "row": cands[0], "printed": text}
     row = f"general/expense/{kan}-{kou}-{moku}"
     out = {"kan": int(kan), "kou": int(kou), "moku": int(moku), "row": row if row in budget_ids else None}
     if out["row"] is None:
@@ -94,7 +95,9 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             continue
         amount = it["予算額"] * 1000
         if it["事項名"] == LOANS_ITEM:
-            # 制度融資の貸付金は、図に載らない経費の灰色の円（loans）で見せる（設計 3章）。事項の円に重ねて数えない
+            # 制度融資の貸付金は、施策の円の外の灰色の円（loans）で見せる（設計 3章）。事項の円に重ねて数えない
+            if loans_in_policies is not None:
+                fails.append(f"施策別資料: {LOANS_ITEM} が2度ある（片方が黙って消える）")
             loans_in_policies = amount
             continue
         # 「外」（ほかの科目にもまたがる印）は会計を示さないので、特別会計かどうかの判定から外す
@@ -171,8 +174,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
               if by_row.get(rid, 0) <= row_amount.get(rid, 0)]
     # 例外の目の事項には印を付ける（画面に「額が目を超える」と出す）
     for i in out_items:
-        if len(i["kamoku"]) == 1 and i["kamoku"][0]["row"] in OVER_MOKU_OK:
-            i["exceeds_moku"] = True
+        if len(i["kamoku"]) == 1 and i["kamoku"][0]["row"] in OVER_MOKU_OK and i["amount"] > row_amount[i["kamoku"][0]["row"]]:
+            i["exceeds_moku"] = True  # その事項だけで目の額を超える（同じ目のほかの小さな事項には付けない）
     # 複数の目にまたがる事項: その目の組の中だけに科目を持つ事項の合計が、組の目の額の合計を超えないこと
     # （1つの目だけの確かめでは、またがる事項の科目の読み違いに気づけない。「外」の事項はほかの目にもまたがるので外す）
     multi = {frozenset(k["row"] for k in i["kamoku"]) for i in out_items
@@ -202,7 +205,10 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     personnel = sum(s["amount"]["v"] or 0 for r in expense for s in r.get("setsu", []) if s.get("no") in (1, 2, 3, 4))
     loans = sum(i["amount"]["v"] or 0 for r in expense for i in r.get("items", []) if i["name"] == LOANS_ITEM)
     # 施策別資料の制度融資の事項（円に載せず灰色の円で見せる）の額が、説明書の事項の額と同じであること（違えば二重・漏れになる）
-    if loans_in_policies is not None and loans_in_policies != loans:
+    if loans_in_policies is None:
+        # 施策別資料に制度融資の事項がない（名前が変わった）: その事項が施策の円になり、灰色の円とで二重に数える。止める
+        fails.append(f"施策別資料: {LOANS_ITEM} の事項がない（名前が変わった？ 施策の円と灰色の円で二重に数える）")
+    elif loans_in_policies != loans:
         fails.append(f"施策別資料: {LOANS_ITEM} の額 {loans_in_policies:,} 円が説明書の事項 {loans:,} 円と違う")
     outside = [
         {"key": "tax_transfers", "label": "地方消費税の清算金・市町村への税交付金（款「諸支出金」）", "amount": kan_sum("諸支出金")},
