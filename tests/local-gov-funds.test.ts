@@ -29,6 +29,9 @@ const budget = {
     row('general/expense/2-1-9', 'expense', '財産管理費', 30, [
       { name: '基金積立金', amount: v(30) },
       { name: '公共施設整備基金積立金', amount: v(30), parent: 0 },
+      // 数えた事項の内訳の内訳は重ねない（3段）
+      { name: '内訳', amount: v(30), parent: 1 },
+      { name: '公共施設整備基金積立金', amount: v(30), parent: 2 },
     ]),
   ],
 } as unknown as LocalBudgetFile;

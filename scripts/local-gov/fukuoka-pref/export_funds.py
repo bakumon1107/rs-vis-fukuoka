@@ -71,7 +71,9 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
     all_years = sorted({fy for _, fy in ends})
     # 調書を取り込んでいない年度（Y）は、次の年度の調書の前年度末で埋める。前の調書（Y-1）にあって次の調書（Y+1）にない基金は、
     # Y の年度末の額が分からない（Y の間に廃止したか、Y+1 の間に廃止したか）。合計から黙って落とさないよう、数えて示す
-    imported = {fy_of[y] for y in years}
+    # 補助の年度（その年度に廃止した基金だけを取り込んだ年度）は「取り込んでいない年度」として確かめる（残した基金が埋めているか）
+    imported = {fy_of[y] for y in years if y not in supplement}
+    supp_keys = {(rename(n), fy_of[y]) for y in supplement for n in years[y]}
     gaps = []
     for fy in all_years:
         if fy in imported or fy - 1 not in imported or fy + 1 not in imported:
@@ -103,7 +105,9 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
         for (n, y), (v, src) in ends.items():
             if y == fy:
                 row[MAIN.get(n, "other")] += v * 1000
-                row["srcs"].add(src)
+                # 補助の年度の 0 の基金（その年度に廃止）は、合計の出典の印に数えない（合計の値はほとんどが次の年度の調書から）
+                if not ((n, y) in supp_keys and v == 0):
+                    row["srcs"].add(src)
         row["src"] = "ocr" if "ocr" in row["srcs"] else "text"
         del row["srcs"]
         totals.append(row)

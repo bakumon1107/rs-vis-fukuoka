@@ -99,9 +99,8 @@ function LocalFundsContent() {
                     ) : (
                       s.label
                     )}
-                    {s.src === 'ocr' ? '（画像・OCR' : ''}
-                    {s.partial ? '・その年度に廃止した基金だけ' : ''}
-                    {s.src === 'ocr' ? '）' : ''}
+                    {(s.src === 'ocr' || s.partial) &&
+                      `（${[s.src === 'ocr' ? '画像・OCR' : '', s.partial ? 'その年度に廃止した基金だけ' : ''].filter(Boolean).join('・')}）`}
                   </span>
                 );
               })}

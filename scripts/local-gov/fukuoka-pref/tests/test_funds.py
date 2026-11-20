@@ -78,14 +78,19 @@ class TestOcr:
         # OCR が「▲」を独立した「7」と読む（H29 減債基金の現金）。「▲」に戻して5つの額になれば使い、記録する
         txt = ("資金を積み立てるために設置されたもの\n(2)   福岡県減債基金\n現   金\n"
                "83,224,249   7   29,207,769   54,016,480   16,836,969   70,853,449\n")
-        f = fu.parse(txt)["福岡県減債基金"]
+        f = fu.parse(txt, ocr=True)["福岡県減債基金"]
         assert f["holdings"]["現金"] == [83224249, -29207769, 54016480, 16836969, 70853449] and f["ocr_fixed"]
+        # テキストの年度では OCR の直しをしない（読めない行として FAIL）
+        assert "現金" not in fu.parse(txt)["福岡県減債基金"]["holdings"]
+        # 読み替えは1か所ずつ試し、検算の成り立つ1通りだけ（本当の額の 7 は変えない）
+        assert fu.seven_as_triangle("100   7   7   93   0   93") is None or fu.seven_as_triangle("100   7   7   93   0   93") == [100, -7, 93, 0, 93]
+        assert fu.seven_as_triangle("107   7   100   7   107") is None
 
     def test_h24_ocr_shapes(self):
         # 見出しの番号の後のごみ（「(8)   1   福岡県…」）・注記を挟んで割れた区分名（「現 ▲52,639)」「金」）・0 を1つ落とした行
         txt = ("資金を積み立てるために設置されたもの\n(7) 福岡県地域づくり基金\n有   価   証   券\n0   0   0   0\n"
                "(8)   1   福岡県環境保全基金   ▲は減を示す。\n現   ▲ 52,639)\n金\n466,782   1,541,245   2,008,027   ▲ 106,438   1,901,589\n")
-        funds = fu.parse(txt)
+        funds = fu.parse(txt, ocr=True)
         assert funds["福岡県地域づくり基金"]["holdings"] == {"有価証券": [0, 0, 0, 0, 0]}
         assert funds["福岡県環境保全基金"]["holdings"]["現金"] == [466782, 1541245, 2008027, -106438, 1901589]
         assert fu.check_rows("H24", funds) == []
