@@ -229,9 +229,17 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     const sum = pol.items.reduce((s, it) => s + it.amount, 0) + pol.outside.reduce((s, o) => s + o.amount, 0);
     if (sum !== pol.expense_total) err(`policies: 事項の合計 + 図に載らない経費 ${sum} ≠ 一般会計の歳出 ${pol.expense_total}`);
     if (pol.outside.some(o => o.amount < 0)) err('policies.outside に負の額がある');
+    const keys = pol.outside.map(o => o.key);
+    if (new Set(keys).size !== keys.length) err(`policies.outside の key が重なる（${keys.join('・')}）`);
+    // 科目の目は一般会計の歳出の目（歳入・特別会計の行を指さない。詳細のリンクがサンキー図の別の行を開かないよう）
+    const generalExpense = new Set(file.rows.filter(r => r.account === 'general' && r.side === 'expense').map(r => r.id));
     pol.items.forEach((it, i) => {
       if (!Number.isInteger(it.amount) || it.amount < 0) err(`policies.items[${i}] ${it.name}: 額が 0 以上の整数でない`);
-      for (const k of it.kamoku) if (k.row && !rowIds.has(k.row)) err(`policies.items[${i}] ${it.name}: 科目の目 ${k.row} がない`);
+      for (const k of it.kamoku) {
+        if (k.row && !rowIds.has(k.row)) err(`policies.items[${i}] ${it.name}: 科目の目 ${k.row} がない`);
+        else if (k.row && !generalExpense.has(k.row)) err(`policies.items[${i}] ${it.name}: 科目の目 ${k.row} が一般会計の歳出の目でない`);
+        if (!k.row && !k.unmatched) err(`policies.items[${i}] ${it.name}: 科目の目がないのに「予算にない」の印がない`);
+      }
     });
   }
 
