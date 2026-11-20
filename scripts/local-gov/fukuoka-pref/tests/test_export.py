@@ -177,3 +177,53 @@ def test_pick_name():
     assert pick("地域振興総務費") == ("地域振興総務費", "ocr")  # R8 の新しい目は（ほかの裏付けがなければ）OCR のまま
     assert e.replaced == [("moku", "店報費", "広報費")]
     assert [u[2] for u in e.unresolved] == ["地域振興総務費"]   # 裏付けのない名前は画像で確かめる一覧に出る
+
+
+def _moku(h, p, items, fixes=None, setsu=()):
+    return {"本年度": h, "前年度": p, "説明": [{"name": "x", "amount": a} for a in items],
+            "節": [{"label": "x", "amount": a} for a in setsu], **({"修正": fixes} if fixes else {})}
+
+
+def test_ndl_mismatches_finds_stale_readings():
+    ocr = {"a": _moku(100, 90, [60, 40]), "b": _moku(5, 5, [5])}
+    # 同じなら空
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 40]), "b": _moku(5, 5, [5])}) == []
+    # 説明欄の金額が1件違う・本年度が違う・目が欠ける／余る
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 41]), "b": _moku(5, 5, [5])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {"a": _moku(101, 90, [60, 40]), "b": _moku(5, 5, [5])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {"a": _moku(100, 90, [60, 40]), "c": _moku(5, 5, [5])}) == ["b", "c"]
+    # 節の金額が違う（OCR の節の金額を補った後に読み直していない）
+    ocr_s = {"a": _moku(100, 90, [100], setsu=[60, 40])}
+    assert ex.ndl_mismatches(ocr_s, {"a": _moku(100, 90, [100], setsu=[100])}) == ["a"]
+
+
+def test_ndl_mismatches_skips_only_corrected_columns():
+    # 修正表で本年度を直した目: 本年度は比べないが、説明欄の金額と目の有無は比べる
+    ocr = {"a": _moku(100, 90, [100], fixes=[{"列": "本年度"}])}
+    assert ex.ndl_mismatches(ocr, {"a": _moku(99, 90, [100])}) == []
+    assert ex.ndl_mismatches(ocr, {"a": _moku(99, 90, [99])}) == ["a"]
+    assert ex.ndl_mismatches(ocr, {}) == ["a"]
+
+
+def test_corrected_columns_use_only_readings_with_same_amounts():
+    # 説明欄の事項 A の金額を修正表で 100 → 200 に直した目: 直していない読み取り（NDLOCR-Lite・同じ読み違いの旧 OCR）は
+    # A を 100 のまま持つので、金額で対応させると B（100）に A の名前が付く。金額の集まりが直した後と同じ読み取りだけを使う
+    m = {"説明": [{"amount": 200}, {"amount": 100}], "修正": [{"列": "説明"}]}
+    stale = {"説明": [{"amount": 100}, {"amount": 100}]}
+    right = {"説明": [{"amount": 200}, {"amount": 100}]}
+    # 金額が入れ替わった読み取り（集まりは同じ）も使わない（金額で対応させると A と B の名前が入れ替わる）
+    swapped = {"説明": [{"amount": 100}, {"amount": 200}]}
+    others = [("textlayer", right), ("v4", stale), ("ndl", swapped)]
+    assert ex.others_for_column(others, m, "説明") == [("textlayer", right)]
+    # 修正表で足した位置のない節がある目は、金額の並びが同じでも使わない（並べ替えられず、節の対応が保証されない）
+    ms = {"節": [{"amount": 10, "page": 1, "y": 200}, {"amount": 20, "page": None, "y": None}], "修正": [{"列": "節"}]}
+    xs = {"節": [{"amount": 10, "page": 1, "y": 100}, {"amount": 20, "page": 1, "y": 200}]}
+    assert ex.others_for_column([("textlayer", xs), ("ndl", xs)], ms, "節") == []
+    # 直していない欄・修正のない目は全部使う
+    assert ex.others_for_column(others, m, "節") == others
+    assert ex.others_for_column(others, {"説明": m["説明"]}, "説明") == others
+
+
+def test_candidate_labels_mark_support_only():
+    assert ex.candidate_labels([("用水事業費負担金", "ocr"), ("の用水事業費2負担金", "ndl")]) == \
+        ["用水事業費負担金", "の用水事業費2負担金（ndl・支えのみ）"]

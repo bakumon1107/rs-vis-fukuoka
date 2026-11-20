@@ -23,6 +23,13 @@ def test_keep_dir_stale_outputs_are_not_reused(tmp_path):
     assert "skipped" in got["共通 JSON 形式の書き出し"]
 
 
+def test_missed_steps():
+    want = {"a": {"exit": 0, "summary": []}, "b": {"exit": 0, "summary": []}, "c": {"skipped": "x"}}
+    # 期待値に結果のあるステップを飛ばした・流さなかった（名前を変えた）ものを数える。期待値が skipped のものは数えない
+    assert reg.missed_steps({"a": {"skipped": "入力がない"}, "c": {"skipped": "x"}}, want) == ["a", "b"]
+    assert reg.missed_steps({"a": {"exit": 0}, "b": {"exit": 1}, "c": {"skipped": "x"}}, want) == []
+
+
 def test_export_deps_cover_work_files_and_sources():
     deps = reg.STEP_DEPS["共通 JSON 形式の書き出し"]
     assert "{out:cross.json}" in deps and "{out:yosansho.json}" in deps
@@ -34,3 +41,6 @@ def test_regression():
     got = reg.run_all(os.environ["FUKUOKA_DATA"])
     want = json.load(open(reg.EXPECTED, encoding="utf-8"))
     assert reg.compare(got, want) == []
+    # 期待値に結果のあるステップは飛ばさない（regression.py の --allow-skip と同じ決まり。環境変数 REGRESSION_ALLOW_SKIP=1 で許す）
+    if os.environ.get("REGRESSION_ALLOW_SKIP", "").lower() not in ("1", "true", "yes"):
+        assert reg.missed_steps(got, want) == []

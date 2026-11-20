@@ -347,6 +347,26 @@ function LocalGovAboutContent() {
               </table>
             </div>
             <p className="text-xs text-mirai-text-muted">款・項・目は目の行ごとの件数。</p>
+            {/* NDLOCR-Lite（CC BY 4.0）の帰属の表示。名前の読み取りに使ったデータ（checks.readings.name_engines）のときだけ */}
+            {c.readings?.name_engines?.includes('NDLOCR-Lite') && (
+              <p className="text-xs text-mirai-text-muted">
+                名前の読み取りには、OCR 2種類（同じ系統で、同じ字を一緒に読み違えることがある）と PDF の文字情報に加えて、読み違い方の違う3つ目として
+                国立国会図書館の{' '}
+                <a href="https://github.com/ndl-lab/ndlocr-lite" className="text-primary-accent underline" target="_blank" rel="noopener noreferrer">
+                  NDLOCR-Lite
+                </a>
+                （
+                <a
+                  href="https://creativecommons.org/licenses/by/4.0/deed.ja"
+                  className="text-primary-accent underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  CC BY 4.0
+                </a>
+                ）の文字認識を使っています（目・説明欄の事項・節の区分の名前だけ。金額には使っていません）。
+              </p>
+            )}
           </section>
         )}
 

@@ -191,7 +191,10 @@ export interface CheckSummary {
    * agree_2plus: 多数決（OCR の資料の3つの読み取り）で、2通り以上が同じ値だった値の割合。
    * confirmed_by_image: 裏付けが1通り以下だったが、画像で確かめて修正表に記録した値の数
    */
-  readings?: { agree_2plus: number; confirmed_by_image?: number };
+  /**
+   * name_engines: 名前の候補に使った読み取り（「データについて」で使った OCR と帰属の表示を出す。NDLOCR-Lite は CC BY 4.0）
+   */
+  readings?: { agree_2plus: number; confirmed_by_image?: number; name_engines?: string[] };
   corrections?: number;
 }
 

@@ -311,6 +311,9 @@
   {"id": "general/expense/10-7-1", "level": "sub", "no": 10, "amount": 3399, "name": "賄材料費", "page": 392},
   {"id": "general/expense/11-1-2", "level": "sub", "no": 3, "amount": 90, "name": "児童手当", "page": 404},
   {"id": "general/expense/11-2-1", "level": "sub", "no": 8, "amount": 796, "name": "普通旅費", "page": 406},
-  {"id": "special:kenei-futo-shisetsu/expense/1-1-2", "level": "sub", "no": 10, "amount": 2079, "name": "光熱水費", "page": 100}
+  {"id": "special:kenei-futo-shisetsu/expense/1-1-2", "level": "sub", "no": 10, "amount": 2079, "name": "光熱水費", "page": 100},
+  {"id": "special:ringyo-kaizen-shikin/revenue/3-1-2", "level": "setsu", "amount": 1, "name": "雑入", "page": 75},
+  {"id": "special:engan-gyogyo-kaizen-shikin/revenue/3-1-2", "level": "setsu", "amount": 1, "name": "雑入", "page": 79},
+  {"id": "special:shokibo-kigyosha-setsubi-shikin/revenue/2-1-1", "level": "setsu", "amount": 113, "name": "違約金", "page": 83}
  ]
 }

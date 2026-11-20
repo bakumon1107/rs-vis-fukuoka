@@ -12,7 +12,10 @@
   ocr/r8-ippan-v4  … R8 一般会計。中国語モデル（OCR_ENGINE=v4ch）。突き合わせの3つ目の読み取り
   ocr/r8-toku      … R8 特別会計。PP-OCRv6 ＋ 読み直し済み
   ocr/r8-toku-v4   … R8 特別会計。中国語モデル（突き合わせの3つ目の読み取り）
+  ocr/r8-ippan-ndl・ocr/r8-toku-ndl … 名前の欄を NDLOCR-Lite で読み直したもの（名前の3つ目の系統。ocr/ndl_pages.py）
 OCR 自体は時間がかかる（1ページ約10秒）ので回帰テストでは流さず、保存した OCR 結果を入力にする。
+名前の3つ目の系統（NDLOCR-Lite。ocr/ndl_pages.py で読み直した ocr/r8-ippan-ndl・ocr/r8-toku-ndl）も OCR と同じく保存した結果を入力にする
+（1ページ約3秒なので回帰テストでは流さない）。ない環境では NDLOCR-Lite の解釈と書き出し・補正の照合を飛ばす。
 期待値（expected/regression.json）は「各ステップの要約行」。ロジックを直して数字が変わったら、
 差分を確かめてから --update で書き換え、コミットの説明に理由を書く（良くなったのか、悪くなったのか）。
 """
@@ -52,6 +55,10 @@ STEPS = [
     ("説明書 一般会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
      ["{tmp:tl}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"], "setsumeisho-tl.json",
      [r"^\[", r"^計の行", r"^項 \d"]),
+    # 名前の3つ目の系統（NDLOCR-Lite で名前の欄だけを読み直した保存済みの結果 ocr/r8-ippan-ndl。金額は OCR のまま）。書き出しで名前の候補に足す
+    ("説明書 一般会計（NDLOCR-Lite の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-ippan-ndl}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-ndl.json", [r"^\[", r"^計の行", r"^項 \d"]),
     # 3つ目の読み取り（旧 OCR = 中国語モデル）。突き合わせで「2つの OCR が同じ値を読んだ箇所」を固定するのに使う
     ("説明書 一般会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-ippan-v4}", "9-420", "--keijou", "{out:keijougaku.json}", "--yosansho", "{out:yosansho.json}"],
@@ -71,6 +78,9 @@ STEPS = [
     ("説明書 特別会計（文字層の解釈）", "ocr/parse_setsumeisho.py",
      ["{tmp:tl-toku}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
      "setsumeisho-toku-tl.json", [r"^\[", r"^計の行", r"^項 \d"]),
+    ("説明書 特別会計（NDLOCR-Lite の解釈）", "ocr/parse_setsumeisho.py",
+     ["{ocr:r8-toku-ndl}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
+     "setsumeisho-toku-ndl.json", [r"^\[", r"^計の行", r"^項 \d"]),
     ("説明書 特別会計（旧 OCR の解釈）", "ocr/parse_setsumeisho.py",
      ["{ocr:r8-toku-v4}", "1-128", "--keijou", "{out:keijougaku.json}", "--tokubetsu", "--yosansho", "{out:yosansho.json}"],
      "setsumeisho-toku-v4.json", [r"^\[", r"^計の行", r"^項 \d"]),
@@ -121,8 +131,8 @@ def _export_deps():
     # 決算の書き出し（export_settlement.build）が読む kessan-bukyoku・kessan-toku・kessan-setsu も入れる
     outs = ["kessan-kmk.json", "kessan-bukyoku.json", "kessan-toku.json", "kessan-setsu.json",
             "keijougaku.json", "yosansho.json", "cross.json", "cross-toku.json",
-            "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json",
-            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json"]
+            "setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json", "setsumeisho-ndl.json",
+            "setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json", "setsumeisho-toku-ndl.json"]
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
         pdfs = [s["file"] for s in json.load(f)["sources"]]
     return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
@@ -130,7 +140,8 @@ def _export_deps():
 
 # ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
 # 補正の目の明細は前のステップ（文字層・△）が作る一時ディレクトリを読むので、前のステップが飛ばされたら飛ばす
-# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読む
+# （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読むので、
+# 書き出しが飛ばされたら飛ばす（NDLOCR-Lite の結果がない環境など）
 STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps(),
              **{f"補正 {rid}（目の明細）": [f"{{tmp:tl-{rid}}}"] for rid in ("R8-06-1", "R8-08-2", "R8-09-4")},
              "補正 R8-09-3（目の明細）": ["{tmp:neg-09-3}"],
@@ -187,6 +198,12 @@ def run_all(data, keep=None):
     return results
 
 
+def missed_steps(got, want):
+    """期待値に結果があるのに、今回飛ばした・流さなかったステップ（入力の欠け・ステップの名前の変え忘れ。
+    書き出しの回帰テストが黙って抜けないよう失敗にする）"""
+    return [n for n, w in want.items() if "skipped" not in w and (n not in got or "skipped" in got[n])]
+
+
 def compare(got, want):
     diffs = []
     for name, w in want.items():
@@ -212,6 +229,18 @@ def main():
     keep = sys.argv[sys.argv.index("--keep") + 1] if "--keep" in sys.argv else None
     got = run_all(data, keep)
     if "--update" in sys.argv:
+        # 入力の欠けた環境で期待値を書き換えると、飛ばしたステップが期待値に「skipped」として入り、以後そのステップを比べなくなる。
+        # 前の期待値に結果のあるステップを飛ばしたら止める。--allow-skip のときは、そのステップは前の期待値を残す（「skipped」で上書きしない）
+        old = json.load(open(EXPECTED, encoding="utf-8")) if os.path.exists(EXPECTED) else {}
+        # 今回飛ばしたステップ（新しく足したステップ・期待値のファイルがないときも含む）があれば、--allow-skip がない限り止める
+        skipped_now = [n for n, g in got.items() if "skipped" in g]
+        if skipped_now and "--allow-skip" not in sys.argv:
+            sys.exit(f"飛ばしたステップがあるので期待値を書き換えない: {', '.join(skipped_now)}（入力を揃えるか --allow-skip）")
+        # --allow-skip のとき: 今もあるステップで、前の期待値に結果のあるものは前の期待値を残す（今のステップの一覧にないもの・
+        # 名前を変えたものは残さない。残すと以後ずっと「流さなかった」として失敗する）
+        for n in skipped_now:
+            if n in old and "skipped" not in old[n]:
+                got[n] = old[n]
         os.makedirs(os.path.dirname(EXPECTED), exist_ok=True)
         with open(EXPECTED, "w", encoding="utf-8") as f:
             json.dump(got, f, ensure_ascii=False, indent=1)
@@ -222,8 +251,17 @@ def main():
     skipped = [n for n, g in got.items() if "skipped" in g]
     for d in diffs:
         print(d)
+    # 飛ばしたステップは差分に数えないので、名前と理由を必ず出す（NDLOCR-Lite の保存した結果がないと書き出しが飛び、
+    # 書き出しの回帰テストが抜けたまま通る。気づけるように）
+    for n in skipped:
+        print(f"WARN 飛ばした: [{n}] {got[n]['skipped']}", file=sys.stderr)
     print(f"回帰テスト: {len(want)} ステップ、差分 {len(diffs)} 件、飛ばした {len(skipped)} 件", file=sys.stderr)
-    sys.exit(1 if diffs else 0)
+    # 期待値に結果のあるステップを飛ばしたら失敗にする（入力の一部が欠けた環境で、書き出しなどの回帰テストが抜けたまま通らないように）。
+    # 原本の一部しかない環境で、分かっていて流すときは --allow-skip
+    missed = missed_steps(got, want)
+    if missed and "--allow-skip" not in sys.argv:
+        print(f"FAIL 期待値のあるステップを飛ばした: {', '.join(missed)}（入力を揃えるか --allow-skip）", file=sys.stderr)
+    sys.exit(1 if diffs or (missed and "--allow-skip" not in sys.argv) else 0)
 
 
 if __name__ == "__main__":

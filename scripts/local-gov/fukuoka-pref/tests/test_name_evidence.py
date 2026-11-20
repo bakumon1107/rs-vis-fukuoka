@@ -98,10 +98,58 @@ class TestResolve:
     def test_empty(self):
         assert ne.resolve([], CORPUS) == ("", "ocr", None)
 
+    def test_support_only_group_adds_agreement(self):
+        # 文字層が崩れていても、OCR と NDLOCR-Lite（ndl）が一致すれば裏付けになる
+        ndl = frozenset({"ndl"})
+        assert ne.resolve([("管理事務費", "ocr"), ("管理事務贅", "textlayer"), ("管理事務費", "ndl")], CORPUS,
+                          support_only=ndl) == ("管理事務費", "readings", 2)
+
+    def test_support_only_group_does_not_doubt(self):
+        # NDLOCR-Lite は OCR の文字枠より広く切り抜くので、端に余計な字を読む（R8 歳入の節「の用水事業費2負担金」）。
+        # 字を足した形でも疑いにしない（support_only でなければ OCR が字を落とした疑いになって決めない）
+        cands = [("用水事業費負担金", "ocr"), ("用水事業費負担金", "textlayer"), ("の用水事業費2負担金", "ndl")]
+        assert ne.resolve(cands, CORPUS)[1] == "ocr"
+        assert ne.resolve(cands, CORPUS, support_only=frozenset({"ndl"})) == ("用水事業費負担金", "readings", 2)
+
+    def test_support_only_group_doubts_inner_addition(self):
+        # OCR と旧 OCR が一緒に「躍」を落とし、文字層は空。NDLOCR-Lite が名前の内側に字を足した形を読んでいれば、
+        # 1字ずつの多数決（NDLOCR-Lite の読みが OCR の全字を含む）で字を落とした名前を採らず、疑いにする
+        cands = [("人材育成活推進費", "ocr"), ("人材育成活推進費", "ocr"), ("人材育成活躍推進費", "ndl")]
+        assert ne.resolve(cands, CORPUS, support_only=frozenset({"ndl"})) == \
+            ("人材育成活推進費", "ocr", {"conflict": ["人材育成活推進費", "人材育成活躍推進費"]})
+
+    def test_support_only_stutter_is_not_doubt(self):
+        # NDLOCR-Lite は字を続けて2度読む（R8 歳入 8-2-2「保健環健環境研究所関係手数料」「医務関係手数数料」）。疑いにしない
+        so = frozenset({"ndl"})
+        assert ne.resolve([("医務関係手数料", "ocr"), ("医務関係手数料", "textlayer"), ("医務関係手数数料", "ndl")], CORPUS,
+                          support_only=so) == ("医務関係手数料", "readings", 2)
+        assert not ne.adds_inner("保健環境研究所関係手数料", "保健環健環境研究所関係手数料")
+        # 端の字・内側の数字は疑いにしない。内側の字は疑い
+        assert not ne.adds_inner("用水事業費負担金", "の用水事業費2負担金")
+        assert ne.adds_inner("人材育成活推進費", "人材育成活躍推進費")
+        # 端に足した字が名前の頭・末尾と同じ字でも、内側に数えない（name を順に含むいちばん狭い範囲で見る）
+        assert not ne.adds_inner("県税交付金", "県民県税交付金") and not ne.adds_inner("総務費", "総務費管理費")
+        # かなの重なりは本当の名前にある（「ささえあい」）ので1度にしない。内側の英字も疑い
+        assert ne.adds_inner("地域のさえあい事業", "地域のささえあい事業")
+        assert ne.adds_inner("IT活用推進費", "ICT活用推進費")
+
+    def test_support_only_reading_is_never_adopted(self):
+        # NDLOCR-Lite だけが読んだ名前は採らない（ほかの系統と一致しない限り。資料に見つかっても採らない）
+        cands = [("総務管理費x", "ocr"), ("総務管理費", "ndl")]
+        assert ne.resolve(cands, CORPUS, support_only=frozenset({"ndl"})) == ("総務管理費x", "ocr", None)
+        # ほかの読み取りがすべて空でも、NDLOCR-Lite の読み取りを名前にしない
+        assert ne.resolve([("の用水事業費2負担金", "ndl")], CORPUS, support_only=frozenset({"ndl"})) == ("", "ocr", None)
+
 
 class TestCharVote:
     def test_every_char_supported_by_other_group(self):
         assert ne.char_vote([("県土整備事務所使用料", "ocr"), ("県土整備事務所使用料x", "textlayer")]) == "県土整備事務所使用料"
+
+    def test_support_only_supports_but_is_not_adopted(self):
+        # NDLOCR-Lite の読み取りは、ほかの読み取りの字の支えになるが、自分が採られることはない
+        so = frozenset({"ndl"})
+        assert ne.char_vote([("県土整備事務所使用料", "ocr"), ("県土整備事務所使用料", "ndl")], so) == "県土整備事務所使用料"
+        assert ne.char_vote([("県士整備事務所使用料", "ocr"), ("県土整備事務所使用料", "ndl")], so) is None
 
     def test_same_group_does_not_support(self):
         # 「土」を読んだのは同じ系統の旧 OCR だけ

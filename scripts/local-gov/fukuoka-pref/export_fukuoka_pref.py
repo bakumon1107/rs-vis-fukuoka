@@ -42,6 +42,9 @@ import unicodedata
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# 名前の一致の支えにだけ使う系統（採る名前・節番号の確かめには使わない。疑いの根拠は名前の内側に字を足した形だけ）。NDLOCR-Lite（ndl）は
+# OCR の文字枠より広く切り抜くので、名前の端に余計な字を読む（名前の読み取りに NDLOCR-Lite を組み込む設計 9章）。同じ扱いの系統を足すときはここに足す
+SUPPORT_ONLY = frozenset({"ndl"})
 sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
 import export_settlement  # noqa: E402
@@ -228,6 +231,55 @@ def val(v, src, agree=None, note=None):
     return out
 
 
+def ndl_mismatches(ocr: dict, ndl: dict) -> list:
+    """NDLOCR-Lite の読み取り（ndl）が今の OCR の読み取り（ocr）と合わない目の鍵。どちらも 目の鍵 → 目の行。
+    NDLOCR-Lite の読み取りは OCR の文字枠の位置で切り抜き、金額は OCR の値を写す。OCR を流し直した後に読み直しを忘れると、
+    古い切り抜きの名前を別の目の支えに使ってしまう。目の並び（鍵の集まり）と、本年度・前年度・説明欄の金額が同じことを確かめる。
+    修正表で直した欄は比べない（OCR の解釈にだけ修正表を当てている。NDLOCR-Lite の解釈は名前が違うので修正表が当たらない）。
+    鍵の有無は修正のある目も比べる"""
+    bad = sorted(set(ocr) ^ set(ndl), key=str)
+    for k, m in ocr.items():
+        o = ndl.get(k)
+        if o is None:
+            continue
+        fixed = {fx.get("列") for fx in m.get("修正", [])}
+        cols = [c for c in ("本年度", "前年度") if c not in fixed]
+        if [m.get(c) for c in cols] != [o.get(c) for c in cols]:
+            bad.append(k)
+        elif "説明" not in fixed and [e["amount"] for e in m.get("説明", [])] != [e["amount"] for e in o.get("説明", [])]:
+            bad.append(k)
+        elif "節" not in fixed and [s.get("amount") for s in m.get("節", [])] != [s.get("amount") for s in o.get("節", [])]:
+            # 節の名前（区分）も金額で対応させて候補にするので、節の金額も比べる（refill_missing.py で OCR の節の金額を補った後に
+            # 読み直しを忘れると、区分が別の金額に付く）
+            bad.append(k)
+    return bad
+
+
+def others_for_column(others: list, m: dict, col: str) -> list:
+    """欄 col（説明・節）の事項・節の名前の候補に使う、ほかの読み取り [(種類, 目の行)]。
+    修正表で金額を直した欄では、その欄の金額の並び（印字の順）が直した後の OCR と同じ読み取りだけを使う。ほかの読み取りの金額は直していない
+    （NDLOCR-Lite は直す前の OCR の値を写し、旧 OCR は同じ切り抜きで同じ読み違いをしやすい）ので、金額と何番目で対応させる（by_amount）と
+    別の事項・節の読みが付き、誤った名前を裏付けうる（ndl_mismatches はこの欄の金額を比べていない）。
+    集まりでなく並びで比べる（A=20・B=10 と A=10・B=20 は集まりが同じでも、金額で対応させると A と B が入れ替わる）"""
+    if col not in {fx.get("列") for fx in m.get("修正", [])}:
+        return others
+    if col == "節" and any(s.get("page") is None or s.get("y") is None for s in m.get("節", [])):
+        # 修正表で足した位置のない節がある目は、印字の順に並べられない。元の配列の金額の並びが偶然ほかの読み取りと同じでも、
+        # 節の対応は保証されないので、ほかの読み取りを候補に使わない（裏付けを足さない向き）
+        return []
+
+    def amounts(x):
+        # 節は印字の順に並べてから比べる（突き合わせで組み直した目は「節を全部 → 細節を全部」の順。setsu_in_print_order）
+        es = setsu_in_print_order(x) if col == "節" and x.get(col) else x.get(col, [])
+        return [e.get("amount") for e in es if not e.get("金額の記載なし")]
+    return [(k, x) for k, x in others if amounts(x) == amounts(m)]
+
+
+def candidate_labels(cands) -> list[str]:
+    """画像で確かめる一覧（names-unresolved.json）に出す候補。支えにだけ使う系統の読み取りには、そうと分かる印を付ける"""
+    return [c if g not in SUPPORT_ONLY else f"{c}（{g}・支えのみ）" for c, g in cands]
+
+
 class Exporter:
     def __init__(self, work, kmk, keijou, yosansho, vote, corpus=None):
         self.vote = vote
@@ -246,10 +298,19 @@ class Exporter:
         self.unresolved = []  # 裏付けのない名前（画像で確かめる一覧。款・項・目・歳入の節）
         self.raw = []  # 読み取りごとの 目の行（key → 目）。[0] が採用した読み取り（cross）と同じ OCR
 
-    def readings(self, paths):
-        """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。"""
+    def readings(self, paths, ndl_path):
+        """paths は（OCR・旧 OCR・文字層）の順。金額の多数決用の値と、名前の候補用の目の行を持つ。
+        ndl_path: NDLOCR-Lite で名前の欄を読み直した読み取り（ocr/ndl_pages.py → parse_setsumeisho.py）。必須
+        （ないと名前の選び方が変わる）。名前の候補にだけ使う（金額は OCR の値を写したものなので、金額の多数決には数えない）。self.raw[3] に持つ"""
         loaded = [self.vote.load(p) for p in paths]
         self.raw = [{self.vote.key(m): m for m in ms} for ms in loaded]
+        ndl = {self.vote.key(m): m for m in self.vote.load(ndl_path)}
+        bad = ndl_mismatches(self.raw[0], ndl)
+        if bad:
+            sys.exit(f"NDLOCR-Lite の読み取り（{os.path.basename(ndl_path)}）の目・金額が今の OCR と合わない（{len(bad)} 件。例: {bad[:3]}）。"
+                     f"OCR を流し直した後に ocr/ndl_pages.py を流し直していないか、読み直しが番号・金額を崩している"
+                     f"（流し直しても同じなら ndl_pages.py の数字の扱いを見る。データの作り方）")
+        self.raw.append(ndl)
         # 修正表で直した値は「読み取りの一致」に数えない（画像での確認は値の出典 correction として別に示す）
         return [{self.vote.key(m): self.vote.reading_values(m) for m in ms} for ms in loaded]
 
@@ -270,20 +331,23 @@ class Exporter:
         （name_evidence.resolve）。系統: bill＝予算書の本体（議案）の文字層、ocr＝説明書の OCR と旧 OCR（同じ切り抜きを読む
         ので1つの系統）、textlayer＝説明書の文字層。"""
         cands = [(clean_name(c), g) for c, g in cands if c and c.strip()]
-        name, src, ev = name_evidence.resolve(cands, self.corpus, reference)
+        # NDLOCR-Lite（ndl）は一致の支えにだけ使う（広く切り抜くので名前の端に余計な字が付く。疑いは名前の内側に字を足した形だけ）
+        name, src, ev = name_evidence.resolve(cands, self.corpus, reference, support_only=SUPPORT_ONLY)
         name = clean_name(name)
         first = cands[0][0] if cands else ""
         if src == "reference" and name != first:
             self.replaced.append((level, first, name))
         if src == "ocr" and report:
-            self.unresolved.append((level, where, name, [c for c, _ in cands], ev))
+            # 画像で確かめる一覧の候補。支えにだけ使う読み取りは、そうと分かるように印を付ける
+            self.unresolved.append((level, where, name, candidate_labels(cands), ev))
         return name, src, (ev if src == "search" else None)
 
     def others(self, m):
-        """同じ目の、採用した読み取り以外の読み取り [(読み取りの種類, 目の行)]。文字層・旧 OCR の順
-        （裏付けがないとき、先の方の名前を使う）。self.raw は（OCR・旧 OCR・文字層）の順。"""
+        """同じ目の、採用した読み取り以外の読み取り [(読み取りの種類, 目の行)]。文字層・旧 OCR・NDLOCR-Lite の順
+        （裏付けがないとき、先の方の名前を使う）。self.raw は（OCR・旧 OCR・文字層・NDLOCR-Lite）の順。"""
         key = self.vote.key(m)
-        return [(kind, r[key]) for kind, r in zip(("textlayer", "v4"), (self.raw[2], self.raw[1])) if key in r]
+        kinds = [("textlayer", self.raw[2]), ("v4", self.raw[1]), ("ndl", self.raw[3])]
+        return [(kind, r[key]) for kind, r in kinds if key in r]
 
     @staticmethod
     def by_amount(entries):
@@ -303,8 +367,10 @@ class Exporter:
         where = {"id": f"{account_id}/{side}/{m['款']}-{kou_no}-{m['目番号']}",
                  "row": f"{m.get('会計') or '一般会計'} {m['side']} {m['款']}-{kou_no}-{m['目番号']}",
                  "source": "r8-setsumeisho-toku" if special else "r8-setsumeisho-ippan", "cell": m.get("cell")}
-        others = self.others(m)  # [(textlayer|v4, 目の行)]
-        group = {"textlayer": "textlayer", "v4": "ocr"}
+        others = self.others(m)  # [(textlayer|v4|ndl, 目の行)]
+        others_in = lambda col: others_for_column(others, m, col)  # noqa: E731
+        # 名前の系統: 旧 OCR は OCR と同じ系統（同じ字を一緒に読み違える）。NDLOCR-Lite は別の系統（名前の読み取りに NDLOCR-Lite を組み込む設計）
+        group = {"textlayer": "textlayer", "v4": "ocr", "ndl": "ndl"}
         # 項・款: 予算書の本体（議案）の名前（choose_kou が予算書の項の一覧から選んだ名前）と、OCR・旧 OCR の表の見出しの名前。
         # 文字層の読み取りの見出しは OCR の見出しを借りている（textlayer_pages.py）ので候補に入れない
         heads = [m] + [x for kind, x in others if kind == "v4"]
@@ -383,7 +449,7 @@ class Exporter:
             last_top = None
             seen = Counter()
             other_items = [(group[kind], self.by_amount([e for e in x["説明"] if not e.get("金額の記載なし")]))
-                           for kind, x in others]
+                           for kind, x in others_in("説明")]
             for e in m["説明"]:
                 name, headcount = split_headcount(clean_name(e["name"]))
                 it = {}
@@ -416,8 +482,8 @@ class Exporter:
         seen = Counter()
         seen_sub = Counter()
         is_top = lambda st: st.get("top", st.get("no") is not None)  # noqa: E731
-        other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others]
-        other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others]
+        other_top = [(kind, self.by_amount([s for s in x["節"] if is_top(s)])) for kind, x in others_in("節")]
+        other_sub = [(group[kind], self.by_amount([s for s in x["節"] if not is_top(s)])) for kind, x in others_in("節")]
         expense = m["side"] == "歳出"
         for st in setsu_in_print_order(m):
             top = is_top(st)
@@ -434,13 +500,16 @@ class Exporter:
                 no, no_src = st.get("no") or None, "ocr"
                 # 同じ金額の節の、各読み取りの区分の文字と番号（OCR・文字層・旧 OCR の順）
                 labels = [(label, "ocr")] + [(clean_name(o[k]["label"]), group[kind]) for kind, o in other_top if k in o]
+                # 節番号は NDLOCR-Lite の読み取りから取らない（名前の欄を読み直しただけで、番号の読みは確かめていない）
                 nos = [(no, "ocr")] + [(o[k].get("no"), kind if kind == "textlayer" else "ocr")
-                                       for kind, o in other_top if k in o]
+                                       for kind, o in other_top if k in o and group[kind] not in SUPPORT_ONLY]
                 # 歳出の節名は節番号で決まる（地方自治法施行規則）。番号と区分の文字が合う読み取りの番号を使う
                 # （区分の文字が合うことで番号の読みを確かめる）。OCR が「11」「19」「24」を「1」と読み、区分の文字
                 # 「役務費」「扶助費」「積立金」と食い違った実例がある（文字層・旧 OCR の番号は正しかった）
+                # 番号を確かめる区分の文字に NDLOCR-Lite は使わない（支えにだけ使う。NDLOCR-Lite の区分だけで番号を確かめると、
+                # 番号の読み違いが画像で確かめる一覧から外れる）
                 hit = next(((n, s) for n, s in nos if expense and n in SETSU_NAMES
-                            and any(setsu_label_matches(lab, n) for lab, _ in labels)), None)
+                            and any(setsu_label_matches(lab, n) for lab, g in labels if g not in SUPPORT_ONLY)), None)
                 if hit:
                     no, no_src = hit
                     name, nsrc, nev = SETSU_NAMES[no], "reference", None
@@ -449,7 +518,7 @@ class Exporter:
                     name, nsrc, nev = SETSU_NAMES[no], "ocr", None
                     self.unresolved.append(("setsu", {**where, "page": st.get("page"), "y": st.get("y"),
                                                       "amount": st["amount"]}, name,
-                                            [lab for lab, _ in labels], {"no": no}))
+                                            candidate_labels(labels), {"no": no}))
                 else:
                     if no is None:
                         # OCR で番号が読めなかった歳入の節: 文字層の同じ金額の節に番号があれば使う。なければ null
@@ -595,8 +664,14 @@ def main():
     stats = Counter()
     read_files = {"ippan": ("setsumeisho-ocr.json", "setsumeisho-v4.json", "setsumeisho-tl.json"),
                   "toku": ("setsumeisho-toku.json", "setsumeisho-toku-v4.json", "setsumeisho-toku-tl.json")}
+    # 名前の3つ目の系統（NDLOCR-Lite。ocr/ndl_pages.py）。ないと名前の選び方が変わり、別の公開データになるので止める
+    # （NDLOCR-Lite のない環境では回帰テストが書き出しを飛ばす）
+    ndl_files = {"ippan": "setsumeisho-ndl.json", "toku": "setsumeisho-toku-ndl.json"}
+    for f in ndl_files.values():
+        if not os.path.exists(w(f)):
+            sys.exit(f"{f} がない（NDLOCR-Lite で名前の欄を読み直した読み取り。データの作り方の「名前の読み取り（NDLOCR-Lite）」）")
     for kind, cross in (("ippan", "cross.json"), ("toku", "cross-toku.json")):
-        readings = ex.readings([w(x) for x in read_files[kind]])
+        readings = ex.readings([w(x) for x in read_files[kind]], w(ndl_files[kind]))
         ms = [m for m in json.load(open(w(cross)))["目"] if m["kind"] == "目"]
         for m in ms:
             special = kind == "toku"
@@ -657,7 +732,9 @@ def main():
             "rules": {"A_説明欄": rule_counts["A"], "B_財源": rule_counts["B"], "C_比較": rule_counts["C"], "D_節": rule_counts["D"]},
             "external": external,
             "readings": {"agree_2plus": round(vals["2plus"] / vals["n"], 4) if vals["n"] else 0,
-                         "confirmed_by_image": vals["image"]},
+                         "confirmed_by_image": vals["image"],
+                         # 名前の候補に使った読み取り（画面の「データについて」が帰属の表示を出すかをこれで決める）
+                         "name_engines": ["PP-OCRv6", "PP-OCRv4", "文字層", "NDLOCR-Lite"]},
             "corrections": n_fix,
         },
         **({"general_fund": gfund} if gfund else {}),

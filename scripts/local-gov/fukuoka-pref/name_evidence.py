@@ -33,6 +33,10 @@ MIN_SEARCH_LEN = 4  # これより短い名前（「使用料」「雑入」）�
 # 語の続きとみなす文字（ひらがな・カタカナ・漢字）。見つかった名前の前後がこれなら、もっと長い語の一部。
 # 濁点・半濁点だけの字（U+3099〜309C）は除く（文字層で名前の前に「゚」が付く。「゚証紙収入」）
 WORD_CHAR = re.compile(r"[ぁ-ゖゝ-ゟ゠-ヿ々一-鿿]")
+# 続けて2度読んだ漢字の並び（adds_inner）。名前の中で同じ漢字を続けるときは「々」と書くので、漢字の重なりは読み取りの重なりとみなせる。
+# かな（「ささえあい」）・英字は本当に重なる名前があるので含めない（含めると、OCR が重なりの1字を落とした名前を疑えない）
+STUTTER_RE = re.compile(r"([一-鿿]{1,3})\1")
+INNER_CHAR = re.compile(r"[ぁ-ゖゝ-ゟ゠-ヿ々一-鿿A-Za-zＡ-Ｚａ-ｚ]")  # 内側に足すと疑いにする字（漢字・かな・英字。数字・記号は除く）
 
 
 def normalize(s: str) -> str:
@@ -117,7 +121,42 @@ def contradicts(name: str, other: str) -> bool:
     return len(other) == len(name) and sorted(other) == sorted(name)
 
 
-def char_vote(cands: list[tuple[str, str]]):
+def adds_inner(name: str, other: str) -> bool:
+    """other が name の内側（最初の字と最後の字の間）に字（漢字・かな・英字）を足した形か。支えにだけ使う系統（NDLOCR-Lite）の疑いに使う。
+    NDLOCR-Lite は OCR の文字枠より広く切り抜くので、名前の端に隣の字・番号を読み込む（「の用水事業費2負担金」の「の」）。
+    端の字・内側の数字・記号は疑いにしないが、内側の字は疑いにする（OCR と旧 OCR が一緒に「躍」を落とした「人材育成活推進費」に、
+    NDLOCR-Lite が「人材育成活躍推進費」と読んだ。疑いにしないと、1字ずつの多数決で字を落とした名前を採る）。
+    NDLOCR-Lite は漢字（1〜3字）を続けて2度読むことがある（「保健環健環境」「手数数料」「総総務」。R8 当初で 4件）。続けて2度の分は
+    1度にしてから比べる（STUTTER_RE）。
+    内側は、other の中で name を順に含むいちばん狭い範囲（端に足した字が name の頭・末尾と同じ字でも内側に数えない。「県民県税交付金」）"""
+    other = STUTTER_RE.sub(r"\1", other)
+    if not name or len(other) <= len(name) or not is_subsequence(name, other):
+        return False
+    window = None
+    for s in (i for i, ch in enumerate(other) if ch == name[0]):
+        k = 0
+        for e in range(s, len(other)):
+            if other[e] == name[k]:
+                k += 1
+                if k == len(name):
+                    if window is None or e - s < window[1] - window[0]:
+                        window = (s, e)
+                    break
+    return any(INNER_CHAR.match(ch) for ch in extra_chars(other[window[0]:window[1] + 1], name))
+
+
+def extra_chars(span: str, name: str) -> list[str]:
+    """span（name を順に含む）から name の字を順に当てて、残った字"""
+    out, k = [], 0
+    for ch in span:
+        if k < len(name) and ch == name[k]:
+            k += 1
+        else:
+            out.append(ch)
+    return out
+
+
+def char_vote(cands: list[tuple[str, str]], support_only=frozenset()):
     """1字ずつの多数決: 読み取りのうち、どの字も「別の系統」の読み取りの1つ以上が同じ位置（順番を保った対応）で
     同じ字を読んでいるもの。作った名前ではなく、実際の読み取りの1つをそのまま返す（ちょうど1つに決まるときだけ）。
     cands: [(名前, 系統)]。同じ系統の読み取りは支えに数えない（OCR と旧 OCR は字を一緒に落とし、字の順を一緒に混ぜる）。
@@ -126,6 +165,8 @@ def char_vote(cands: list[tuple[str, str]]):
     import difflib
     ok = set()
     for i, (h, g) in enumerate(cands):
+        if g in support_only:
+            continue  # 支えには数えるが、採る名前にはしない
         sup = [0] * len(h)
         for j, (r, rg) in enumerate(cands):
             if j == i or rg == g:
@@ -138,7 +179,7 @@ def char_vote(cands: list[tuple[str, str]]):
     return ok.pop() if len(ok) == 1 else None
 
 
-def resolve(candidates, corpus: Corpus, reference=None):
+def resolve(candidates, corpus: Corpus, reference=None, support_only=frozenset()):
     """同じ箇所の名前の候補から名前を選ぶ。
     candidates: [(名前, 系統)]（または名前だけ。そのときは候補ごとに別の系統）。先頭がいちばん信頼できる読み取り。
       系統: 独立でない読み取りをまとめる名札。OCR（PP-OCRv6）と旧 OCR は同じ画像の同じ切り抜きを同じ規則でつなぐので、
@@ -151,7 +192,10 @@ def resolve(candidates, corpus: Corpus, reference=None):
 
     いちばん強い裏付けの名前が1つに決まらない（同じ強さで別の名前が並び、一致した系統の数も同じ）とき、
     また別の系統の読み取りが採る名前に疑いをかける形（contradicts: 字を足した形・字の並べ替え）のときは、決めずに ocr とする。
-    並べ替えの疑いは readings で採る名前にだけかける（資料・参照で見つかった名前は、字の順が資料で確かめられている）。"""
+    並べ替えの疑いは readings で採る名前にだけかける（資料・参照で見つかった名前は、字の順が資料で確かめられている）。
+    support_only: 一致の数には入れるが、採る名前の候補には使わない系統（NDLOCR-Lite の ndl。OCR の文字枠より広く切り抜いて
+    読むので、隣の番号・2行の名前の間の記号を名前の端に読み込む（「の用水事業費2負担金」）。字を足した形をすべて疑いにすると、
+    正しい名前を 17件 読み取りのみに下げた。R8 当初 2026-11-15）。疑いには、名前の内側に字を足した形（adds_inner）だけを使う"""
     pairs = [(c, str(i)) if isinstance(c, str) else c for i, c in enumerate(candidates)]
     cands = [(vs, g) for vs, g in ((variants(c), g) for c, g in pairs) if vs]
     if not cands:
@@ -161,7 +205,9 @@ def resolve(candidates, corpus: Corpus, reference=None):
         for v in vs:
             groups.setdefault(v, set()).add(g)
     best = {}  # 採る名前 → (強さ, 一致した系統の数, 出典, 根拠)
-    for vs, _ in cands:
+    for vs, g in cands:
+        if g in support_only:
+            continue  # 一致の数（groups）には入っている。採る名前の候補にはしない
         for v in vs:
             agree = len(groups[v])
             ref = reference(v) if reference is not None else None
@@ -176,9 +222,11 @@ def resolve(candidates, corpus: Corpus, reference=None):
             name = got[4]
             if name not in best or got[:2] > best[name][:2]:
                 best[name] = got[:4]
-    first = cands[0][0][0]
+    # 決まらないときに残す名前は、support_only でない先頭の読み取り（ほかの読み取りがすべて空なら空。support_only の読み取りは採らない）
+    first = next((vs[0] for vs, g in cands if g not in support_only), "")
     if not best:
-        voted = char_vote([(vs[-1], g) for vs, g in cands])  # 字形の取り違えを直した形で多数決
+        # 1字ずつの多数決も、support_only の系統の読み取りを採る名前にはしない（支えには数える）
+        voted = char_vote([(vs[-1], g) for vs, g in cands], support_only)  # 字形の取り違えを直した形で多数決
         if not voted:
             return first, "ocr", None
         best[voted] = (RANK["readings"], 1, "readings", "chars")
@@ -194,8 +242,10 @@ def resolve(candidates, corpus: Corpus, reference=None):
     rank, n_agree, src, ev = best[name]
     # 疑い: 採る名前を読んでいない系統の読み取りが、採る名前に字を足した形・字の並べ替えになっている
     support = groups.get(name, set())
+    # support_only の系統は、名前の内側に字を足した形だけを疑いにする（端の字・並べ替えは切り抜きの広さで起きるので疑いにしない）
     doubt = sorted({v for vs, g in cands if g not in support for v in vs
-                    if contradicts(name, v) and (src == "readings" or len(v) > len(name))})
+                    if (adds_inner(name, v) if g in support_only else contradicts(name, v))
+                    and (src == "readings" or len(v) > len(name))})
     if doubt:
         return first, "ocr", {"conflict": [name] + doubt}
     return name, src, ev
