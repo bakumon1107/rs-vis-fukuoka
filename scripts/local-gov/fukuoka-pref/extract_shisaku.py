@@ -62,6 +62,38 @@ def enclosing(bs, y0, y1):
     return lo, hi
 
 
+# 科目の欄の中の款・項・目の列の境（x の中心。R8 で 款 ≈107〜114・項 ≈120〜126・目 ≈133〜139）
+KAMOKU_SPLIT = (117, 130)
+
+
+def kamoku_lines(ws) -> list[str]:
+    """科目の欄の字 → ["款 項 目", ...]。複数の科目にまたがる事項は、目の字ごとに1つの科目。款・項は結合したセルで、
+    またがる目の行の縦の真ん中に1回だけ印字される（R8 278133 p1「中小企業成長投資・賃上げ応援費」: 款「7」が全部の目の真ん中、
+    項「1」が目 1・3 の真ん中、項「2」が目 5・6 の真ん中。277214 p3「ワンヘルス教育推進費」: 款「10」の高さ 307.8 が
+    目 4・1・2 の真ん中 307.85 → 5-3-1・10-1-4・10-8-1・10-9-2。前の行から受け継ぐと 5-1-4 と誤る）。
+    目の字ごとに、款・項はいちばん高さの近い字を当てる。同じ近さの字が2つあれば決めない（「?」。main の WARN で知らせる）。
+    目のない字の並び（「企業会計」「特別会計」「外」）はそのまま返す"""
+    cols: list[list[dict]] = [[], [], []]
+    other = []
+    for w in ws:
+        t = w["text"].translate(Z2H)
+        if not t.isdigit():
+            other.append(t)
+            continue
+        cx = (w["x0"] + w["x1"]) / 2
+        cols[0 if cx < KAMOKU_SPLIT[0] else 1 if cx < KAMOKU_SPLIT[1] else 2].append({**w, "text": t})
+    if not cols[2]:
+        return ["".join(other)] if other else []
+
+    def nearest(cands, y):
+        if not cands:
+            return "?"
+        ds = sorted((abs(c["top"] - y), c["text"]) for c in cands)
+        return "?" if len(ds) > 1 and abs(ds[0][0] - ds[1][0]) < 0.5 and ds[0][1] != ds[1][1] else ds[0][1]
+    out = [f"{nearest(cols[0], m['top'])} {nearest(cols[1], m['top'])} {m['text']}" for m in sorted(cols[2], key=lambda w: w["top"])]
+    return out + (["".join(other)] if other else [])
+
+
 def parse_expl(ws):
     """説明欄: 「○」（または「[新]」）で始まる内訳。行の右端（x0>440）の数字がその内訳の金額。"""
     ex_words = sorted(ws, key=lambda w: (round(w["top"]), w["x0"]))
@@ -135,12 +167,7 @@ def parse_pdf(path):
                 lo, hi = enclosing(ka_b, y0, y1)
                 ka = text_of(words_in(words, "ka", lo or y0, hi or y1))
                 lo2, hi2 = enclosing(kamoku_b, y0, y1)
-                # 科目は「款 項 目」が1行に並ぶ。複数の科目にまたがる事項は行が複数になる
-                km_words = sorted(words_in(words, "kamoku", lo2 or y0, hi2 or y1), key=lambda w: (round(w["top"] / 3), w["x0"]))
-                km_lines: dict[int, list[str]] = {}
-                for w in km_words:
-                    km_lines.setdefault(round(w["top"] / 3), []).append(w["text"].translate(Z2H))
-                km = [" ".join(v) for v in km_lines.values()]
+                km = kamoku_lines(words_in(words, "kamoku", lo2 or y0, hi2 or y1))
                 lo3, hi3 = enclosing(kubun_b, y0, y1)
                 kubun = text_of(words_in(words, "kubun", lo3 or y0, hi3 or y1))
                 items.append({
