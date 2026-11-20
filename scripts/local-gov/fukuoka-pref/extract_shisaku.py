@@ -128,8 +128,11 @@ def parse_pdf(path):
             m = re.match(r"^([１-９\d])．(.+)$", t)
             if m:
                 # 柱の名前は2行に折り返すことがある（「２．…子どもを安心して産み育」「てることができる」。R8 278133 p1）。
-                # 2行目は1行目のすぐ下（top 60〜70）の左寄せの字。表の列見出し（「区分」「課」…）は同じ高さでも字が1〜2字
-                second = [w for w in words if 60 <= w["top"] < 70 and w["x0"] < 100 and len(w["text"]) >= 3]
+                # 2行目は1行目のすぐ下（top 60〜70）の左寄せの字。表の列見出し（「区分」「課」…）は同じ高さでも字が1〜2字。
+                # 1行目が右端まで届いた（折り返した）ときだけつなぐ（R8: 折り返す柱2 は x1=500、ほかは 350 以下）。
+                # 1行に収まった柱の名前に、すぐ下の別の字をつながないため
+                wrapped = max((w["x1"] for w in head), default=0) >= 450
+                second = [w for w in words if 60 <= w["top"] < 70 and w["x0"] < 100 and len(w["text"]) >= 3] if wrapped else []
                 pillar = t + text_of(second)
             hl = hlines(page)
             item_b = bounds(hl, 143)
@@ -137,6 +140,7 @@ def parse_pdf(path):
             ka_b = bounds(hl, 64)
             kubun_b = bounds(hl, 50)
             first_on_page = True
+            kubun_seen_on_page = False
             for y0, y1 in zip(item_b, item_b[1:]):
                 name = text_of(words_in(words, "name", y0, y1))
                 amts = [w["text"] for w in sorted(words_in(words, "amount", y0, y1), key=lambda w: w["top"])]
@@ -176,10 +180,13 @@ def parse_pdf(path):
                 km = kamoku_lines(words_in(words, "kamoku", lo2 or y0, hi2 or y1))
                 lo3, hi3 = enclosing(kubun_b, y0, y1)
                 kubun = text_of(words_in(words, "kubun", lo3 or y0, hi3 or y1))
-                if not kubun and items and items[-1]["柱"] == pillar and items[-1]["区分"]:
+                if kubun:
+                    kubun_seen_on_page = True
+                elif not kubun_seen_on_page and items and items[-1]["柱"] == pillar and items[-1]["区分"]:
                     # 区分のセルに名前がない: 前のページの区分が続いている（R8 278133 p27 の警察本部の2事項。
                     # 区分「社会的・経済的に厳しい状況にある方への支援」が p26 から続く。区分のセルには必ず名前があるので、
-                    # 名前のないセルは前のページからの続きだけ）
+                    # 名前のないセルは前のページからの続きだけ）。続きはページの頭（そのページで区分の名前が出る前）だけなので、
+                    # 名前が出た後の空のセルは読み取りの失敗として空のまま残す（main の WARN で知らせる）
                     kubun = items[-1]["区分"]
                 items.append({
                     "柱": pillar, "区分": kubun, "課名": ka, "科目": km, "新規": bool(words_in(words, "new", y0, y1)),
@@ -195,7 +202,8 @@ def main():
         items += parse_pdf(p)
     fails = warns = 0
     for it in items:
-        missing = [k for k in ("事項名", "予算額", "課名") if not it[k]] + \
+        # 区分（取組）が空: 読み取りの失敗（区分のセルには必ず名前がある。前のページからの続きは parse_pdf で埋めた）
+        missing = [k for k in ("事項名", "予算額", "課名", "区分") if not it[k]] + \
             (["科目"] if not it["科目"] or any(not re.fullmatch(r"\d+ \d+ \d+", k) for k in it["科目"]) else [])
         if missing:
             warns += 1

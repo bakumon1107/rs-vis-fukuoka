@@ -55,6 +55,22 @@ def test_scope_kamoku_and_outside(tmp_path):
     assert sum(i["amount"] for i in pol["items"]) + sum(out.values()) == pol["expense_total"] == 23_500_000
 
 
+def test_unreadable_kamoku_mixed_accounts_and_missing_file_fail(tmp_path):
+    items = [
+        _item("少年補導員等活動費", ["9 1 2", "9 ? 1"], 50),
+        _item("款の決まらない事項", ["9 1 2", "? 1 4"], 10),   # 款の字が決まらない行は黙って落とさない
+        _item("またがる事項", ["9 1 2", "特別会計"], 10),       # 一般会計と特別会計にまたがる: 額を分けられない
+        _item("外のある事項", ["9 1 2", "外"], 10),             # 「外」は落とさず印で持つ（失敗にしない）
+    ]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    pol, _, fails = ep.build(str(tmp_path), ROWS)
+    assert len(fails) == 2 and "'? 1 4'" in fails[0] and "またがる" in fails[1]
+    assert pol["items"][-1]["other_kamoku"] and len(pol["items"][-1]["kamoku"]) == 1
+    # 施策別資料の抽出の結果がない作業ディレクトリでは止める（公開データから policies が黙って消えないよう）
+    _, _, fails = ep.build(str(tmp_path / "none"), ROWS)
+    assert fails and "shisaku.json" in fails[0]
+
+
 def test_other_negative_fails(tmp_path):
     items = [_item("大きすぎる事項", ["9 1 2"], 30_000)]  # 3,000万円 > 歳出 2,350万円
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")

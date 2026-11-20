@@ -47,10 +47,12 @@ def _kamoku(text: str, budget_ids: set[str]):
 
 
 def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str]]:
-    """shisaku.json があれば policies を返す（なければ None）。返り値: (policies, 要約の行, 失敗)"""
+    """policies を組み立てる。返り値: (policies, 要約の行, 失敗)。
+    shisaku.json がなければ失敗にする（施策別資料の抽出のステップを飛ばした作業ディレクトリで書き出すと、公開データから
+    policies が黙って消え、バブル図のページが出なくなるため。施策別資料のない年度を書き出すときは、そのときに外す道を作る）"""
     path = os.path.join(work, "shisaku.json")
     if not os.path.exists(path):
-        return None, ["施策別資料: shisaku.json がない"], []
+        return None, [], ["施策別資料: shisaku.json がない（施策別資料の抽出のステップを飛ばした作業ディレクトリ）"]
     items = json.load(open(path, encoding="utf-8"))["items"]
     expense = [r for r in rows if r["account"] == "general" and r["side"] == "expense"]
     budget_ids = {r["id"] for r in expense}
@@ -63,15 +65,27 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             excluded["debt_burden"][0] += 1
             excluded["debt_burden"][1] += amount
             continue
-        if any(("特別会計" in k or "企業会計" in k) for k in it["科目"]):
+        special = [("特別会計" in k or "企業会計" in k) for k in it["科目"]]
+        if special and all(special):
             excluded["special"][0] += 1
             excluded["special"][1] += amount
+            continue
+        if any(special):
+            # 一般会計と特別会計にまたがる事項: 額が会計ごとに分かれていないので、除いても入れても一般会計の分がずれる。人が決める
+            fails.append(f"施策別資料 {it['事項名']}: 一般会計と特別会計の科目にまたがる {it['科目']}（額を分けられない）")
             continue
         if it["予算額"] is None:
             fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
             continue
         used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KOU_FIXES)
-        kamoku = [k for k in (_kamoku(KOU_FIXES.get((it["事項名"], t), t), budget_ids) for t in it["科目"]) if k]
+        kamoku = []
+        for t in it["科目"]:
+            k = _kamoku(KOU_FIXES.get((it["事項名"], t), t), budget_ids)
+            if k:
+                kamoku.append(k)
+            elif t != "外":
+                # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
+                fails.append(f"施策別資料 {it['事項名']}: 科目が読めない {t!r}")
         pillar = None
         if it["柱"]:
             mm = re.match(r"^([１-９\d])．(.+)$", it["柱"])
