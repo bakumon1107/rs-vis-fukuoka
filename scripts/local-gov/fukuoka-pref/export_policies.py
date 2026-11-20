@@ -7,8 +7,9 @@ export_fukuoka_pref.py の main から呼ぶ（予算の行が決まった後）
   債務負担行為の行は、今年度の額を事項として載せ、限度額（後年度にわたる額で、その年度の歳出ではない）の件数と額だけを excluded に書く。
   制度融資の貸付金（中小企業振興資金融資費）は事項の円にせず、図に載らない経費の灰色の円にする
 - 科目: 予算の目（一般会計の歳出）に結ぶ。項が決まらない科目（「9 ? 4」）は、予算にある目がちょうど1つならそれに決める。
-  目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KOU_FIXES）で決める。表になければ止める（項なしで黙って載せない）
-  予算にない科目は unmatched の印（資料の印字のまま。R8「認知症医療センター事業費」3-2-5）
+  目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KAMOKU_FIXES）で決める。表になければ止める（項なしで黙って載せない）
+  予算にない科目は unmatched の印（資料の印字のまま。R8「認知症医療センター事業費」3-2-5）。
+  1つの目だけを科目に持つ事項の合計が目の額を超えれば止める（資料の科目の誤りは KAMOKU_FIXES で直し、直せないものは OVER_MOKU_OK に理由）
 - 図に載らない経費（outside）: 一般会計の歳出から、施策別資料の事項の合計と、4つの決まった出費（諸支出金・人件費・公債費・制度融資）を
   引いた残りを「その他」にする。その他が負なら止める（重なりの数え方が合っていない）
 - 金額は千円 × 1000 の円
@@ -22,20 +23,32 @@ OUTSIDE_PILLAR_HEAD = "計画推進の基盤づくり"
 # 中小企業の制度融資の貸付金（金融機関に預けて年度内に戻る）。図に載らない経費の灰色の円で見せる（設計 3章）
 LOANS_ITEM = "中小企業振興資金融資費"
 
-# 項が字の位置で決まらず、予算にある目も2つある科目を、根拠を確かめて決める表。(事項名, 資料の科目) → 科目。
-# 字の位置で決まらないのは、目が3行で項の「1」「2」が1・2行目と2・3行目のちょうど真ん中に印字された事項（真ん中の目が
-# どちらの項にも同じ近さ）。同じ形の「災害対応力強化費」（9-?-4）は予算の目が 9-1-4 だけで、真ん中の目は上の項だった。
-# 「同じ近さなら上の項」を決まりにはしない（確かめた例が2件だけ）
-KOU_FIXES = {
+# 資料の科目を、根拠を確かめて直す表。(事項名, 資料の科目) → 科目。画面には資料の印字も出す（printed）
+KAMOKU_FIXES = {
+    # 項が字の位置で決まらず（目が3行で項の「1」「2」が行の間に半行ずれて印字）、予算にある目も2つある。
     # 説明欄の「少年警察ボランティア協会補助金」9,104 千円は、9-1-1 公安委員会費（節は報酬・旅費・交際費・需用費・委託料だけ）に
     # 入らない。9-2-1 一般警察活動費には節「負担金、補助及び交付金」36,192 千円がある（R8 278133 p40。2026-11-20 確認）
     ("少年補導員等活動費", "9 ? 1"): "9 2 1",
+    # 資料は結合セルで「10 7 2」（体育振興費 544,641 千円）だが、この2事項（723,323・703,146 千円）は1つでも目の額を超える。
+    # ほかの 10-7-2 の事項の合計 533,512 千円で目の額にほぼ届く。10-7-3 体育施設費の事項「県立体育・スポーツ施設運営費」
+    # 1,597,974 千円に2事項の合計 1,426,469 千円が収まる（R8 278133 p18。2026-11-20 確認。資料の科目の誤りとみる）
+    ("県立体育・スポーツ施設費", "10 7 2"): "10 7 3",
+    ("県立体育・スポーツ施設改修費", "10 7 2"): "10 7 3",
+}
+
+# 1つの目だけを科目に持つ事項の合計が、その目の予算額を超えてよい目（理由を書く。ここにない目で超えれば止める）
+OVER_MOKU_OK = {
+    # 「土地区画整理事業費」505,080 千円 > 土地区画整理費 496,800 千円（8,280 千円）。資料の科目はこの目だけで、
+    # 超える分の目は資料から決められない（都市計画総務費などにまたがるとみられる）。印字のまま（2026-11-20）
+    "general/expense/8-5-2": "資料の科目は1つだが、額が目を 8,280 千円超える（ほかの目にもまたがるとみられる）",
+    # 「土木災害復旧事業費」4,897,105 千円 > 河川等災害復旧費 4,672,005 千円（225,100 千円）。同上（土木施設災害復旧総務費など）
+    "general/expense/11-2-2": "資料の科目は1つだが、額が目を 225,100 千円超える（ほかの目にもまたがるとみられる）",
 }
 
 
 def _kamoku(text: str, budget_ids: set[str]):
     """「款 項 目」→ 科目の dict。読めない形なら None。項が「?」なら、予算にある目がちょうど1つのときだけ決める。
-    予算に目がなければ unmatched の印（項は None）。2つ以上あれば "ambiguous"（呼び出し側が止める。KOU_FIXES に根拠を書いて足す）"""
+    予算に目がなければ unmatched の印（項は None）。2つ以上あれば "ambiguous"（呼び出し側が止める。KAMOKU_FIXES に根拠を書いて足す）"""
     m = re.fullmatch(r"(\d+) (\d+|\?) (\d+)", text)
     if not m:
         return None
@@ -98,23 +111,16 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             # 科目の欄が読めない（目の字が取れず kamoku_lines が科目を返さない）事項を、科目なしで黙って載せない
             fails.append(f"施策別資料 {it['事項名']}: 科目がない {it['科目']}")
             continue
-        if it.get("債務負担行為") is not None:
-            # 一般会計の事項の債務負担行為の限度額（後年度にわたる額で、この年度の歳出ではない）は数えるだけ。事項の今年度の額は載せる
-            # （同じセルに今年度の額と限度額が並ぶ。extract_shisaku.amounts_of）。特別会計の事項・制度融資は上で外したので数えない
-            excluded["debt_burden"][0] += 1
-            excluded["debt_burden"][1] += it["債務負担行為"] * 1000
-        if amount == 0:
-            # 今年度の額が 0（限度額だけの債務負担行為。R8「国際園芸博覧会出展事業費」）: 円がないので事項に入れない（件数と円の数をそろえる）
-            continue
-        used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KOU_FIXES)
+        used_fixes.update(k for k in ((it["事項名"], t) for t in it["科目"]) if k in KAMOKU_FIXES)
         kamoku = []
         for t in it["科目"]:
-            k = _kamoku(KOU_FIXES.get((it["事項名"], t), t), budget_ids)
+            fixed = KAMOKU_FIXES.get((it["事項名"], t))
+            k = _kamoku(fixed or t, budget_ids)
             if k == "ambiguous":
                 # 項が読み分けられず、予算にその款・目の目が2つ以上ある: 黙って項なしで載せない
-                fails.append(f"施策別資料 {it['事項名']}: 科目 {t!r} の項が決まらない（予算に候補が2つ以上。根拠を確かめて KOU_FIXES に足す）")
+                fails.append(f"施策別資料 {it['事項名']}: 科目 {t!r} の項が決まらない（予算に候補が2つ以上。根拠を確かめて KAMOKU_FIXES に足す）")
             elif k:
-                kamoku.append(k)
+                kamoku.append({**k, "printed": t} if fixed else k)  # 直した科目には資料の印字を残す（画面に出す）
             elif t != "外":
                 # 科目の形（款 項 目）にならない行（款の字が決まらない「? 1 4」など）を黙って落とさない。「外」は other_kamoku で持つ
                 fails.append(f"施策別資料 {it['事項名']}: 科目が読めない {t!r}")
@@ -131,6 +137,15 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
         else:
             fails.append(f"施策別資料 {it['事項名']}: 柱の見出しが分からない {it['柱']!r}")
             continue
+        if it.get("債務負担行為") is not None:
+            # 一般会計の事項の債務負担行為の限度額（後年度にわたる額で、この年度の歳出ではない）は数えるだけ。事項の今年度の額は載せる
+            # （同じセルに今年度の額と限度額が並ぶ。extract_shisaku.amounts_of）。特別会計の事項・制度融資は上で外したので数えない
+            excluded["debt_burden"][0] += 1
+            excluded["debt_burden"][1] += it["債務負担行為"] * 1000
+        if amount == 0:
+            # 今年度の額が 0（限度額だけの債務負担行為。R8「国際園芸博覧会出展事業費」）: 円がないので事項に入れない（件数と円の数をそろえる）。
+            # 名前・科目・柱の確かめの後で外す（読めない事項の限度額を黙って数えない）
+            continue
         out_items.append({
             "name": it["事項名"], "pillar": pillar, "initiative": it["区分"] or None, "division": it["課名"],
             "kamoku": kamoku, **({"other_kamoku": True} if "外" in it["科目"] else {}),
@@ -139,12 +154,27 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
             "source": {"doc": it["source"], "page": it["pdf_page"]},
         })
     # 直しの表の行が使われない（資料の読み取りが変わった）ときは、表を見直すよう止める
-    fails += [f"施策別資料: 項の直しの表の行が使われていない {k}" for k in sorted(set(KOU_FIXES) - used_fixes)]
-    pillars = {}
+    fails += [f"施策別資料: 科目の直しの表の行が使われていない {k}" for k in sorted(set(KAMOKU_FIXES) - used_fixes)]
+    # 1つの目だけを科目に持つ事項の合計が、その目の予算額を超えないこと（超えれば科目の読み違いか資料の科目の誤り。設計 4章）
+    by_row: dict[str, int] = {}
+    for i in out_items:
+        if len(i["kamoku"]) == 1 and not i.get("other_kamoku") and i["kamoku"][0]["row"]:
+            by_row[i["kamoku"][0]["row"]] = by_row.get(i["kamoku"][0]["row"], 0) + i["amount"]
+    row_amount = {r["id"]: r["amount"]["v"] or 0 for r in expense}
+    for rid, s in sorted(by_row.items()):
+        if s > row_amount[rid] and rid not in OVER_MOKU_OK:
+            fails.append(f"施策別資料: 目 {rid} の事項の合計 {s:,} 円が目の額 {row_amount[rid]:,} 円を超える（科目を確かめて KAMOKU_FIXES か OVER_MOKU_OK に足す）")
+    fails += [f"施策別資料: OVER_MOKU_OK の目 {rid} はもう超えていない（表を見直す）" for rid in sorted(OVER_MOKU_OK)
+              if by_row.get(rid, 0) <= row_amount.get(rid, 0)]
+    pillars: dict[int, str] = {}
     for it in items:
         mm = re.match(r"^([１-９\d])．(.+)$", it["柱"] or "")
         if mm:
-            pillars[int(mm.group(1).translate(str.maketrans("１２３４５６７８９", "123456789")))] = mm.group(2)
+            no = int(mm.group(1).translate(str.maketrans("１２３４５６７８９", "123456789")))
+            if pillars.get(no, mm.group(2)) != mm.group(2):
+                # 同じ番号の柱の名前がページで違う（折り返しの2行目を読み落とした、など）: 黙って後の名前にしない
+                fails.append(f"施策別資料: 柱 {no} の名前が2通り {pillars[no]!r} / {mm.group(2)!r}")
+            pillars.setdefault(no, mm.group(2))
 
     # 図に載らない経費（設計 3章の表）。一般会計の歳出の目・節・事項から数える
     total = sum(r["amount"]["v"] or 0 for r in expense)
@@ -166,7 +196,8 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     other = total - in_policies - sum(o["amount"] for o in outside)
     if other < 0:
         fails.append(f"施策別資料: 図に載らない経費の「その他」が負（{other:,} 円。重なりの数え方が合っていない）")
-    outside.append({"key": "other", "label": "その他（事務費・施設の管理・施策別資料に載らない事業。人件費と施策の事項の重なりを含む）",
+    # 人件費（節で数える）と施策の事項は一部重なりうる（事項の額に人件費が入っている）。重なりの分は2度引かれるので、その他はその分小さい
+    outside.append({"key": "other", "label": "その他（事務費・施設の管理・施策別資料に載らない事業。人件費と施策の事項が重なる分だけ小さい）",
                     "amount": other})
     policies = {
         "pillars": [{"no": n, "name": pillars[n]} for n in sorted(pillars)],
@@ -179,6 +210,7 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     n_unmatched = sum(1 for i in out_items for k in i["kamoku"] if k.get("unmatched"))
     # 項が決まらない科目は止めるので、要約には直しの表で項を決めた数を出す
     lines = [f"施策別資料 事項 {len(out_items)} 件（{in_policies:,} 円）。除いた: 特別会計 {excluded['special'][0]}・"
-             f"債務負担行為 {excluded['debt_burden'][0]}。科目: 予算にない {n_unmatched}・項を直しの表で決めた {len(used_fixes)}。"
+             f"債務負担行為 {excluded['debt_burden'][0]}。科目: 予算にない {n_unmatched}・直しの表で直した {len(used_fixes)}・"
+             f"目の額を超えてよい目 {len(OVER_MOKU_OK)}。"
              f"図に載らない経費のその他 {other:,} 円"]
     return policies, lines, fails

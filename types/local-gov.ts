@@ -234,6 +234,8 @@ export interface PolicyKamoku {
   row: string | null;
   /** 資料の科目が予算の目にない（資料の印字のまま。項が読み分けられず、予算にその款・目の目がないときは kou が null） */
   unmatched?: true;
+  /** 根拠を確かめて直した科目の、資料の印字（「10 7 2」。項が読み分けられないときは「9 ? 1」）。直していなければない */
+  printed?: string;
 }
 
 export interface PolicyItem {

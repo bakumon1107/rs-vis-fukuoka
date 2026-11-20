@@ -22,6 +22,11 @@ ROWS = [
 ]
 
 
+def _real(fails):
+    """表の見直しを促す失敗（R8 の直しの表・例外の表の行が、この小さな入力では使われない）を除く。それは test_tables_unused で見る"""
+    return [f for f in fails if "直しの表の行が使われていない" not in f and "OVER_MOKU_OK の目" not in f]
+
+
 def _item(name, kamoku, amount, **kw):
     return {"柱": "３．感染症や災害に負けない強靭な社会をつくる", "区分": "地域防災力と危機管理の強化", "課名": "警察本部",
             "科目": kamoku, "新規": False, "事項名": name, "予算額": amount, "前年度": None, "説明": [], "source": "277217.pdf",
@@ -46,10 +51,10 @@ def test_scope_kamoku_and_outside(tmp_path):
     ]
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, lines, fails = ep.build(str(tmp_path), ROWS)
-    assert fails == []
+    assert _real(fails) == []
     names = [i["name"] for i in pol["items"]]
     assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費", "県立学校施設整備費"]
-    assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1"}
+    assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1", "printed": "9 ? 1"}
     assert pol["excluded"] == {"special": {"count": 2, "amount": 12_000}, "debt_burden": {"count": 2, "amount": 10_012_000}}
     k = pol["items"][0]["kamoku"]
     assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4"}
@@ -73,6 +78,7 @@ def test_unreadable_kamoku_mixed_accounts_and_missing_file_fail(tmp_path):
     ]
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, _, fails = ep.build(str(tmp_path), ROWS)
+    fails = _real(fails)
     assert len(fails) == 3 and "'? 1 4'" in fails[0] and "またがる" in fails[1] and "項が決まらない" in fails[2]
     outer = next(i for i in pol["items"] if i["name"] == "外のある事項")
     assert outer["other_kamoku"] and len(outer["kamoku"]) == 1
@@ -103,7 +109,7 @@ def test_unread_fields_pillar_and_fixed_costs(tmp_path):
     ]
     (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, _, fails = ep.build(str(tmp_path), ROWS)
-    fails = [f for f in fails if "直しの表" not in f]  # この入力には直しの表の事項がない（その FAIL は別のテストで見る）
+    fails = _real(fails)
     assert len(fails) == 2 and "区分" in fails[0] and "柱" in fails[1]
     assert [(i["name"], i["pillar"]) for i in pol["items"]] == [("基盤の事項", None)]
     assert pol["excluded"]["special"]["count"] == 1
@@ -111,6 +117,31 @@ def test_unread_fields_pillar_and_fixed_costs(tmp_path):
     rows = [r for r in ROWS if r["kan"]["name"] != "公債費"] + [_row("general/expense/12-1-1", "公債", 2_000_000)]
     _, _, fails = ep.build(str(tmp_path), rows)
     assert any("公債費" in f and "が 0" in f for f in fails)
+
+
+def test_moku_total_fixes_and_tables(tmp_path, monkeypatch):
+    # 1つの目だけを科目に持つ事項の合計が目の額を超えれば止める（9-2-1 は 3,000,000 円）
+    items = [_item("大きい事項", ["9 2 1"], 2_000), _item("もう1つ", ["9 2 1"], 1_500)]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(ep, "KAMOKU_FIXES", {})
+    monkeypatch.setattr(ep, "OVER_MOKU_OK", {})
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert any("9-2-1" in f and "超える" in f for f in fails)
+    # 直しの表で別の目に直すと止まらず、直した科目に資料の印字が残る
+    monkeypatch.setattr(ep, "KAMOKU_FIXES", {("大きい事項", "9 2 1"): "9 1 2"})
+    pol, _, fails = ep.build(str(tmp_path), ROWS)
+    assert fails == [] and pol["items"][0]["kamoku"][0] == {"kan": 9, "kou": 1, "moku": 2, "row": "general/expense/9-1-2", "printed": "9 2 1"}
+    # 例外の表に理由を書いた目は止めない。表の行が使われない（超えていない）ときは見直しを促す
+    monkeypatch.setattr(ep, "KAMOKU_FIXES", {})
+    monkeypatch.setattr(ep, "OVER_MOKU_OK", {"general/expense/9-2-1": "理由", "general/expense/9-1-4": "理由"})
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert fails == ["施策別資料: OVER_MOKU_OK の目 general/expense/9-1-4 はもう超えていない（表を見直す）"]
+    # 同じ番号の柱の名前がページで違えば止める
+    items = [_item("甲", ["9 1 2"], 1), _item("乙", ["9 1 2"], 1, 柱="３．感染症や災害に負けない")]
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(ep, "OVER_MOKU_OK", {})
+    _, _, fails = ep.build(str(tmp_path), ROWS)
+    assert any("柱 3 の名前が2通り" in f for f in fails)
 
 
 def test_other_negative_fails(tmp_path):

@@ -101941,8 +101941,9 @@
      {
       "kan": 10,
       "kou": 7,
-      "moku": 2,
-      "row": "general/expense/10-7-2"
+      "moku": 3,
+      "row": "general/expense/10-7-3",
+      "printed": "10 7 2"
      }
     ],
     "amount": 723323000,
@@ -101965,8 +101966,9 @@
      {
       "kan": 10,
       "kou": 7,
-      "moku": 2,
-      "row": "general/expense/10-7-2"
+      "moku": 3,
+      "row": "general/expense/10-7-3",
+      "printed": "10 7 2"
      }
     ],
     "amount": 703146000,
@@ -112548,7 +112550,8 @@
       "kan": 9,
       "kou": 2,
       "moku": 1,
-      "row": "general/expense/9-2-1"
+      "row": "general/expense/9-2-1",
+      "printed": "9 ? 1"
      },
      {
       "kan": 9,
@@ -119362,7 +119365,7 @@
    },
    {
     "key": "other",
-    "label": "その他（事務費・施設の管理・施策別資料に載らない事業。人件費と施策の事項の重なりを含む）",
+    "label": "その他（事務費・施設の管理・施策別資料に載らない事業。人件費と施策の事項が重なる分だけ小さい）",
     "amount": 76188506000
    }
   ],

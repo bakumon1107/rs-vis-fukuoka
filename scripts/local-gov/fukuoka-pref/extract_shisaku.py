@@ -284,11 +284,15 @@ def parse_pdf(path):
                 name_words, prev, plains, bad_amounts = amounts_of(words_in(words, "name", y0, y1), words_in(words, "amount", y0, y1))
                 name = text_of(name_words)
                 amts = plains + ([] if prev is None else [prev]) + bad_amounts
-                if name.startswith("事項名"):
+                # 表の列見出しの行（「事項名」「事項新規表示予算表示…」。予算額なし）は、ページの最初の行の印を消さずに捨てる
+                # （先に印を消すと、見出しの次にある前のページからの続きを読み落とす）
+                if name.startswith("事項名") or (not amts and is_header_row(name)):
                     continue
                 if not name and not amts and first_on_page and items:
                     # 前のページから続く事項（説明欄の続きだけがある）
                     cont = parse_expl(words_in(words, "expl", y0, y1))
+                    if not cont:
+                        continue  # 何もない帯（ページの頭の余白）: 続きではない。最初の行の印は残す
                     if cont and not cont[0]["starts_new"] and items[-1]["説明"]:
                         last = items[-1]["説明"][-1]
                         last["text"] += cont[0]["text"]
@@ -303,9 +307,9 @@ def parse_pdf(path):
                     first_on_page = False
                     continue
                 first_on_page = False
-                # 事項名・予算額の両方が取れない行と、表の列見出しの行（R8 で 49行、どれも予算額なし）を捨てる。
+                # 事項名・予算額の両方が取れない行を捨てる（表の列見出しの行は上で捨てた）。
                 # 片方だけ取れたそれ以外の行は事項として残し、main の WARN（欠け）で知らせる
-                if (not name and not amts) or (not amts and is_header_row(name)):
+                if not name and not amts:
                     continue
                 # 債務負担行為の行: 今年度の額と限度額の2つ（名前の「(債務負担行為)」は外し、限度額は別に持つ）。ほかの行は額が1つ
                 debt = bool(DEBT_RE.search(name))
