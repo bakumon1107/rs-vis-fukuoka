@@ -215,6 +215,10 @@ def test_corrected_columns_use_only_readings_with_same_amounts():
     swapped = {"説明": [{"amount": 100}, {"amount": 200}]}
     others = [("textlayer", right), ("v4", stale), ("ndl", swapped)]
     assert ex.others_for_column(others, m, "説明") == [("textlayer", right)]
+    # 修正表で足した位置のない節がある目は、金額の並びが同じでも使わない（並べ替えられず、節の対応が保証されない）
+    ms = {"節": [{"amount": 10, "page": 1, "y": 200}, {"amount": 20, "page": None, "y": None}], "修正": [{"列": "節"}]}
+    xs = {"節": [{"amount": 10, "page": 1, "y": 100}, {"amount": 20, "page": 1, "y": 200}]}
+    assert ex.others_for_column([("textlayer", xs), ("ndl", xs)], ms, "節") == []
     # 直していない欄・修正のない目は全部使う
     assert ex.others_for_column(others, m, "節") == others
     assert ex.others_for_column(others, {"説明": m["説明"]}, "説明") == others

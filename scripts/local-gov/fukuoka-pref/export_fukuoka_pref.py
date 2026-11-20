@@ -263,10 +263,13 @@ def others_for_column(others: list, m: dict, col: str) -> list:
     集まりでなく並びで比べる（A=20・B=10 と A=10・B=20 は集まりが同じでも、金額で対応させると A と B が入れ替わる）"""
     if col not in {fx.get("列") for fx in m.get("修正", [])}:
         return others
+    if col == "節" and any(s.get("page") is None or s.get("y") is None for s in m.get("節", [])):
+        # 修正表で足した位置のない節がある目は、印字の順に並べられない。元の配列の金額の並びが偶然ほかの読み取りと同じでも、
+        # 節の対応は保証されないので、ほかの読み取りを候補に使わない（裏付けを足さない向き）
+        return []
 
     def amounts(x):
-        # 節は印字の順に並べてから比べる（突き合わせで組み直した目は「節を全部 → 細節を全部」の順。setsu_in_print_order）。
-        # 修正表で足した位置のない節がある目は並べられないので、ほかの読み取りと並びが合わず、候補に使わない（裏付けを足さない向き）
+        # 節は印字の順に並べてから比べる（突き合わせで組み直した目は「節を全部 → 細節を全部」の順。setsu_in_print_order）
         es = setsu_in_print_order(x) if col == "節" and x.get(col) else x.get(col, [])
         return [e.get("amount") for e in es if not e.get("金額の記載なし")]
     return [(k, x) for k, x in others if amounts(x) == amounts(m)]

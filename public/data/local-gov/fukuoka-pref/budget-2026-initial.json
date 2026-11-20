@@ -87284,7 +87284,7 @@
     {
      "no": 2,
      "name": "雑入",
-     "name_src": "readings",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 1000,
@@ -87726,7 +87726,7 @@
     {
      "no": 2,
      "name": "雑入",
-     "name_src": "readings",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 1000,
@@ -88117,7 +88117,7 @@
     {
      "no": 3,
      "name": "違約金",
-     "name_src": "readings",
+     "name_src": "correction",
      "no_src": "ocr",
      "amount": {
       "v": 113000,
