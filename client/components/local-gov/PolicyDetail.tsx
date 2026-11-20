@@ -70,6 +70,11 @@ export function PolicyDetail({ item, gov, kanNames, file, source, onClose }: Pro
                     label
                   )}
                   {k.unmatched && <span className="text-mirai-text-muted">（資料の科目が予算の目にない。資料の印字のまま）</span>}
+                  {k.printed && (
+                    <span className="text-mirai-text-muted">
+                      （資料の印字は {k.printed.replace(/ /g, '-')}。予算の目の額と内訳で確かめて直した）
+                    </span>
+                  )}
                 </li>
               );
             })}
