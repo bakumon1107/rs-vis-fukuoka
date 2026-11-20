@@ -61,8 +61,9 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
             n = rename(name)
             ends[(n, fy_of[y])] = (sum(v[2] for v in fd["holdings"].values()), src)
             prev = (n, fy_of[y] - 1)
-            # 補助の年度の前年度末では埋めない（前の年度の調書がある。その年度に設けて廃止した基金の 0 を前の年度に足さない）
-            if prev not in ends and y not in supplement:
+            # 補助の年度の前年度末では、前の年度に調書があるときは埋めない（その年度に設けて廃止した基金の 0 を前の年度に足さない）。
+            # 前の年度に調書がなければ埋める（その年度に廃止した基金の前の年度末が合計から落ちないよう）
+            if prev not in ends and (y not in supplement or fy_of[y] - 1 not in set(fy_of.values())):
                 ends[prev] = (sum(v[0] for v in fd["holdings"].values()), src)
     # 調書のある年度の値を優先する（前年度末から入れた値を上書き）
     for y, funds in years.items():
@@ -77,8 +78,13 @@ def build(work: str, fiscal_year: int) -> tuple[dict | None, list[str]]:
     present = set(fy_of.values())  # 前後の年度の有無は補助の年度も数える
     supp_keys = {(rename(n), fy_of[y]) for y in supplement for n in years[y]}
     gaps = []
+    supp_years = {fy_of[y] for y in supplement}
     for fy in all_years:
         if fy in imported or fy - 1 not in present or fy + 1 not in present:
+            continue
+        if fy - 1 in supp_years:
+            # 前の年度が補助の年度だと、前の年度の基金の一覧が揃っていない（廃止した基金だけ）ので確かめられない。そうと書く
+            gaps.append(f"{fy} 年度末: 前の年度が補助の年度で、取りこぼしを確かめられない")
             continue
         before = {n for (n, y) in ends if y == fy - 1}
         missing = sorted(n for n in before if (n, fy) not in ends and ends[(n, fy - 1)][0] != 0)

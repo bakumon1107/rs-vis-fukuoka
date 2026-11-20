@@ -52,7 +52,8 @@ export function fundFlows(file: LocalBudgetFile): FundFlows {
     const match = (i: number) => DEPOSIT_ITEM_RE.exec(items[i].name) ?? DEPOSIT_MOKU_RE.exec(items[i].name);
     // 祖先（親・親の親…）に基金の積立金として数える事項があれば、その下（内訳）なので重ねない。並び順によらず親をたどる
     const underCounted = (i: number) => {
-      const seen = new Set<number>();
+      // 親子が輪になっている（データの誤り）ときは、自分に戻ったところで止める
+      const seen = new Set<number>([i]);
       for (let p = items[i].parent; p !== undefined && !seen.has(p); p = items[p]?.parent) {
         seen.add(p);
         if (items[p] && match(p) && items[p].amount.v != null) return true;

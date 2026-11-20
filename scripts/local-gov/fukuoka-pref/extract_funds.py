@@ -91,6 +91,9 @@ def seven_as_triangle(ln: str):
     found = []
     for p in spots:
         vals = numbers(ln[:p] + "▲" + ln[p + 1:])
+        # 前年度末（行の頭）は負にならない（基金の現在高）。行の頭の「7」の読み替えで負になる候補は捨てる
+        if vals and vals[0] < 0:
+            continue
         if vals and any(vals[0] + s1 * abs(vals[1]) == vals[2] for s1 in (1, -1)) and \
                 any(vals[2] + s2 * abs(vals[3]) == vals[4] for s2 in (1, -1)):
             found.append(vals)
