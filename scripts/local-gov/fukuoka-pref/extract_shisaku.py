@@ -39,9 +39,46 @@ def words_in(words, col, y0, y1):
     return [w for w in words if a <= pos(w) < b and y0 <= (w["top"] + w["bottom"]) / 2 < y1]
 
 
+def lines_of(ws, tol: float = 2.0) -> list[list[dict]]:
+    """字を行にまとめる（行の最初の字の高さとの差が tol 以内なら同じ行。行の中は左から）。
+    高さを四捨五入して並べると、同じ行の字が 158.46 と 158.54 のように境をまたいで別の行になり、
+    説明欄の「○」と本文の順が入れ替わった（R8 で13件以上の内訳が語の途中で割れた）"""
+    lines: list[list[dict]] = []
+    for w in sorted(ws, key=lambda w: w["top"]):
+        if lines and abs(w["top"] - lines[-1][0]["top"]) <= tol:
+            lines[-1].append(w)
+        else:
+            lines.append([w])
+    return [sorted(ln, key=lambda w: w["x0"]) for ln in lines]
+
+
 def text_of(ws):
-    ws = sorted(ws, key=lambda w: (round(w["top"]), w["x0"]))
-    return "".join(w["text"] for w in ws)
+    return "".join(w["text"] for ln in lines_of(ws) for w in ln)
+
+
+# 額の欄の左の事項名の欄にこぼれた、額の字の切れ端（「2」「,783,636」→ 2,783,636。「(」「189,508)」→ (189,508)。R8 で4件）。
+# 事項名の欄の右端（x0 がこれ以上）にある、数字・コンマ・括弧だけの字
+AMOUNT_SPILL_X0 = 255
+SPILL_RE = re.compile(r"[\d,()（）]+")
+DEBT_RE = re.compile(r"[（(]債務負担行為?[）)]?$")
+
+
+def amounts_of(name_ws, amount_ws):
+    """事項名の欄と額の欄の字 → (事項名の字, 前年度, 今年度の額, 債務負担行為の限度額, 読めない字)。
+    額の欄は行ごとに「(前年度)」と額。債務負担行為の行は1つのセルに 名前・(前年度)・今年度の額・（債務負担行為）・限度額 が
+    縦に並ぶ（R8 278133 p41「県立学校施設整備費」: (14,585,909)・18,845,825・30,932,675。説明の内訳の合計は今年度の額）"""
+    spill = [w for w in name_ws if w["x0"] >= AMOUNT_SPILL_X0 and SPILL_RE.fullmatch(w["text"])]
+    name_words = [w for w in name_ws if w not in spill]
+    prev, plains, bad = None, [], []
+    for ln in lines_of(spill + amount_ws):
+        s = "".join(w["text"] for w in ln).replace(" ", "").replace("（", "(").replace("）", ")")
+        if re.fullmatch(r"\([\d,]+\)", s):
+            prev = int(s[1:-1].replace(",", ""))
+        elif re.fullmatch(r"\d[\d,]*", s):
+            plains.append(int(s.replace(",", "")))
+        else:
+            bad.append(s)
+    return name_words, prev, plains, bad
 
 
 OUTSIDE_PILLAR_HEAD = "計画推進の基盤づくり"
@@ -52,12 +89,9 @@ def division_of(ws) -> str:
     """課の欄 → 課名。複数の課が担当する事項は、課が1行ずつ縦に並ぶ（R8 278133 p40「教員の働き方改革推進費」は5課）。
     行ごとに分けて「、」でつなぐ。課名の終わり（課・室・本部…）で終わらない行は、長い課名の折り返しとして次の行とつなぐ。
     「外」で始まる行（「外21課」）は前の課の続き"""
-    lines: dict[int, list] = {}
-    for w in ws:
-        lines.setdefault(round(w["top"]), []).append(w)
     out: list[str] = []
-    for top in sorted(lines):
-        t = "".join(w["text"] for w in sorted(lines[top], key=lambda w: w["x0"]))
+    for ln in lines_of(ws):
+        t = "".join(w["text"] for w in ln)
         # 「外21課」（ほか 21 課）は前の課の続き（「財産活用課外21課」。R8「公用車への電動車導入費」）
         # 「…事務局」の次の行の課はその事務局の課（「議会事務局」「総務課」→ 議会事務局総務課。R8 277220 の5事項。事務局だけの課名はない）
         if out and (not out[-1].endswith(DIVISION_ENDS) or t.startswith("外") or out[-1].endswith("事務局")):
@@ -168,21 +202,41 @@ def kamoku_lines(ws, notes: list | None = None) -> list[str]:
 
 def parse_expl(ws):
     """説明欄: 「○」（または「[新]」）で始まる内訳。行の右端（x0>440）の数字がその内訳の金額。"""
-    ex_words = sorted(ws, key=lambda w: (round(w["top"]), w["x0"]))
-    expl, buf, amt, starts_new = [], [], None, False
-    for w in ex_words:
-        t = w["text"]
-        if t == "○" or t.startswith("○") or t == "[新]":
-            if buf or amt is not None:
-                expl.append({"text": "".join(buf), "amount": amt, "starts_new": starts_new})
-            buf, amt, starts_new = ([t.lstrip("○")] if t not in ("○",) else []), None, True
-            continue
-        if re.fullmatch(r"[\d,]+", t) and w["x0"] > 440:
-            amt = int(t.replace(",", ""))
-        else:
-            buf.append(t)
-    if buf or amt is not None:
-        expl.append({"text": "".join(buf), "amount": amt, "starts_new": starts_new})
+    # 内訳の額: 「○」の行に額があればそれ（下の「・」の細目の額は内訳の内訳なので足さない。R8 278133 p14「地域精神保健福祉対策費」:
+    # ○協議会に対する助成 6,000 の下に ・「心の電話」相談事業 4,000・・普及啓発等 2,000）。「○」の行に額がなければ、続く行の額の合計
+    # （細目にだけ額がある。R8「民生委員活動費」○民生委員の設置 の下の ・手当 282,775・・協議会補助金 65,955・・研修費等 1,017）
+    expl: list[dict] = []
+    cur: dict | None = None
+
+    def close():
+        if cur and (cur["buf"] or cur["head"] is not None or cur["rest"]):
+            amount = cur["head"] if cur["head"] is not None else (sum(cur["rest"]) if cur["rest"] else None)
+            expl.append({"text": "".join(cur["buf"]), "amount": amount, "starts_new": cur["new"]})
+
+    for ln in lines_of(ws):
+        t0 = ln[0]["text"]
+        is_head = t0 == "○" or t0.startswith("○") or t0 == "[新]"
+        if is_head or cur is None:
+            close()
+            cur = {"buf": [], "head": None, "rest": [], "new": is_head}
+        line_amt = None
+        for i, w in enumerate(ln):
+            t = w["text"]
+            if is_head and t == "○":
+                continue  # 行頭の印（「[新]」の後に別の語で続く「○」も）
+            if i == 0 and is_head:
+                cur["buf"].append(t.lstrip("○"))  # 「[新]」は文の頭に残す（新規の内訳の印）
+                continue
+            if re.fullmatch(r"[\d,]+", t) and w["x0"] > 440:
+                line_amt = int(t.replace(",", ""))
+            else:
+                cur["buf"].append(t)
+        if line_amt is not None:
+            if is_head:
+                cur["head"] = line_amt
+            else:
+                cur["rest"].append(line_amt)
+    close()
     return expl
 
 
@@ -215,8 +269,9 @@ def parse_pdf(path):
             first_on_page = True
             kubun_seen_on_page = False
             for y0, y1 in zip(item_b, item_b[1:]):
-                name = text_of(words_in(words, "name", y0, y1))
-                amts = [w["text"] for w in sorted(words_in(words, "amount", y0, y1), key=lambda w: w["top"])]
+                name_words, prev, plains, bad_amounts = amounts_of(words_in(words, "name", y0, y1), words_in(words, "amount", y0, y1))
+                name = text_of(name_words)
+                amts = plains + ([] if prev is None else [prev]) + bad_amounts
                 if name.startswith("事項名"):
                     continue
                 if not name and not amts and first_on_page and items:
@@ -236,16 +291,15 @@ def parse_pdf(path):
                 # 片方だけ取れたそれ以外の行は事項として残し、main の WARN（欠け）で知らせる
                 if (not name and not amts) or (not amts and is_header_row(name)):
                     continue
-                prev = cur = None
-                for s in amts:
-                    s2 = s.replace(" ", "")
-                    if s2.startswith("("):
-                        mm = re.search(r"[\d,]+", s2)
-                        prev = int(mm.group(0).replace(",", "")) if mm else prev
-                    elif re.fullmatch(r"[\d,]+", s2):
-                        cur = int(s2.replace(",", ""))
-                    elif re.fullmatch(r"\d+\)", s2):  # 「( 0)」が2語に分かれる
-                        prev = int(s2[:-1])
+                # 債務負担行為の行: 今年度の額と限度額の2つ（名前の「(債務負担行為)」は外し、限度額は別に持つ）。ほかの行は額が1つ
+                debt = bool(DEBT_RE.search(name))
+                if debt:
+                    name = DEBT_RE.sub("", name)
+                want = 2 if debt else 1
+                cur = plains[0] if len(plains) == want else None
+                limit = plains[1] if debt and len(plains) == 2 else None
+                if len(plains) != want:
+                    bad_amounts = bad_amounts + [f"額が {len(plains)} つ（{'債務負担行為の行は2つ' if debt else '1つのはず'}）"]
                 expl = [{k: v for k, v in c.items() if k != "starts_new"} for c in parse_expl(words_in(words, "expl", y0, y1))]
                 lo, hi = enclosing(ka_b, y0, y1)
                 ka = division_of(words_in(words, "ka", lo or y0, hi or y1))
@@ -266,6 +320,7 @@ def parse_pdf(path):
                     "柱": pillar, "区分": kubun, "課名": ka, "科目": km, **({"科目の当て方": km_notes} if km_notes else {}),
                     "新規": bool(words_in(words, "new", y0, y1)),
                     "事項名": name, "予算額": cur, "前年度": prev, "説明": expl,
+                    **({"債務負担行為": limit} if debt else {}), **({"額の読めない字": bad_amounts} if bad_amounts else {}),
                     "source": os.path.basename(path), "pdf_page": pi, "pdf_pages": [pi],
                 })
     return items
@@ -275,25 +330,32 @@ def main():
     items = []
     for p in sys.argv[1:]:
         items += parse_pdf(p)
-    fails = warns = 0
+    warns = 0
+    fail_lines: list[str] = []
     for it in items:
         # 区分（取組）が空: 読み取りの失敗（区分のセルには必ず名前がある。前のページからの続きは parse_pdf で埋めた）
-        missing = [k for k in ("事項名", "予算額", "課名", "区分", "柱") if not it[k]] + \
+        # 予算額は 0 もある（債務負担行為だけの行「国際園芸博覧会出展事業費」の今年度の額 0）ので、None だけを欠けとする
+        missing = [k for k in ("事項名", "課名", "区分", "柱") if not it[k]] + (["予算額"] if it["予算額"] is None else []) + \
             (["科目"] if not it["科目"] or any(not re.fullmatch(r"\d+ \d+ \d+", k) for k in it["科目"]) else []) + \
             (["科目の当て方"] if it.get("科目の当て方") else [])  # 款・項が目の行のかたまりに分けられず、間の行を「?」にした
         if missing:
             warns += 1
             print(f"WARN {it['source']} p{it['pdf_page']} {it['事項名']}: 欠け {missing} 科目={it['科目']}", file=sys.stderr)
+        if it.get("額の読めない字"):
+            # 額の欄に、額として読めない字・数の合わない額がある（黙って最後の数を使わない）
+            fail_lines.append(f"{it['source']} p{it['pdf_page']} {it['事項名']}: 額の欄が読めない {it['額の読めない字']}")
         amts = [e["amount"] for e in it["説明"]]
         if len(amts) >= 2 and all(a is not None for a in amts) and it["予算額"] is not None:
             if sum(amts) != it["予算額"]:
-                fails += 1
-                print(f"FAIL {it['source']} p{it['pdf_page']} {it['事項名']}: 内訳の合計 {sum(amts):,} ≠ 予算額 {it['予算額']:,}", file=sys.stderr)
+                fail_lines.append(f"{it['source']} p{it['pdf_page']} {it['事項名']}: 内訳の合計 {sum(amts):,} ≠ 予算額 {it['予算額']:,}")
+    for f in fail_lines:
+        print("FAIL " + f, file=sys.stderr)
     total = sum(it["予算額"] or 0 for it in items)
     print(f"事項 {len(items)} 件、予算額合計 {total:,} 千円、新規 {sum(it['新規'] for it in items)} 件、"
-          f"WARN={warns} FAIL={fails}", file=sys.stderr)
-    json.dump({"unit": "千円", "items": items}, sys.stdout, ensure_ascii=False, indent=1)
-    sys.exit(1 if fails else 0)
+          f"WARN={warns} FAIL={len(fail_lines)}", file=sys.stderr)
+    # 失敗の一覧も書く（書き出し export_policies はこれが空でなければ止める。終了コードを見ない使い方でも通さない）
+    json.dump({"unit": "千円", "items": items, "fails": fail_lines}, sys.stdout, ensure_ascii=False, indent=1)
+    sys.exit(1 if fail_lines else 0)
 
 
 if __name__ == "__main__":

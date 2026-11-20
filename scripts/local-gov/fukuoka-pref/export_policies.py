@@ -3,8 +3,9 @@
 設計: docs/local-gov/tasks/20261120_1500_地方版バブル図の設計.md（3章 範囲・4章 データ）。型: types/local-gov.ts の LocalPolicies
 export_fukuoka_pref.py の main から呼ぶ（予算の行が決まった後）。
 
-- 範囲: 一般会計の事項だけ。特別会計・公営企業会計の事項（科目が「特別会計」「企業会計」）と債務負担行為（事項名に「債務負担行為」。
-  予算額の欄は後年度にわたる限度額で、その年度の歳出ではない）は除き、件数と額を excluded に書く
+- 範囲: 一般会計の事項だけ。特別会計・公営企業会計の事項（科目が「特別会計」「企業会計」）は除き、件数と額を excluded に書く。
+  債務負担行為の行は、今年度の額を事項として載せ、限度額（後年度にわたる額で、その年度の歳出ではない）の件数と額だけを excluded に書く。
+  制度融資の貸付金（中小企業振興資金融資費）は事項の円にせず、図に載らない経費の灰色の円にする
 - 科目: 予算の目（一般会計の歳出）に結ぶ。項が決まらない科目（「9 ? 4」）は、予算にある目がちょうど1つならそれに決める。
   目が2つあるもの（「9 ? 1」）は、根拠を確かめた表（KOU_FIXES）で決める。表になければ止める（項なしで黙って載せない）
   予算にない科目は unmatched の印（資料の印字のまま。R8「認知症医療センター事業費」3-2-5）
@@ -18,6 +19,8 @@ import re
 
 # 4つの柱の後の、番号のない見出し（extract_shisaku.OUTSIDE_PILLAR_HEAD と同じ。柱の外のグループ）
 OUTSIDE_PILLAR_HEAD = "計画推進の基盤づくり"
+# 中小企業の制度融資の貸付金（金融機関に預けて年度内に戻る）。図に載らない経費の灰色の円で見せる（設計 3章）
+LOANS_ITEM = "中小企業振興資金融資費"
 
 # 項が字の位置で決まらず、予算にある目も2つある科目を、根拠を確かめて決める表。(事項名, 資料の科目) → 科目。
 # 字の位置で決まらないのは、目が3行で項の「1」「2」が1・2行目と2・3行目のちょうど真ん中に印字された事項（真ん中の目が
@@ -58,21 +61,33 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     path = os.path.join(work, "shisaku.json")
     if not os.path.exists(path):
         return None, [], ["施策別資料: shisaku.json がない（施策別資料の抽出のステップを飛ばした作業ディレクトリ）"]
-    items = json.load(open(path, encoding="utf-8"))["items"]
+    data = json.load(open(path, encoding="utf-8"))
+    # 抽出の検算（説明の内訳の合計 = 予算額・額の欄の読み）が通っていなければ止める。fails のない古い shisaku.json も止める
+    if "fails" not in data:
+        return None, [], ["施策別資料: shisaku.json に fails がない（古い抽出の出力。extract_shisaku.py を流し直す）"]
+    if data["fails"]:
+        return None, [], [f"施策別資料の抽出の検算が通っていない: {f}" for f in data["fails"]]
+    items = data["items"]
     expense = [r for r in rows if r["account"] == "general" and r["side"] == "expense"]
     budget_ids = {r["id"] for r in expense}
     fails: list[str] = []
     out_items, excluded = [], {"special": [0, 0], "debt_burden": [0, 0]}
     used_fixes: set[tuple[str, str]] = set()
+    loans_in_policies = None
     for it in items:
         # 予算額が読めない事項は、除く事項（債務負担行為・特別会計）でも止める（除いた額が黙って少なくならないよう）
         if it["予算額"] is None:
             fails.append(f"施策別資料 {it['事項名']}: 予算額が読めない")
             continue
         amount = it["予算額"] * 1000
-        if "債務負担行為" in it["事項名"]:
+        if it.get("債務負担行為") is not None:
+            # 債務負担行為の限度額（後年度にわたる額で、この年度の歳出ではない）は数えるだけ。事項の今年度の額は載せる
+            # （同じセルに今年度の額と限度額が並ぶ。extract_shisaku.amounts_of）
             excluded["debt_burden"][0] += 1
-            excluded["debt_burden"][1] += amount
+            excluded["debt_burden"][1] += it["債務負担行為"] * 1000
+        if it["事項名"] == LOANS_ITEM:
+            # 制度融資の貸付金は、図に載らない経費の灰色の円（loans）で見せる（設計 3章）。事項の円に重ねて数えない
+            loans_in_policies = amount
             continue
         # 「外」（ほかの科目にもまたがる印）は会計を示さないので、特別会計かどうかの判定から外す
         special = [("特別会計" in k or "企業会計" in k) for k in it["科目"] if k != "外"]
@@ -133,7 +148,10 @@ def build(work: str, rows: list[dict]) -> tuple[dict | None, list[str], list[str
     in_policies = sum(i["amount"] for i in out_items)
     kan_sum = lambda name: sum(r["amount"]["v"] or 0 for r in expense if r["kan"]["name"] == name)  # noqa: E731
     personnel = sum(s["amount"]["v"] or 0 for r in expense for s in r.get("setsu", []) if s.get("no") in (1, 2, 3, 4))
-    loans = sum(i["amount"]["v"] or 0 for r in expense for i in r.get("items", []) if i["name"] == "中小企業振興資金融資費")
+    loans = sum(i["amount"]["v"] or 0 for r in expense for i in r.get("items", []) if i["name"] == LOANS_ITEM)
+    # 施策別資料の制度融資の事項（円に載せず灰色の円で見せる）の額が、説明書の事項の額と同じであること（違えば二重・漏れになる）
+    if loans_in_policies is not None and loans_in_policies != loans:
+        fails.append(f"施策別資料: {LOANS_ITEM} の額 {loans_in_policies:,} 円が説明書の事項 {loans:,} 円と違う")
     outside = [
         {"key": "tax_transfers", "label": "地方消費税の清算金・市町村への税交付金（款「諸支出金」）", "amount": kan_sum("諸支出金")},
         {"key": "personnel", "label": "人件費（節 報酬・給料・職員手当等・共済費）", "amount": personnel},

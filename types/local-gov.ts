@@ -238,7 +238,7 @@ export interface PolicyKamoku {
 
 export interface PolicyItem {
   name: string;
-  /** 柱の番号（柱の外のグループ「地方分権の推進」は null） */
+  /** 柱の番号（4つの柱の外のグループ「計画推進の基盤づくり」（取組は地方分権の推進・行政改革の推進）は null） */
   pillar: number | null;
   /** 取組（施策別資料の区分） */
   initiative: string | null;
@@ -258,7 +258,10 @@ export interface PolicyItem {
 export interface LocalPolicies {
   pillars: { no: number; name: string }[];
   items: PolicyItem[];
-  /** 範囲から除いた事項（特別会計・公営企業会計の事項、債務負担行為） */
+  /**
+   * special: 範囲から除いた事項（特別会計・公営企業会計）の件数と額。
+   * debt_burden: 債務負担行為のある事項の件数と限度額の合計（事項の今年度の額は items に入る。限度額は後年度にわたる額で入れない）
+   */
   excluded: { special: { count: number; amount: Yen }; debt_burden: { count: number; amount: Yen } };
   /** 図に載らない経費（一般会計の歳出 − 施策の事項。最後の other は差し引き） */
   outside: { key: string; label: string; amount: Yen }[];

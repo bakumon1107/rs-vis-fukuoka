@@ -34,16 +34,19 @@ def test_scope_kamoku_and_outside(tmp_path):
         _item("架空の事業費", ["9 1 2", "9 ? 3", "9 2 2"], 500),            # 目3: 予算に 9-?-3 の目がない → 予算にない印
         _item("認知症医療センター事業費", ["3 2 5"], 100),                     # 予算にない科目
         _item("少年補導員等活動費", ["9 1 2", "9 ? 1", "9 2 2"], 50),       # 同じ形でも、直しの表にある事項は表で決める
-        _item("県立学校施設整備費（債務負担行為）", ["10 2 1"], 9_999),        # 除く（限度額）
+        # 債務負担行為の行: 今年度の額（200）は事項に載せ、限度額（9,999）だけを除いた分に数える
+        _item("県立学校施設整備費", ["9 1 2"], 200, 債務負担行為=9_999),
         _item("林業改善資金助成事業費", ["特別会計"], 7),                       # 除く（特別会計）
+        # 制度融資は事項の円にせず灰色の円（説明書の事項と同じ額であること）
+        _item("中小企業振興資金融資費", ["7 1 1"], 900, 債務負担行為=3),
     ]
-    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, lines, fails = ep.build(str(tmp_path), ROWS)
     assert fails == []
     names = [i["name"] for i in pol["items"]]
-    assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費"]
+    assert names == ["災害対応力強化費", "架空の事業費", "認知症医療センター事業費", "少年補導員等活動費", "県立学校施設整備費"]
     assert pol["items"][3]["kamoku"][1] == {"kan": 9, "kou": 2, "moku": 1, "row": "general/expense/9-2-1"}
-    assert pol["excluded"] == {"special": {"count": 1, "amount": 7_000}, "debt_burden": {"count": 1, "amount": 9_999_000}}
+    assert pol["excluded"] == {"special": {"count": 1, "amount": 7_000}, "debt_burden": {"count": 2, "amount": 10_002_000}}
     k = pol["items"][0]["kamoku"]
     assert k[1] == {"kan": 9, "kou": 1, "moku": 4, "row": "general/expense/9-1-4"}
     assert pol["items"][1]["kamoku"][1] == {"kan": 9, "kou": None, "moku": 3, "row": None, "unmatched": True}
@@ -64,16 +67,24 @@ def test_unreadable_kamoku_mixed_accounts_and_missing_file_fail(tmp_path):
         _item("外のある事項", ["9 1 2", "外"], 10),             # 「外」は落とさず印で持つ（失敗にしない）
         _item("項の決まらない事項", ["9 ? 1"], 10),             # 予算に 9-1-1・9-2-1 の両方: 直しの表になければ止める
     ]
-    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, _, fails = ep.build(str(tmp_path), ROWS)
     assert len(fails) == 3 and "'? 1 4'" in fails[0] and "またがる" in fails[1] and "項が決まらない" in fails[2]
     outer = next(i for i in pol["items"] if i["name"] == "外のある事項")
     assert outer["other_kamoku"] and len(outer["kamoku"]) == 1
     # 科目のない事項・予算額の読めない除く事項（債務負担行為）も止める
     items = [_item("科目のない事項", [], 10), _item("額のない（債務負担行為）", ["10 2 1"], None)]
-    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     _, _, fails = ep.build(str(tmp_path), ROWS)
     assert any("科目がない" in f for f in fails) and any("予算額が読めない" in f for f in fails)
+    # 抽出の検算が通っていない・fails のない古い shisaku.json は止める
+    for bad in ({"items": [], "fails": ["x: 内訳の合計 1 ≠ 予算額 2"]}, {"items": []}):
+        (tmp_path / "shisaku.json").write_text(json.dumps(bad, ensure_ascii=False), encoding="utf-8")
+        assert ep.build(str(tmp_path), ROWS)[2]
+    # 制度融資の事項の額が説明書の事項と違えば止める（二重・漏れ）
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": [_item("中小企業振興資金融資費", ["7 1 1"], 1)], "fails": []},
+                                                      ensure_ascii=False), encoding="utf-8")
+    assert any("中小企業振興資金融資費" in f for f in ep.build(str(tmp_path), ROWS)[2])
     # 施策別資料の抽出の結果がない作業ディレクトリでは止める（公開データから policies が黙って消えないよう）
     _, _, fails = ep.build(str(tmp_path / "none"), ROWS)
     assert fails and "shisaku.json" in fails[0]
@@ -86,7 +97,7 @@ def test_unread_fields_pillar_and_fixed_costs(tmp_path):
         _item("基盤の事項", ["9 1 2"], 10, 柱="計画推進の基盤づくり", 区分="行政改革の推進"),
         _item("特別会計の事項", ["特別会計", "外"], 7),   # 「外」があっても特別会計の事項として除く
     ]
-    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     pol, _, fails = ep.build(str(tmp_path), ROWS)
     fails = [f for f in fails if "直しの表" not in f]  # この入力には直しの表の事項がない（その FAIL は別のテストで見る）
     assert len(fails) == 2 and "区分" in fails[0] and "柱" in fails[1]
@@ -100,7 +111,7 @@ def test_unread_fields_pillar_and_fixed_costs(tmp_path):
 
 def test_other_negative_fails(tmp_path):
     items = [_item("大きすぎる事項", ["9 1 2"], 30_000)]  # 3,000万円 > 歳出 2,350万円
-    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items}, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "shisaku.json").write_text(json.dumps({"items": items, "fails": []}, ensure_ascii=False), encoding="utf-8")
     _, _, fails = ep.build(str(tmp_path), ROWS)
     assert any("その他" in f for f in fails)
     # 直しの表の行が資料に出てこない（読み取りが変わった）ときも止める
