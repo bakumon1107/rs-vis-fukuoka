@@ -40,8 +40,11 @@ export default function LocalPoliciesPage() {
 
 type ColorMode = 'pillar' | 'kan';
 
-// 灰色の円（施策の円の外の経費）を押したときの説明。額は説明書（予算に関する説明書）の款・節・事項から数えた額
+// 灰色の円（施策の円の外の経費）を押したときの説明。その他のほかの4つは説明書（予算に関する説明書）の款・節・事項から数えた額。
+// その他は差し引き
 const OUTSIDE_NOTES: Record<string, string> = {
+  personnel:
+    '説明書の節（報酬・給料・職員手当等・共済費）で数えた人件費。施策の事項の額にも一部入っている（重なる分は「その他」が小さくなる形で差し引いています）。',
   other:
     '一般会計の歳出から、施策の円の事項と、ほかの4つの灰色の円を引いた残り。人件費と施策の事項が重なる分は、ここが小さくなる形で差し引かれています。',
   loans:
@@ -276,7 +279,7 @@ function LocalPoliciesContent() {
         <section className="space-y-1 text-xs text-mirai-text-muted">
           <p>
             範囲: 一般会計の事項だけ。施策別資料のうち、特別会計・公営企業会計の事項 {policies.excluded.special.count} 件
-            （{formatBudgetFromYen(policies.excluded.special.amount)}）は除いています。債務負担行為のある一般会計の事項 {policies.excluded.debt_burden.count} 件は、
+            （{formatBudgetFromYen(policies.excluded.special.amount)}）は除いています。債務負担行為のある一般会計の事項 {policies.excluded.debt_burden.count} 件（灰色の円で見せる制度融資を除く）は、
             この年度の額を円にし（この年度の額が 0 で限度額だけのものは円なし）、限度額（計 {formatBudgetFromYen(policies.excluded.debt_burden.amount)}。
             後年度にわたる額で、この年度の歳出ではない）は含めていません。
             中小企業の制度融資の貸付金（中小企業振興資金融資費）は、施策別資料の事項ですが灰色の円で見せています（金融機関に預けて年度内に戻るお金）。
@@ -303,7 +306,7 @@ function LocalPoliciesContent() {
                 </span>
               );
             })}
-            （{index.gov.name}）。施策の円の金額は施策別資料に印字された数字（千円単位）を円に直したもの。灰色の円は予算に関する説明書の款・節・事項から数えた額。
+            （{index.gov.name}）。施策の円の金額は施策別資料に印字された数字（千円単位）を円に直したもの。灰色の円のうち4つは予算に関する説明書の款・節・事項から数えた額で、「その他」は一般会計の歳出からの差し引き。
           </p>
         </section>
       </main>
