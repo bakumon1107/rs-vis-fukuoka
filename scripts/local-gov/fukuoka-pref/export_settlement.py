@@ -25,6 +25,7 @@ COLS = {"amount": "支出済額", "budget_current": "予算現額", "carried_ove
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kessan_common import SETSU_NAMES  # noqa: E402  節の名前（番号で決まる）
+import export_funds  # noqa: E402
 
 
 def val(v):
@@ -130,7 +131,11 @@ def build(work: str, special_slugs: dict[str, str]):
     checks, ok, lines = check(rows, revenue, kmk, toku)
     file = {"schema_version": 1, "gov_id": "fukuoka-pref", "year": YEAR, "year_label": YEAR_LABEL, "basis": "settlement",
             "unit_source": "円", "accounts": accounts, "rows": rows, "revenue_by_kan": revenue, "checks": checks}
-    return file, ok, lines
+    # 基金の現在高（財産に関する調書。地方版の基金の設計）。資料の id は sources.json の「<年度>-zaisan」
+    funds, flines = export_funds.build(work, YEAR)
+    if funds:
+        file["funds"] = funds
+    return file, ok, lines + flines
 
 
 def revenue_row(account, no, name, d, overpaid, over_note=None):
