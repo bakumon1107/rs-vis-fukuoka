@@ -1,6 +1,7 @@
 # 地方版 予算ビュー（local-gov）
 
 国の予算可視化（本家 `team-mirai-volunteer/rs-vis`）をベースに、自治体の予算を可視化する「地方版 ○○予算ビュー」を作るための作業フォルダ。
+最初の事例「予算ビュー＠福岡県」は 2026-11-27 に GitHub Pages で公開した（https://bakumon1107.github.io/yosan-view-fukuoka-pref/ ）。
 
 ## 方針
 
@@ -16,12 +17,12 @@
 | ブランチ | 役割 | 更新方法 |
 |---|---|---|
 | `main` | 本家 `main` のミラー。直接変更しない | 本家に追従して fast-forward のみ（`gh repo sync` / `git push origin upstream/main:main`） |
-| `local-main` | 地方版の本流（GitHub の既定ブランチにする予定。2026-11-06 時点で未設定） | 作業ブランチから PR でマージ |
+| `local-main` | 地方版の本流（GitHub の既定ブランチ）。マージすると GitHub Pages に公開し直される | 作業ブランチから PR でマージ |
 | `feat/*` `fix/*` `docs/*` | 個別作業 | `local-main` から worktree で切る（`../rs-vis-fukuoka-<短い名前>`）。未マージのブランチの上に重ねるときはマージの順番を PR に書く |
 
 本家の取り込み: `main` を同期 → `main` → `local-main` の PR を作って衝突を解消。
 
-リモート: `origin` = フォーク（bakumon1107/rs-vis-fukuoka）、`upstream` = 本家（team-mirai-volunteer/rs-vis）。本家への push・PR は行わない。
+リモート: `origin` = フォーク（bakumon1107/yosan-view-fukuoka-pref。2026-11-27 に rs-vis-fukuoka から改名。旧名の URL は GitHub が転送する）、`upstream` = 本家（team-mirai-volunteer/rs-vis）。本家への push・PR は行わない。
 
 ## このフォルダの構成
 
@@ -54,9 +55,12 @@ docs/local-gov/
   `npm run build` は国のデータを展開する（prebuild）ので使わない。見るときは `out/` を `/yosan-view-fukuoka-pref/` の下に置いて静的サーバーで配信する
 - デプロイ: `.github/workflows/pages-local.yml`（PR では書き出しの確認だけ、`local-main` への push と手動実行でデプロイ）。Settings → Pages の Source を「GitHub Actions」にしておく
 - 名前・運営者・連絡先・配色は `app/lib/local-gov/site.ts`。外枠（ヘッダー・フッター）は `client/components/local-gov/LocalSiteShell.tsx`
-- 本家のファイルで変えたのは `next.config.ts` の末尾 2 行だけ。本家を取り込んだら PR の `pages-local.yml` で地方版の書き出しが通るかを確かめる
+- 本家のファイルで変えたのは `next.config.ts` の末尾 2 行と、`README.md`・`CLAUDE.md`（下）。本家を取り込んだら PR の `pages-local.yml` で地方版の書き出しが通るかを確かめる
 - GA は読み込まない（`NEXT_PUBLIC_GA_MEASUREMENT_ID` を明示したときだけ読み込む作り。本家の既定の ID には送らない）
-- リポジトリを改名したら、`site.ts` の `repositoryUrl`（フッターのソースコードのリンク）と文書中の `github.com/bakumon1107/rs-vis-fukuoka` を `github.com/bakumon1107/yosan-view-fukuoka-pref` に直す
+- リポジトリは 2026-11-27 に `yosan-view-fukuoka-pref` へ改名した（`site.ts` の `repositoryUrl`・リポジトリの Website 欄も新しい名前）。
+  GitHub Pages の URL は改名で変わり、旧 URL（`/rs-vis-fukuoka/`）は転送されない。basePath は Pages の設定から取るので、改名後に一度デプロイし直せば新しい URL で出る
+- 直下の `README.md`・`CLAUDE.md` は福岡県版の内容に書き換えた（2026-11-27 ユーザー決定）。本家のファイルなので、本家の取り込みで衝突したら
+  フォーク側を残し、本家の変更で福岡県版にも関係するもの（開発の手順など）があれば手で反映する。国版の説明は本家のリポジトリの README を見る
 
 設計: [tasks/20261127_1752_サイト全体から国版を外す設計.md](tasks/20261127_1752_サイト全体から国版を外す設計.md)
 
