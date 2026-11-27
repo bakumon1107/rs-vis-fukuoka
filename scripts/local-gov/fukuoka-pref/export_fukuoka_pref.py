@@ -733,7 +733,8 @@ def main():
     if transfer_in != transfer_out:
         sys.exit(f"会計間の繰入れが合わない: 歳入の印 {transfer_in:,} 円 ≠ 歳出の節「繰出金」{transfer_out:,} 円")
     expense_all = sum(r["amount"]["v"] or 0 for r in nets if r["side"] == "expense")
-    transfer_line = (f"会計間の繰入れ {sum(1 for r in nets if r.get('transfer'))} 件 {transfer_in:,} 円（歳出の節「繰出金」と一致）。"
+    # 件数は額のある目だけ（画面の netTotal と同じ。R8 当初で 0 円の繰入れの目が1つある）
+    transfer_line = (f"会計間の繰入れ {sum(1 for r in nets if r.get('transfer') and (r['amount']['v'] or 0) != 0)} 件 {transfer_in:,} 円（歳出の節「繰出金」と一致）。"
                      f"全会計の総計 {expense_all:,} 円・純計 {expense_all - transfer_in:,} 円")
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",

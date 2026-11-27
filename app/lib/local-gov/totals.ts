@@ -10,7 +10,7 @@ export interface NetTotal {
   gross: Yen;
   /** 会計間の繰入れ（歳入の目の transfer の印。受け手の額） */
   transfers: Yen;
-  /** 繰入れの目の数 */
+  /** 繰入れの目の数（額が 0 の目は数えない。R8 当初で 0 円の繰入れの目が1つある） */
   count: number;
   net: Yen;
 }
@@ -26,7 +26,13 @@ export function netTotal(file: LocalBudgetFile): NetTotal | null {
   if (marked.length === 0) return null;
   const gross = rows.filter(r => r.side === 'expense').reduce((s, r) => s + (r.amount.v ?? 0), 0);
   const transfers = marked.reduce((s, r) => s + (r.amount.v ?? 0), 0);
-  return { gross, transfers, count: marked.length, net: gross - transfers };
+  return { gross, transfers, count: marked.filter(r => (r.amount.v ?? 0) !== 0).length, net: gross - transfers };
+}
+
+/** 割合の表示（小数1桁の %）。0 より大きく 0.05% 未満は「0.1%未満」（0.0% と出すと 0 に見える） */
+export function formatRatio(ratio: number): string {
+  if (ratio > 0 && ratio < 0.0005) return '0.1%未満';
+  return `${(ratio * 100).toFixed(1)}%`;
 }
 
 /** 人件費に数える節（節 1〜4。番号は年度で変わりうるので名前で見る） */

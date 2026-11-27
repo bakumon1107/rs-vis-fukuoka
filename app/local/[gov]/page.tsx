@@ -22,7 +22,7 @@ import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
-import { netTotal, personnelShare } from '@/app/lib/local-gov/totals';
+import { formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
 import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -305,7 +305,7 @@ function LocalGovContent() {
                 選択中: <b>{display.selected.name}</b>
                 {personnel && (
                   <span className="ml-2 text-xs text-mirai-text-muted">
-                    うち人件費 {formatBudgetFromYen(personnel.personnel)}（{(personnel.ratio * 100).toFixed(1)}%。節の報酬・給料・職員手当等・共済費の合計）
+                    うち人件費 {formatBudgetFromYen(personnel.personnel)}（{formatRatio(personnel.ratio)}。節の報酬・給料・職員手当等・共済費の合計）
                   </span>
                 )}
               </span>

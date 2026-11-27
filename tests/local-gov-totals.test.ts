@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { netTotal, personnelShare } from '../app/lib/local-gov/totals';
+import { formatRatio, netTotal, personnelShare } from '../app/lib/local-gov/totals';
 import type { LocalBudgetFile, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number | null): Value => ({ v: n, src: 'ocr' });
@@ -37,6 +37,15 @@ test('netTotal: 全会計の総計から会計間の繰入れ（受け手の印�
   ];
   assert.deepEqual(netTotal(file(rows)), { gross: 1_600, transfers: 600, count: 1, net: 1_000 });
   assert.equal(netTotal(file(rows.filter(r => !r.transfer))), null);
+  // 額が 0 の繰入れの目は件数に入れない
+  const zero = [...rows, row('general/revenue/12-1-9', 0, { transfer: { from_account: 'special:debt' } })];
+  assert.equal(netTotal(file(zero))?.count, 1);
+});
+
+test('formatRatio: 0 より大きく 0.05% 未満は「0.1%未満」', () => {
+  assert.equal(formatRatio(0.838), '83.8%');
+  assert.equal(formatRatio(0.0002), '0.1%未満');
+  assert.equal(formatRatio(0), '0.0%');
 });
 
 test('personnelShare: 選んだ範囲の人件費の節（報酬・給料・職員手当等・共済費）の割合。財源・部局・節のない目では出さない', () => {
@@ -61,7 +70,8 @@ const budgetPath = path.join(__dirname, '..', 'public/data/local-gov/fukuoka-pre
 test('公開データの純計と人件費（R8 当初）', { skip: !fs.existsSync(budgetPath) }, () => {
   const data = JSON.parse(fs.readFileSync(budgetPath, 'utf-8')) as LocalBudgetFile;
   const n = netTotal(data);
-  assert.deepEqual(n && { count: n.count, transfers: n.transfers, net: n.net }, { count: 15, transfers: 295_508_530_000, net: 3_022_430_128_000 });
+  // 印は 15 件だが、額のある繰入れは 14 件（林業改善資金助成事業特別会計繰入金が 0 円）
+  assert.deepEqual(n && { count: n.count, transfers: n.transfers, net: n.net }, { count: 14, transfers: 295_508_530_000, net: 3_022_430_128_000 });
   const police = personnelShare(data, { account: 'general', side: 'expense', kan: 9 });
   assert.ok(police && police.ratio > 0.83 && police.ratio < 0.85);
 });

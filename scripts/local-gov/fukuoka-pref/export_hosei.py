@@ -185,7 +185,8 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
         moved = (row["side"] == "revenue" and re.search(r"(一般会計|特別会計)繰入金", row["moku"]["name"])) or \
             any(s.get("name") == "繰出金" and (s["amount"]["v"] or 0) != 0 for s in row.get("setsu", []))
         if moved:
-            fails.append(f"{r['id']} {row['id']}: 補正で会計間の繰入れ・繰出金が動いた（純計の印と検算を補正にも足す）")
+            # 「一部合わない」で書き出すと、補正後の見方の純計が増えた繰入れを引かない額のまま出るので、書き出しを止める
+            raise SystemExit(f"{r['id']} {row['id']}: 補正で会計間の繰入れ・繰出金が動いた（純計の印と検算を補正にも足す）")
     for rid in sorted(set(moku_fixes) - used_moku_fixes):
         fails.append(f"{r['id']} 名前の修正表: {rid} moku「{moku_fixes[rid]['was']}」に当たる目がない")
     # 目の補正額の合計 = 総括の款の補正額（補正のない款は 0）
