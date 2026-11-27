@@ -21,7 +21,7 @@
 
 本家の取り込み: `main` を同期 → `main` → `local-main` の PR を作って衝突を解消。
 
-リモート: `origin` = フォーク（bakumon1107/rs-vis-fukuoka）、`upstream` = 本家（team-mirai-volunteer/rs-vis）。本家への push・PR は行わない。
+リモート: `origin` = フォーク（bakumon1107/yosan-view-fukuoka-pref。2026-11-27 に rs-vis-fukuoka から改名。旧名の URL は GitHub が転送する）、`upstream` = 本家（team-mirai-volunteer/rs-vis）。本家への push・PR は行わない。
 
 ## このフォルダの構成
 
@@ -56,7 +56,10 @@ docs/local-gov/
 - 名前・運営者・連絡先・配色は `app/lib/local-gov/site.ts`。外枠（ヘッダー・フッター）は `client/components/local-gov/LocalSiteShell.tsx`
 - 本家のファイルで変えたのは `next.config.ts` の末尾 2 行だけ。本家を取り込んだら PR の `pages-local.yml` で地方版の書き出しが通るかを確かめる
 - GA は読み込まない（`NEXT_PUBLIC_GA_MEASUREMENT_ID` を明示したときだけ読み込む作り。本家の既定の ID には送らない）
-- リポジトリを改名したら、`site.ts` の `repositoryUrl`（フッターのソースコードのリンク）と文書中の `github.com/bakumon1107/rs-vis-fukuoka` を `github.com/bakumon1107/yosan-view-fukuoka-pref` に直す
+- リポジトリは 2026-11-27 に `yosan-view-fukuoka-pref` へ改名した（`site.ts` の `repositoryUrl`・リポジトリの Website 欄も新しい名前）。
+  GitHub Pages の URL は改名で変わり、旧 URL（`/rs-vis-fukuoka/`）は転送されない。basePath は Pages の設定から取るので、改名後に一度デプロイし直せば新しい URL で出る
+- GitHub のリポジトリ画面の README は `.github/README.md`（福岡県版の説明）。GitHub は直下の `README.md` より `.github/README.md` を優先して表示する。
+  直下の `README.md` は本家のもの（変えない。取り込みの衝突を避ける）
 
 設計: [tasks/20261127_1752_サイト全体から国版を外す設計.md](tasks/20261127_1752_サイト全体から国版を外す設計.md)
 

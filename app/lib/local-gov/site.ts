@@ -18,7 +18,7 @@ export const localSiteConfig = {
    * リポジトリを yosan-view-fukuoka-pref に改名したら https://github.com/bakumon1107/yosan-view-fukuoka-pref に直す
    * （GitHub は旧 URL を転送するが、リンクは直す）
    */
-  repositoryUrl: 'https://github.com/bakumon1107/rs-vis-fukuoka',
+  repositoryUrl: 'https://github.com/bakumon1107/yosan-view-fukuoka-pref',
   /** 本家（もとにしたソフトウェア） */
   upstream: { name: '政府予算ビュー', repositoryUrl: 'https://github.com/team-mirai-volunteer/rs-vis' },
   /** フッターに常に出す免責 */
