@@ -9,7 +9,7 @@
  *   （目を選んだときの 財源 → 款）は、その割合の太さで重ねる
  */
 import type { LocalBudgetFile, LocalGraph } from '@/types/local-gov';
-import { buildLocalGraph, edgeKey, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
+import { buildLocalGraph, edgeKey, type EnterpriseSection, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
 
 /** 最初に出す列の数（深い列は選んだときだけ開く） */
 export const BASE_DEPTH = 3;
@@ -119,6 +119,7 @@ export function selectionToFilter(
   id: string,
   basis: LocalBudgetFile['basis'] = 'initial'
 ): { filter: LocalGraphFilter; depth: number } | null {
+  if (view === 'enterprise') return enterpriseSelection(id);
   if (basis === 'settlement') return settlementSelection(view, id);
   // 一般会計の財源: その財源の額で目まで追う（財源内訳は目ごとに印字。事項ごとの内訳はないので目まで）
   // （none は財源内訳のない目の「財源の記載なし」）
@@ -171,11 +172,36 @@ function settlementSelection(view: LocalGraphView, id: string): { filter: LocalG
   return null;
 }
 
+const ART_SECTION: Record<string, EnterpriseSection> = { '3': '収益的', '4': '資本的' };
+
+/**
+ * 公営企業会計の見方の選択（公開前のサンキー図の足しの設計 4.4）。列は 収入の項・補填財源 → 会計・条 → 支出の項 → 目。
+ * 会計・条・支出の項を選ぶと目まで開く。収入の項・補填財源・差の箱は絞り込まない（null。その箱の帯だけを重ねる）
+ */
+function enterpriseSelection(id: string): { filter: LocalGraphFilter; depth: number } | null {
+  const toMoku = BASE_DEPTH + 1;
+  let m = /^esection:(enterprise:[^:]+):([34])$/.exec(id);
+  if (m) return { filter: { account: m[1], section: ART_SECTION[m[2]] }, depth: toMoku };
+  m = /^ekou:(enterprise:[^:]+):([34]):(\d+)-(\d+)$/.exec(id);
+  if (m) {
+    return { filter: { account: m[1], section: ART_SECTION[m[2]], side: 'expense', kan: Number(m[3]), kou: Number(m[4]) }, depth: toMoku };
+  }
+  m = /^moku:(enterprise:[^/]+)\/expense\/([34])-(\d+)-(\d+)-(\d+)$/.exec(id);
+  if (m) {
+    return {
+      filter: { account: m[1], section: ART_SECTION[m[2]], side: 'expense', kan: Number(m[3]), kou: Number(m[4]), moku: Number(m[5]) },
+      depth: toMoku,
+    };
+  }
+  return null;
+}
+
 /** 資料にない対応に色を付けないときに、図の上に出す理由（設計書 3.3 の表） */
 export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため、財源の帯は色を付けていません';
 export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
-export const NOTE_SETSU_DEPARTMENT = '部局ごとの節は資料にないため、部局の帯は色を付けていません';
+export const NOTE_ENTERPRISE_REVENUE_UNKNOWN = '収入・補填財源のどれが使われたかは資料にないため、収入の列は色を付けていません';
+export const NOTE_SETSU_DEPARTMENT ='部局ごとの節は資料にないため、部局の帯は色を付けていません';
 
 /**
  * 深い列で同じ列に同じ名前の箱が並ぶとき（款を選んだときの目「教職員費」2つ、項を選んだときの事項「職員費」など）は、
@@ -275,7 +301,7 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
         highlightNodes.add(e.target);
       }
     }
-    const note = n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : null;
+    const note = n.col === 'revenue' || n.col === 'erevenue' ? NOTE_EXPENSE_UNKNOWN : null;
     const lit = wholeNodesOnly(base, highlight, highlightNodes, n.id);
     return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes: lit, row: null, note };
   }
@@ -316,6 +342,9 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   } else if (view === 'all' && sel.filter.side === 'expense' && baseCols.has('revenue')) {
     // 予算の全会計の見方（左端が歳入の款）だけ。決算の全会計は歳入を描かないので、断り書きはいらない
     note = NOTE_REVENUE_UNKNOWN;
+  } else if (view === 'enterprise' && sel.filter.side === 'expense') {
+    // 公営企業会計で支出の項・目を選んだとき: どの収入が使われたかは資料にない
+    note = NOTE_ENTERPRISE_REVENUE_UNKNOWN;
   }
 
   const graph: LocalGraph = {
