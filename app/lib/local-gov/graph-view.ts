@@ -200,7 +200,8 @@ function enterpriseSelection(id: string): { filter: LocalGraphFilter; depth: num
 export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため、財源の帯は色を付けていません';
 export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
-export const NOTE_ENTERPRISE_REVENUE_UNKNOWN = '収入・補填財源のどれが使われたかは資料にないため、収入の列は色を付けていません';
+export const NOTE_ENTERPRISE_EXPENSE_UNKNOWN = 'どの支出に使われたかは資料にないため、会計・条から先は色を付けていません';
+export const NOTE_ENTERPRISE_REVENUE_UNKNOWN ='収入・補填財源のどれが使われたかは資料にないため、収入の列は色を付けていません';
 export const NOTE_SETSU_DEPARTMENT ='部局ごとの節は資料にないため、部局の帯は色を付けていません';
 
 /**
@@ -230,8 +231,9 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   const selCol = display.selected ? present.indexOf(display.selected.col) : -1;
   // 左端の列の箱（一般会計の財源など）を選んだときは、開いた列の右端までを見せる（財源で絞った目の列は、右の箱を押すと
   // 財源の絞り込みが外れてたどれないため）。それ以外は選んだ箱の列を真ん中に
+  // 公営企業会計の会計・条（2列目）を選んだときも、開いた目の列まで見せる（真ん中にすると目の列が外れ、目が見えない）
   const start =
-    selCol === 0
+    selCol === 0 || display.selected?.col === 'esection'
       ? present.length - size
       : Math.max(0, Math.min(selCol >= 0 ? selCol - 1 : 0, present.length - size));
   const keep = new Set(present.slice(start, start + size));
@@ -291,17 +293,21 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
   const sel = selectionToFilter(view, selectedId, file.basis);
   const nodeOf = (g: LocalGraph) => g.nodes.find(n => n.id === selectedId);
   if (!sel) {
-    // 絞り込まない左端の箱（全会計の歳入の款）: その箱から出る帯だけを重ねる
+    // 絞り込まない箱（全会計の歳入の款・公営企業会計の収入・補填財源・差の箱）: その箱の帯だけを重ねる。
+    // 出る帯のない右端の箱（公営企業会計の収益的収支の差）は、入る帯を重ねる
     const n = nodeOf(base);
     if (!n) return { graph: base, selected: null, highlight, highlightNodes, row: null, note: null };
     highlightNodes.add(n.id);
+    const hasOut = base.edges.some(e => e.source === n.id);
     for (const e of base.edges) {
-      if (e.source === n.id) {
-        highlight.set(edgeKey(e.source, e.target), e.value);
-        highlightNodes.add(e.target);
-      }
+      const other = hasOut ? (e.source === n.id ? e.target : null) : e.target === n.id ? e.source : null;
+      if (other === null) continue;
+      highlight.set(edgeKey(e.source, e.target), e.value);
+      highlightNodes.add(other);
     }
-    const note = n.col === 'revenue' || n.col === 'erevenue' ? NOTE_EXPENSE_UNKNOWN : null;
+    // 収益的収支の不足（eshort:）はこのサイトが計算した差で、同じ会計・条の支出に入るのは分かっているので、断り書きはいらない
+    const note =
+      n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : /^(erevenue|efill):/.test(n.id) ? NOTE_ENTERPRISE_EXPENSE_UNKNOWN : null;
     const lit = wholeNodesOnly(base, highlight, highlightNodes, n.id);
     return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes: lit, row: null, note };
   }

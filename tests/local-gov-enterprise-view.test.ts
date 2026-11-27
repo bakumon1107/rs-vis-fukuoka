@@ -7,7 +7,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { composeDisplay, NOTE_ENTERPRISE_REVENUE_UNKNOWN, NOTE_EXPENSE_UNKNOWN, selectionToFilter } from '../app/lib/local-gov/graph-view';
+import {
+  composeDisplay, edgeKey, NOTE_ENTERPRISE_EXPENSE_UNKNOWN, NOTE_ENTERPRISE_REVENUE_UNKNOWN, selectionToFilter, windowColumns,
+} from '../app/lib/local-gov/graph-view';
 import { enterpriseExpense } from '../app/lib/local-gov/totals';
 import type { LocalBudgetFile, LocalGraph, MokuRow } from '../types/local-gov';
 
@@ -120,8 +122,32 @@ test('公営企業会計: 選択（会計・条、支出の項・目は目まで
   const s = composeDisplay(FILE, 'enterprise', 'esection:enterprise:byoin:4');
   assert.ok(s.highlightNodes.has('efill:留保資金'));
   assert.ok(s.graph.nodes.some(n => n.id === 'moku:enterprise:byoin/expense/4-1-1-1'));
-  // 収入の箱は、その箱から出る帯だけ
-  assert.equal(composeDisplay(FILE, 'enterprise', 'erevenue:企業債').note, NOTE_EXPENSE_UNKNOWN);
+  // 収入・補填財源の箱は、その箱から出る帯だけ（どの支出かは資料にない）
+  assert.equal(composeDisplay(FILE, 'enterprise', 'erevenue:企業債').note, NOTE_ENTERPRISE_EXPENSE_UNKNOWN);
+  assert.equal(composeDisplay(FILE, 'enterprise', 'efill:留保資金').note, NOTE_ENTERPRISE_EXPENSE_UNKNOWN);
+  // 収益的収支の不足はこのサイトの計算した差なので断り書きなし。差（利益）の箱は出る帯がないので、入る帯を重ねる
+  assert.equal(composeDisplay(FILE, 'enterprise', 'eshort:enterprise:yochi:3').note, null);
+  const sur = composeDisplay(FILE, 'enterprise', 'esurplus:enterprise:byoin:3');
+  assert.equal(sur.highlight.get(edgeKey('esection:enterprise:byoin:3', 'esurplus:enterprise:byoin:3')), 10);
+  // スマートフォンの幅で会計・条を選んだら、開いた目の列まで見せる
+  assert.deepEqual(windowColumns(s).graph.columns.map(c => c.key), ['esection', 'ekou', 'moku']);
+});
+
+test('公営企業会計: 支出の項の名前が複数の会計・条にあれば会計・条を添える。補填財源の内訳が不足額と合わなければ補填財源を描かない', () => {
+  const dup: LocalBudgetFile = { ...FILE, rows: [...FILE.rows, ent('enterprise:yochi', 'expense', '収益的', '1-2-1', 1, '医業費用'),
+    ent('enterprise:yochi', 'revenue', '収益的', '1-1-2', 1, '営業収益')] };
+  const g = buildLocalGraph(dup, { view: 'enterprise' });
+  const label = (id: string) => g.nodes.find(n => n.id === id)?.name;
+  assert.equal(label('ekou:enterprise:byoin:3:1-1'), '医業費用（病院・収益的）');
+  assert.equal(label('ekou:enterprise:yochi:3:1-2'), '医業費用（工業用地造成・収益的）');
+  assert.equal(label('ekou:enterprise:yochi:3:1-1'), '営業費用'); // 1つだけの名前はそのまま
+  // 内訳の合計 25 ≠ 不足 20: 補填財源の箱を作らず、「補填財源の記載なし」の不足 20 にする（ありもしない「収入の残り」を作らない）
+  const bad: LocalBudgetFile = { ...FILE, accounts: FILE.accounts.map(a => a.id === 'enterprise:byoin'
+    ? { ...a, enterprise: { capital_shortfall: { amount: 20, items: [{ name: '留保資金', amount: 25 }], source: { source: 'g', page: 1 } } } } : a) };
+  const gb = buildLocalGraph(bad, { view: 'enterprise' });
+  assert.ok(!gb.nodes.some(n => n.id.startsWith('efill:')));
+  assert.equal(gb.nodes.find(n => n.id === 'eshort:enterprise:byoin:4')?.value, 20);
+  assert.ok(!gb.nodes.some(n => n.id === 'esurplus:enterprise:byoin:4'));
 });
 
 test('公営企業会計の支出の合計（見出し）。公営企業会計がなければ null', () => {
@@ -143,6 +169,9 @@ test('実データ R8: 公営企業会計の見方は入り = 出、列の合計
   assert.equal(g.totals.gross, 25_738_408_000 + 21_959_600_000);
   // 資本的収支は5会計とも補填財源でちょうど合う（差・不足の箱は第3条だけ）
   assert.ok(!g.nodes.some(n => /^(eshort|esurplus):.*:4$/.test(n.id)));
+  // 支出の項の箱の名前はどれも見分けられる（予備費 6・建設改良費 4 などに会計・条を添える）
+  const kouNames = g.nodes.filter(n => n.col === 'ekou').map(n => n.name);
+  assert.equal(new Set(kouNames).size, kouNames.length);
   // R8 は工業用地造成の収益的収支が不足（設計 4.4）
   assert.ok(g.nodes.some(n => n.id === 'eshort:enterprise:kogyo-yochi:3'));
   // すべての会計・条・支出の項・目は選べる（図にある箱を指す）
