@@ -17,6 +17,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # configure-pages が Pages の設定（base_path・base_url）を読むのに pages の権限が要る（GitHub の Pages の雛形と同じ）
+    permissions:
+      contents: read
+      pages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

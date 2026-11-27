@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalList, LegalParagraph, LegalSectionTitle, LocalLegalPage } from '@/client/components/local-gov/LocalLegalPage';
-import { localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
+import { LOCAL_PAGE_PATHS, localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
 
 /**
  * 地方版（静的サイト）の利用規約 `/terms/`。地方版のビルドだけでルートになる（国版は同じフォルダの page.tsx）。
@@ -8,7 +8,7 @@ import { localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
  * 第2条に AGPL-3.0 と県の公開資料についてのただし書き、第3条に原資料の確認のお願いを足した。
  */
 export const metadata: Metadata = {
-  ...localPageMetadata('利用規約'),
+  ...localPageMetadata('利用規約', LOCAL_PAGE_PATHS.terms()),
   description: `${localSiteConfig.siteName}の利用規約`,
 };
 

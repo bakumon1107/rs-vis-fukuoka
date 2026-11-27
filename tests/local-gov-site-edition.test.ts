@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basePath, DEFAULT_LOCAL_GOV_ID, isLocalEdition, localGovId, siteEdition, withBasePath } from '../app/lib/local-gov/site-edition';
-import { localGaMeasurementId } from '../app/lib/local-gov/site';
+import { LOCAL_PAGE_PATHS, localGaMeasurementId, localPageMetadata } from '../app/lib/local-gov/site';
+import { SITE_URL } from '../app/lib/site-url';
+
+test('画面のメタデータ: 地方版は canonical・og:url をこの画面の絶対 URL、国版のビルドでは noindex で canonical なし', () => {
+  const local = localPageMetadata('基金', LOCAL_PAGE_PATHS.funds(), true);
+  const url = `${SITE_URL.replace(/\/$/, '')}/local/fukuoka-pref/funds/`;
+  assert.equal(local.alternates?.canonical, url);
+  assert.equal((local.openGraph as { url?: string }).url, url);
+  assert.equal(local.robots, undefined);
+  const national = localPageMetadata('基金', LOCAL_PAGE_PATHS.funds(), false);
+  // canonical は null（ルートレイアウトの国版トップの canonical を継承させない）
+  assert.equal(national.alternates?.canonical, null);
+  assert.deepEqual(national.robots, { index: false, follow: false });
+  assert.equal((national.openGraph as { url?: string }).url, undefined);
+});
 import { withLocalStaticExport } from '../next.config.local';
 
 test('版の判定: local のときだけ地方版。未設定・その他は国版', () => {

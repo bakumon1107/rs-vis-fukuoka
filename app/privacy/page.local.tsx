@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { LegalList, LegalParagraph, LegalSectionTitle, LocalLegalPage } from '@/client/components/local-gov/LocalLegalPage';
-import { localGaMeasurementId, localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
+import { LOCAL_PAGE_PATHS, localGaMeasurementId, localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
 
 /**
  * 地方版（静的サイト）のプライバシーポリシー `/privacy/`。地方版のビルドだけでルートになる（国版は同じフォルダの page.tsx）。
@@ -8,7 +8,7 @@ import { localGaMeasurementId, localPageMetadata, localSiteConfig } from '@/app/
  * 「5. Cookie」の Google アナリティクスの段落は、地方版で GA を読み込むとき（測定 ID を明示したとき）だけ出す。
  */
 export const metadata: Metadata = {
-  ...localPageMetadata('プライバシーポリシー'),
+  ...localPageMetadata('プライバシーポリシー', LOCAL_PAGE_PATHS.privacy()),
   description: `${localSiteConfig.siteName}のプライバシーポリシー`,
 };
 
@@ -73,7 +73,16 @@ export default function PrivacyPage() {
               当ウェブサイトでは、Googleによるアクセス解析ツール「Googleアナリティクス」を使用しており、Googleアナリティクスはデータ収集のためにCookieを使用しています。データは匿名で収集されており、個人を特定するものではありません。この機能はお使いのブラウザの設定でCookieを無効にすることで拒否することができます。
             </LegalParagraph>
             <LegalParagraph>
-              Googleアナリティクスでデータが収集および処理される仕組みの詳細は「Googleのサービスを使用するサイトやアプリから収集した情報のGoogleによる使用」のページをご覧ください。
+              Googleアナリティクスでデータが収集および処理される仕組みの詳細は「
+              <a
+                href="https://policies.google.com/technologies/partner-sites?hl=ja"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-accent underline"
+              >
+                Googleのサービスを使用するサイトやアプリから収集した情報のGoogleによる使用
+              </a>
+              」のページをご覧ください。
             </LegalParagraph>
           </>
         )}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPublishedPath, requiredFiles } from '../scripts/local-gov/pages-allowlist.mjs';
+import { isPublishedPath, requiredFiles, resolveGovId } from '../scripts/local-gov/pages-allowlist.mjs';
 
 test('公開物に載せる: 地方版の画面・データ・Next.js の資産・トップと 404', () => {
   for (const rel of [
@@ -43,6 +43,16 @@ test('公開物に載せない: 国のデータ・国版の画像・本家のア
   ]) {
     assert.equal(isPublishedPath(rel), false, rel);
   }
+});
+
+test('自治体のデータは公開する自治体の分だけ。自治体 ID はビルドと同じ決め方', () => {
+  assert.equal(isPublishedPath('data/local-gov/fukuoka-pref/index.json', 'fukuoka-pref'), true);
+  assert.equal(isPublishedPath('data/local-gov/fukuoka-city/index.json', 'fukuoka-pref'), false);
+  assert.equal(isPublishedPath('data/local-gov/fukuoka-city/index.json', 'fukuoka-city'), true);
+  assert.equal(resolveGovId(undefined), 'fukuoka-pref');
+  assert.equal(resolveGovId('  '), 'fukuoka-pref');
+  assert.equal(resolveGovId(' fukuoka-city '), 'fukuoka-city');
+  assert.equal(resolveGovId('Fukuoka-Pref'), null);
 });
 
 test('必要なファイルの一覧は自治体ごと', () => {

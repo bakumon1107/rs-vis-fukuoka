@@ -10,10 +10,15 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { isPublishedPath, requiredFiles } from './pages-allowlist.mjs';
+import { isPublishedPath, requiredFiles, resolveGovId } from './pages-allowlist.mjs';
 
 const [src = '.next-local', dest = 'out'] = process.argv.slice(2);
-const gov = (process.env.NEXT_PUBLIC_LOCAL_GOV_ID || 'fukuoka-pref').trim();
+// ビルドと同じ決め方（形の違う ID はビルドが既定の自治体に落とすので、ここでは食い違いを避けて止める）
+const gov = resolveGovId(process.env.NEXT_PUBLIC_LOCAL_GOV_ID);
+if (gov === null) {
+  console.error(`NEXT_PUBLIC_LOCAL_GOV_ID の形が正しくありません（英小文字・数字・ハイフン）: ${process.env.NEXT_PUBLIC_LOCAL_GOV_ID}`);
+  process.exit(1);
+}
 
 if (!fs.existsSync(path.join(src, 'index.html'))) {
   console.error(`書き出しが見つかりません: ${src}/index.html（地方版のビルドを先に実行してください）`);
@@ -23,6 +28,14 @@ if (!fs.existsSync(path.join(src, 'index.html'))) {
 const destName = path.basename(path.resolve(dest));
 if (destName !== 'out' && !destName.startsWith('.next-')) {
   console.error(`公開物のフォルダは out か .next- で始まる名前にしてください（作り直すときに消すため）: ${dest}`);
+  process.exit(1);
+}
+// 書き出しと同じフォルダ・どちらかがもう一方の中にあると、作り直しで書き出しを消してしまう
+const srcAbs = path.resolve(src);
+const destAbs = path.resolve(dest);
+const inside = (a, b) => a === b || a.startsWith(b + path.sep);
+if (inside(destAbs, srcAbs) || inside(srcAbs, destAbs)) {
+  console.error(`公開物のフォルダは書き出しのフォルダと別にしてください: 書き出し ${src} / 公開物 ${dest}`);
   process.exit(1);
 }
 fs.rmSync(dest, { recursive: true, force: true });
@@ -43,7 +56,7 @@ let bytes = 0;
 let copied = 0;
 const skippedTop = new Map();
 for (const rel of all) {
-  if (!isPublishedPath(rel)) {
+  if (!isPublishedPath(rel, gov)) {
     const top = rel.split('/')[0];
     skippedTop.set(top, (skippedTop.get(top) ?? 0) + 1);
     continue;

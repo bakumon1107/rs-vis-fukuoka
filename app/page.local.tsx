@@ -19,7 +19,9 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-[60vh] bg-background text-mirai-text">
-      <meta httpEquiv="refresh" content={`0; url=${withBasePath(target)}`} />
+      {/* JavaScript があれば ClientRedirect がすぐ移す。meta refresh は JavaScript なしのため 1 秒おく
+          （0 秒だとクライアントの移動と競合して、二重に読み込む・移動の途中で読み直すことがある） */}
+      <meta httpEquiv="refresh" content={`1; url=${withBasePath(target)}`} />
       <ClientRedirect href={target} />
       <LocalHeaderSpacer />
       <main className="px-4 py-8 text-center">

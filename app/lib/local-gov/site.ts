@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { SITE_URL } from '@/app/lib/site-url';
-import { localGovId, withBasePath } from './site-edition';
+import { isLocalEdition, localGovId, withBasePath } from './site-edition';
 
 /**
  * 地方版のブランド設定（福岡市版「みらい議会＠福岡市」の site.config.ts と同じ形）。
@@ -83,18 +83,36 @@ export function localSiteMetadata(): Metadata {
   };
 }
 
+/** 地方版の各画面のパス（basePath を除く。trailingSlash に合わせて末尾は「/」） */
+export const LOCAL_PAGE_PATHS = {
+  sankey: () => `/local/${localGovId()}/`,
+  funds: () => `/local/${localGovId()}/funds/`,
+  about: () => `/local/${localGovId()}/about/`,
+  terms: () => '/terms/',
+  privacy: () => '/privacy/',
+} as const;
+
 /**
  * 地方版の各画面のメタデータ。title は「<画面名>｜予算ビュー＠福岡県」を absolute で付ける
  * （国版の版で開いたときも国版の名前が付かないように、テンプレートに頼らない）。
  * description・OGP も地方版で上書きする（国版のものを継承させない）。
+ * - 福岡県版（静的サイト）: og:url と canonical をこの画面の絶対 URL にする。SITE_URL は basePath を含む
+ *   （Pages の base_url）ので、metadataBase からの相対ではなく文字列でつなぐ（相対だと basePath が落ちる）。
+ *   リポジトリの改名で旧 URL から転送されても、canonical で新しい URL を示せる
+ * - 国版のビルド（/local/* は試作のまま）: noindex にし、ルートレイアウトの canonical（国版のトップ）を継承させない
  */
-export function localPageMetadata(pageName: string): Metadata {
+export function localPageMetadata(pageName: string, path: string, local: boolean = isLocalEdition()): Metadata {
   const { siteName, siteDescription } = localSiteConfig;
   const title = `${pageName}｜${siteName}`;
+  const url = `${SITE_URL.replace(/\/$/, '')}${path}`;
   return {
     title: { absolute: title },
     description: siteDescription,
-    openGraph: { title, description: siteDescription, siteName, locale: 'ja_JP', type: 'website', images: [] },
+    alternates: { canonical: local ? url : null },
+    ...(local ? {} : { robots: { index: false, follow: false } }),
+    openGraph: {
+      title, description: siteDescription, siteName, locale: 'ja_JP', type: 'website', images: [], ...(local ? { url } : {}),
+    },
     twitter: { card: 'summary', title, description: siteDescription, images: [] },
   };
 }
