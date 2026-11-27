@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   basePath, DEFAULT_LOCAL_GOV_ID, GOV_ID_PATTERN, isLocalEdition, localGovId, siteEdition, withBasePath,
@@ -7,6 +7,23 @@ import { LOCAL_PAGE_PATHS, localGaMeasurementId, localPageMetadata } from '../ap
 import { SITE_URL } from '../app/lib/site-url';
 import { withLocalStaticExport } from '../next.config.local';
 import * as allowlist from '../scripts/local-gov/pages-allowlist.mjs';
+
+// 「未設定」を確かめるテストは、関数の既定の引数が読む環境変数に左右される（福岡県版の環境変数を付けて npm test すると落ちる）。
+// このファイルのテストの間だけ外し、終わったら元に戻す
+const ENV_KEYS = ['NEXT_PUBLIC_SITE_EDITION', 'NEXT_PUBLIC_LOCAL_GOV_ID', 'NEXT_PUBLIC_BASE_PATH', 'NEXT_PUBLIC_GA_MEASUREMENT_ID'];
+const savedEnv = new Map<string, string | undefined>();
+before(() => {
+  for (const k of ENV_KEYS) {
+    savedEnv.set(k, process.env[k]);
+    delete process.env[k];
+  }
+});
+after(() => {
+  for (const [k, v] of savedEnv) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+});
 
 test('公開物の組み立て（pages-allowlist.mjs）の自治体 ID の決め方は、ビルド（site-edition.ts）と同じ', () => {
   // .mjs は TypeScript を読めないので写しを持っている。食い違うと、書き出しと組み立てが別の自治体を見る

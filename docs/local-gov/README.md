@@ -42,7 +42,8 @@ docs/local-gov/
 
 「予算ビュー＠福岡県」は **GitHub Pages の静的サイト**（`https://bakumon1107.github.io/yosan-view-fukuoka-pref/`。リポジトリの改名後）。
 環境変数 `NEXT_PUBLIC_SITE_EDITION=local` を付けてビルドしたときだけ、地方版のページだけを静的に書き出す。
-未設定なら本家と同じ国版のまま（CI・本家の e2e はこちらで回る）。
+未設定なら本家と同じ国版のまま。CI は `.github/workflows/pages-local.yml`（型チェック・lint・テスト・福岡県版の書き出し）だけで、
+本家の `checks.yml`（国版のビルド・e2e）はこのフォークでは Actions の設定で無効にしている（国版のビルドは CI で確かめない）。
 
 - 仕組み: `next.config.local.ts` が地方版のときだけ `output: 'export'`・`pageExtensions: ['local.tsx', 'local.ts']`・`basePath` にする。ルートになるのは `*.local.tsx`（`app/layout.local.tsx`・`app/page.local.tsx`・`app/local/[gov]/*.local.tsx`・`app/terms/page.local.tsx` 等）だけで、国版のページ・API は入らない
 - 書き出しと公開物（ローカル）:

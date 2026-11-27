@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ExternalLink, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -76,9 +76,16 @@ function LocalNavMenu({ items, isCurrent }: {
   isCurrent: (href: string, index: number) => boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    // Escape で閉じたら開閉ボタンへフォーカスを戻す（メニューの中のリンクにフォーカスがあると、閉じたときに
+    // そのリンクが消えてキーボードの操作位置を失う。WAI-ARIA のナビゲーションの例と同じ）
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
@@ -86,6 +93,7 @@ function LocalNavMenu({ items, isCurrent }: {
   return (
     <div className="relative">
       <Button
+        ref={buttonRef}
         variant="outline"
         size="icon"
         onClick={() => setOpen(v => !v)}
