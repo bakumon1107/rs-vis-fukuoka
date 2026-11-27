@@ -15,6 +15,20 @@ concurrency:
   group: pages-local-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  # 型チェック・lint・テスト。本家の Checks（checks.yml）はこのフォークでは Actions の設定で無効にしている
+  # （国版の画面テストは福岡県版では使わず、本家の取り込みとの衝突を避けるためファイルは変えない。2026-11-27 ユーザー決定）
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
   build:
     runs-on: ubuntu-latest
     # configure-pages が Pages の設定（base_path・base_url）を読むのに pages の読み取り権限が要る。
@@ -54,7 +68,8 @@ jobs:
           path: out
   deploy:
     if: github.event_name != 'pull_request'
-    needs: build
+    # テストが落ちたら公開しない
+    needs: [validate, build]
     runs-on: ubuntu-latest
     permissions:
       pages: write
