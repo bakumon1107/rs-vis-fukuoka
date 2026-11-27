@@ -153,7 +153,8 @@ test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 
   const brokenErrs = errs(broken);
   assert.ok(brokenErrs.some(e => e.includes('補填財源の内訳がない')) && brokenErrs.some(e => e.includes('補填財源の出典')));
   // 出典にはページが要る（ない・0）
-  for (const source of [{ source: 'r8-gian' }, { source: 'r8-gian', page: 0 }]) {
+  for (const source of [{ source: 'r8-gian' }, { source: 'r8-gian', page: 0 }, { source: 'r8-gian', page: 1.5 },
+    { source: 'r8-gian', page: -1 }, { page: 86 }]) {
     const noPage = { ...acc(20), enterprise: { capital_shortfall: { ...acc(20).enterprise.capital_shortfall, source } } } as ReturnType<typeof acc>;
     assert.ok(errs(noPage).some(e => e.includes('出典（資料とページ）がない')), JSON.stringify(source));
   }
