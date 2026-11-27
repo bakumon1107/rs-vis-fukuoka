@@ -73,6 +73,9 @@ def test_unconfirmed_name_and_unused_fix_fail():
     # 金額が別の行に出た名前・金額の後に文字が続く行も使える
     assert "入院収益" in kn.ocr_lines("1 入院収益\n   100")
     assert "外来収益" in kn.ocr_lines("2 外来収益   20 千円")
+    # 1〜2桁の金額だけの行を番号と取り違えない。名前の中の数字は金額でない
+    assert kn.ocr_lines("1 入院収益\n   20\n2 外来収益 30") == {"入院収益", "外来収益"}
+    assert "第款病院事業収益" in kn.ocr_lines("第1款 病院事業収益 1,234")
     # 抽出の失敗は引き継ぐ。fails のない古い kigyo.json は止める
     k = {**_kigyo(), "fails": ["目の合計が項と合わない"]}
     assert any("実施計画の抽出: 目の合計" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
