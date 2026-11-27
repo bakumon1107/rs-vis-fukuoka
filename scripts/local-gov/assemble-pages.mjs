@@ -31,8 +31,19 @@ if (destName !== 'out' && !destName.startsWith('.next-')) {
   process.exit(1);
 }
 // 書き出しと同じフォルダ・どちらかがもう一方の中にあると、作り直しで書き出しを消してしまう
-// シンボリックリンク（out → .next-local など）も実体で比べる。まだない公開物のフォルダは親の実体からたどる
-const real = (p) => (fs.existsSync(p) ? fs.realpathSync(p) : path.join(fs.realpathSync(path.dirname(path.resolve(p))), path.basename(p)));
+// シンボリックリンク（out → .next-local など）も実体で比べる。まだないフォルダは、あるところまで親をたどって実体にし、
+// 残りの部分をつなぐ（親のフォルダもまだないときに止まらないように）
+function real(p) {
+  let head = path.resolve(p);
+  const rest = [];
+  while (!fs.existsSync(head)) {
+    rest.unshift(path.basename(head));
+    const up = path.dirname(head);
+    if (up === head) break;
+    head = up;
+  }
+  return path.join(fs.existsSync(head) ? fs.realpathSync(head) : head, ...rest);
+}
 const srcAbs = real(src);
 const destAbs = real(dest);
 const inside = (a, b) => a === b || a.startsWith(b + path.sep);

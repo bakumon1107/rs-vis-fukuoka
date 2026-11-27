@@ -11,22 +11,32 @@ import * as allowlist from '../scripts/local-gov/pages-allowlist.mjs';
 test('公開物の組み立て（pages-allowlist.mjs）の自治体 ID の決め方は、ビルド（site-edition.ts）と同じ', () => {
   // .mjs は TypeScript を読めないので写しを持っている。食い違うと、書き出しと組み立てが別の自治体を見る
   assert.equal(allowlist.GOV_ID_PATTERN.source, GOV_ID_PATTERN.source);
+  assert.equal(allowlist.GOV_ID_PATTERN.flags, GOV_ID_PATTERN.flags);
   assert.equal(allowlist.DEFAULT_LOCAL_GOV_ID, DEFAULT_LOCAL_GOV_ID);
+  // 同じ入力で同じ自治体になる（組み立ては形の違う ID で止める＝null、ビルドは既定に落とす）
+  for (const v of [undefined, '', '  ', ' fukuoka-city ', 'fukuoka-pref', 'Fukuoka-Pref', 'a_b', 'kita-kyushu-2']) {
+    const r = allowlist.resolveGovId(v);
+    if (r === null) assert.equal(localGovId(v), DEFAULT_LOCAL_GOV_ID, String(v));
+    else assert.equal(r, localGovId(v), String(v));
+  }
 });
 
 test('画面のメタデータ: 地方版は canonical・og:url をこの画面の絶対 URL、国版のビルドでは noindex で canonical なし', () => {
-  const local = localPageMetadata('基金', LOCAL_PAGE_PATHS.funds(), true);
-  const url = `${SITE_URL.replace(/\/$/, '')}/local/${localGovId()}/funds/`;
+  // 期待値は自治体 ID を文字で書く（パスを作る関数と同じ関数で期待値を作ると、ID の誤りを見逃す）
+  const path = '/local/fukuoka-pref/funds/';
+  const local = localPageMetadata('基金', path, { local: true });
+  const url = `${SITE_URL.replace(/\/$/, '')}/local/fukuoka-pref/funds/`;
   assert.equal(local.alternates?.canonical, url);
   assert.equal((local.openGraph as { url?: string }).url, url);
   assert.equal(local.robots, undefined);
-  const national = localPageMetadata('基金', LOCAL_PAGE_PATHS.funds(), false);
+  assert.equal(LOCAL_PAGE_PATHS.funds(), `/local/${localGovId()}/funds/`);
+  const national = localPageMetadata('基金', path, { local: false });
   // canonical は null（ルートレイアウトの国版トップの canonical を継承させない）
   assert.equal(national.alternates?.canonical, null);
   assert.deepEqual(national.robots, { index: false, follow: false });
   assert.equal((national.openGraph as { url?: string }).url, undefined);
   // 画面ごとの説明は description・OGP・twitter のすべてに入る
-  const terms = localPageMetadata('利用規約', LOCAL_PAGE_PATHS.terms(), true, '規約の説明');
+  const terms = localPageMetadata('利用規約', LOCAL_PAGE_PATHS.terms(), { local: true, description: '規約の説明' });
   assert.equal(terms.description, '規約の説明');
   assert.equal((terms.openGraph as { description?: string }).description, '規約の説明');
   assert.equal((terms.twitter as { description?: string }).description, '規約の説明');

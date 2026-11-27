@@ -104,23 +104,25 @@ export const LOCAL_PAGE_PATHS = {
 export function localPageMetadata(
   pageName: string,
   path: string,
-  local: boolean = isLocalEdition(),
-  /** 画面ごとの説明（規約など）。省略時はサイトの説明。description・OGP・twitter のすべてに使う */
-  description: string = localSiteConfig.siteDescription,
+  options: {
+    /** 画面ごとの説明（規約など）。省略時はサイトの説明。description・OGP・twitter のすべてに使う */
+    description?: string;
+    /** 福岡県版（静的サイト）か。省略時は環境変数から（テストで切り替える） */
+    local?: boolean;
+  } = {},
 ): Metadata {
   const { siteName } = localSiteConfig;
-  const siteDescription = description;
+  const description = options.description ?? localSiteConfig.siteDescription;
+  const local = options.local ?? isLocalEdition();
   const title = `${pageName}｜${siteName}`;
   const url = `${SITE_URL.replace(/\/$/, '')}${path}`;
   return {
     title: { absolute: title },
-    description: siteDescription,
+    description,
     alternates: { canonical: local ? url : null },
     ...(local ? {} : { robots: { index: false, follow: false } }),
-    openGraph: {
-      title, description: siteDescription, siteName, locale: 'ja_JP', type: 'website', images: [], ...(local ? { url } : {}),
-    },
-    twitter: { card: 'summary', title, description: siteDescription, images: [] },
+    openGraph: { title, description, siteName, locale: 'ja_JP', type: 'website', images: [], ...(local ? { url } : {}) },
+    twitter: { card: 'summary', title, description, images: [] },
   };
 }
 
