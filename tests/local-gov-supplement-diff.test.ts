@@ -1,0 +1,91 @@
+/**
+ * 補正後予算の当初からの増減（app/lib/local-gov/supplement-diff.ts）のテスト。R8 の実データ（当初 + 4 回の補正）で確かめる。
+ * 設計: docs/local-gov/tasks/20261127_2337_補正後予算の当初からの増減の表示の設計.md 5章
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildLocalGraph } from '../app/lib/local-gov/graph';
+import { composeLatest } from '../app/lib/local-gov/supplement';
+import {
+  boxDeltas, diffTotal, grossDelta, initialBoxValues, shortDelta, sortDiff, supplementDiffTree, withoutZero,
+} from '../app/lib/local-gov/supplement-diff';
+import type { LocalBudgetFile } from '../types/local-gov';
+
+test('短い増減: 1万円未満は出さない。億は小数1桁、兆は2桁、万は整数。減は △', () => {
+  assert.equal(shortDelta(0), '');
+  assert.equal(shortDelta(9_999), '');
+  assert.equal(shortDelta(8_500_000), '+850万');
+  assert.equal(shortDelta(-450_000_000), '△4.5億');
+  assert.equal(shortDelta(1_230_000_000), '+12.3億');
+  assert.equal(shortDelta(2_000_000_000), '+20億');
+  assert.equal(shortDelta(1_234_000_000_000), '+1.23兆');
+});
+
+const DIR = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref');
+const has = fs.existsSync(path.join(DIR, 'budget-2026-supplementary-4.json'));
+const read = (name: string) => JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf-8')) as LocalBudgetFile;
+
+test('実データ R8: 増減の表の合計 = 補正のファイルの額の合計（会計・歳入歳出ごと）。回ごとの額の合計 = 増減', { skip: !has }, () => {
+  const initial = read('budget-2026-initial.json');
+  const sups = [1, 2, 3, 4].map(n => read(`budget-2026-supplementary-${n}.json`));
+  const composed = composeLatest(initial, sups);
+  const enterprise = new Set(initial.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  for (const side of ['expense', 'revenue'] as const) {
+    const tree = supplementDiffTree(composed, { side, byAccount: true });
+    for (const acc of tree) {
+      const id = acc.key.replace(/^account:/, '');
+      const supSum = sups.flatMap(s => s.rows).filter(r => r.account === id && r.side === side).reduce((t, r) => t + (r.amount.v ?? 0), 0);
+      assert.equal(acc.after - acc.before, supSum, `${id} ${side}`);
+      // 回ごとの額の合計 = 増減。子の合計 = 親
+      assert.equal(acc.rounds.reduce((t, v) => t + v, 0), acc.after - acc.before, `${id} ${side} 回ごと`);
+      assert.equal(diffTotal(acc.children).after, acc.after);
+      assert.ok(!enterprise.has(id), '公営企業会計は入れない');
+    }
+    // 一般会計だけ（一般会計の見方）は会計の段がなく款から
+    const general = supplementDiffTree(composed, { side, byAccount: false });
+    assert.ok(general.every(n => n.level === 'kan' && n.key.startsWith('kan:general:')));
+  }
+  // 補正で新しく設けた目に印（R8 8月専決の県議会議員補欠選挙費など）。当初 0
+  const all = supplementDiffTree(composed, { side: 'expense', byAccount: true });
+  const flat = (ns: ReturnType<typeof supplementDiffTree>): ReturnType<typeof supplementDiffTree> => ns.flatMap(n => [n, ...flat(n.children)]);
+  const added = flat(all).filter(n => n.addedIn);
+  assert.ok(added.length > 0);
+  assert.ok(added.every(n => n.before === 0 && n.level === 'moku'));
+  // 増減のない行を外す・増減の大きい順
+  const nz = withoutZero(all);
+  assert.ok(flat(nz).every(n => n.after !== n.before));
+  const sorted = sortDiff(nz, 'delta')[0].children;
+  for (let i = 1; i < sorted.length; i++) {
+    assert.ok(Math.abs(sorted[i - 1].after - sorted[i - 1].before) >= Math.abs(sorted[i].after - sorted[i].before));
+  }
+});
+
+test('実データ R8: 図の箱の増減 = 補正後の箱の額 − 当初の同じ箱の額。財源の箱には出さない。見出しの総計の増減', { skip: !has }, () => {
+  const initial = read('budget-2026-initial.json');
+  const composed = composeLatest(initial, [1, 2, 3, 4].map(n => read(`budget-2026-supplementary-${n}.json`)));
+  for (const view of ['general', 'all'] as const) {
+    const before = initialBoxValues(initial, view);
+    const after = buildLocalGraph(composed, { view });
+    const deltas = boxDeltas(after, before);
+    const initialGraph = buildLocalGraph(initial, { view });
+    for (const n of after.nodes) {
+      const d = deltas.get(n.id);
+      if (n.col === 'funding' || n.col === 'item') {
+        assert.equal(d, undefined, `${n.id} には増減を出さない`);
+        continue;
+      }
+      const b = initialGraph.nodes.find(x => x.id === n.id);
+      assert.equal(d?.delta, n.value - (b?.value ?? 0), n.id);
+      assert.equal(d?.added, b === undefined, n.id);
+    }
+    // 見出しの総計の増減 = 補正後の総計 − 当初の総計
+    assert.equal(grossDelta(initial, view, after.totals.gross), after.totals.gross - initialGraph.totals.gross);
+  }
+  // 一般会計の歳出の増減 = 一般会計の歳出の増減の表の合計
+  const tree = supplementDiffTree(composed, { side: 'expense', byAccount: false });
+  const t = diffTotal(tree);
+  const g = buildLocalGraph(composed, { view: 'general' }).totals.gross;
+  assert.equal(grossDelta(initial, 'general', g), t.after - t.before);
+});

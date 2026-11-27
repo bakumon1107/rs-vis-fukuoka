@@ -12,6 +12,7 @@ import { computeMOFSankeyLayout, mofRibbonPath, type MOFLayoutLink } from '@/app
 import { edgeKey, type LocalGraphDisplay } from '@/app/lib/local-gov/graph-view';
 import { orderEdges } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
+import { shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
 import type { LocalGraph } from '@/types/local-gov';
 
 type GraphNode = LocalGraph['nodes'][number];
@@ -75,9 +76,26 @@ export interface LocalSankeyChartProps {
   onSelect: (id: string) => void;
   /** スマートフォンの幅か（page.tsx が useIsNarrow で決め、表示するグラフも3列に絞って渡す） */
   narrow?: boolean;
+  /**
+   * 補正後の見方で、箱ごとの当初からの増減（app/lib/local-gov/supplement-diff.ts の boxDeltas）。
+   * 額の後ろに短く添える（増は「+12.3億」、減は「△4.5億」、補正で新しくできた箱は「新」）
+   */
+  deltas?: Map<string, BoxDelta>;
 }
 
-export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSankeyChartProps) {
+/** 増減の印の幅の見積もり（「 △12.3億」くらい）。左右の余白に足す */
+const DELTA_LABEL_PX = 56;
+
+/** ツールチップに添える当初と増減（補正後の見方だけ） */
+function deltaTooltip(d: BoxDelta | undefined, after: number): string {
+  if (!d) return '';
+  if (d.added) return '\n補正で新しくできた項目（当初予算になし）';
+  if (d.delta === 0) return '\n当初予算から増減なし';
+  const sign = d.delta > 0 ? '+' : '△';
+  return `\n当初 ${formatBudgetFromYen(after - d.delta)}・補正 ${sign}${formatBudgetFromYen(Math.abs(d.delta))}`;
+}
+
+export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: LocalSankeyChartProps) {
   const { graph, highlight, highlightNodes, selected } = display;
   const size = narrow ? NARROW : WIDE;
   const { ref, width } = useWidth<HTMLDivElement>(size.minWidth);
@@ -89,16 +107,17 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
   // （全会計の見方の歳入の款のように名前が長い列で、ラベルが画面の端で切れないように）
   const margin = useMemo(() => {
     const presentCols = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key));
+    const withDelta = (col: string | undefined) => (size.showAmount && deltas && graph.nodes.some(n => n.col === col && deltas.has(n.id)) ? DELTA_LABEL_PX : 0);
     const labelPx = (col: string | undefined) =>
       Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx +
-      size.amountPx;
+      size.amountPx + withDelta(col);
     return {
       top: 16,
       bottom: 24,
       left: Math.min(size.maxSide, labelPx(presentCols[0]?.key)),
       right: Math.min(size.maxSide, labelPx(presentCols.at(-1)?.key)),
     };
-  }, [graph, size]);
+  }, [graph, size, deltas]);
   const layout = useMemo(
     () =>
       computeMOFSankeyLayout<GraphNode>(
@@ -205,7 +224,7 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
                 style={{ cursor: aggregate ? 'default' : 'pointer' }}
               >
                 <title>
-                  {`${n.name}　${formatBudgetFromYen(n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）' : ''}`}
+                  {`${n.name}　${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）' : ''}`}
                 </title>
                 <rect
                   x={node.x}
@@ -239,6 +258,20 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
                       {formatBudgetFromYen(n.value)}
                     </tspan>
                   )}
+                  {/* 補正後の見方: 当初からの増減（増は緑・減は赤・新しくできた箱は「新」）。金額を出す列だけ */}
+                  {size.showAmount && !hideAmountCols.has(n.col) && (() => {
+                    const d = deltas?.get(n.id);
+                    if (!d) return null;
+                    const text = d.added ? '新' : shortDelta(d.delta);
+                    if (!text) return null;
+                    const color = !lit ? '#9ca3af' : d.added ? '#b45309' : d.delta > 0 ? '#047857' : '#b91c1c';
+                    return (
+                      <tspan fill={color} fontWeight={600} fontSize={size.fontSize - 1}>
+                        {' '}
+                        {text}
+                      </tspan>
+                    );
+                  })()}
                 </text>
               </g>
             );
