@@ -104,7 +104,7 @@ function LocalFundsContent() {
                 ? '（当初予算を読み込み中）'
                 : `（当初予算を読み込めませんでした: ${initial.status === 'error' ? initial.message : ''}）`}
             。
-            取り崩しは一般会計の歳入「〇〇基金繰入金」、積み立ては歳出の「〇〇基金積立金」を名前で結んだもの。基金の名前を押すと内訳を開きます。
+            取り崩しは一般会計の歳入「〇〇基金繰入金」、積み立ては歳出の「〇〇基金積立金」を名前で結んだもの。基金の名前を押すと、その基金の現在高の推移のグラフと内訳を開きます。
           </p>
           <FundsTable rows={rows} asOfLabel={funds.as_of.label} budgetLabel={budgetLabel} gov={gov} plan={plan} />
         </section>
