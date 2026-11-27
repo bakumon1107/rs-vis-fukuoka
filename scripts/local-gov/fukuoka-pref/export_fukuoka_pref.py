@@ -47,6 +47,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SUPPORT_ONLY = frozenset({"ndl"})
 sys.path.insert(0, HERE)
 import export_hosei  # noqa: E402
+import export_kigyo  # noqa: E402
 import export_settlement  # noqa: E402
 import general_fund  # noqa: E402
 import name_evidence  # noqa: E402
@@ -724,6 +725,14 @@ def main():
     gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
+    # 公営企業会計（予算実施計画。公開前のサンキー図の足しの設計 4.3）。一般会計・特別会計の検算（上の外部の検算）の後に足す
+    kigyo_accounts, kigyo_rows, kigyo_lines, kigyo_fails = export_kigyo.build(a.work)
+    if kigyo_fails:
+        sys.exit("公営企業会計の書き出しで止まった:\n" + "\n".join(kigyo_fails))
+    accounts += kigyo_accounts
+    rows += kigyo_rows
+    # 公営企業会計の目は、会計・条・収入支出ごとの合計が予算書の本体と一致したもの（export_kigyo の確かめ）なので、検算済みに数える
+    stats["ok"] += len(kigyo_rows)
     # 会計間の繰入れ（純計のため。公開前のサンキー図の足しの設計 2章）: 受け手の歳入の印（transfer）の合計 = 出し手の歳出の節「繰出金」の合計。
     # 合わなければ印の付け漏れ・付けすぎなので止める（画面の純計 = 総計 − 印の付いた繰入れ）
     # 公営企業会計は全会計の見方・純計の範囲の外（画面の netTotal と同じ範囲で数える）
@@ -798,6 +807,8 @@ def main():
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
     print(transfer_line, file=sys.stderr)
+    for line in kigyo_lines:
+        print(line, file=sys.stderr)
     if gfund:
         print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
               file=sys.stderr)

@@ -531,7 +531,8 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
   // 右端の目の箱は正規化データの目の本年度と比べる（列の合計が合っていても、目が別の款・会計の下に入る誤りに気づけるように）
   const rowOf = new Map(file.rows.map(r => [r.id, r]));
   const mokuNodes = g.nodes.filter(n => n.col === 'moku');
-  assert.equal(mokuNodes.length, file.rows.filter(r => r.side === 'expense' && (r.amount.v ?? 0) > 0).length);
+  // 公営企業会計の目は全会計の見方に描かないので数えない
+  assert.equal(mokuNodes.length, file.rows.filter(r => r.side === 'expense' && (r.amount.v ?? 0) > 0 && !enterprise.has(r.account)).length);
   for (const n of mokuNodes) {
     const r = rowOf.get(n.row ?? '');
     assert.equal(n.value, r?.amount.v, n.id);

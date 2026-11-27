@@ -42,7 +42,12 @@ function sumKnown(values: (Value | undefined)[]): number | null {
   return s;
 }
 
-export function expectedRowId(row: Pick<MokuRow, 'account' | 'side' | 'kan' | 'kou' | 'moku'>): string {
+export function expectedRowId(row: Pick<MokuRow, 'account' | 'side' | 'kan' | 'kou' | 'moku' | 'enterprise_section'>): string {
+  // 公営企業会計は款の番号が条（第3条 収益的・第4条 資本的）ごとに振り直されるので、条を ID に入れる
+  if (row.enterprise_section) {
+    const art = row.enterprise_section === '収益的' ? 3 : 4;
+    return `${row.account}/${row.side}/${art}-${row.kan.no}-${row.kou.no}-${row.moku.no}`;
+  }
   return `${row.account}/${row.side}/${row.kan.no}-${row.kou.no}-${row.moku.no}`;
 }
 
@@ -245,6 +250,29 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       }
       const current = funds.items.reduce((s, f) => s + (f.history.find(h => h.year === t.year)?.end ?? 0), 0);
       if (t.fiscal_adjustment + t.debt_reduction + t.other < current) err(`funds.totals ${t.year}: 合計が今ある基金の推移の合計より小さい`);
+    }
+  }
+
+  // 公営企業会計: 行には条（enterprise_section）がある。補填財源の内訳の合計 = 不足額 = 資本的支出 − 資本的収入
+  for (const a of file.accounts) {
+    const isEnterprise = a.kind === 'enterprise';
+    if (!isEnterprise && a.enterprise) err(`会計 ${a.id}: 公営企業会計でないのに enterprise がある`);
+    if (!isEnterprise) continue;
+    const own = file.rows.filter(r => r.account === a.id);
+    if (own.some(r => !r.enterprise_section)) err(`会計 ${a.id}: 条（enterprise_section）のない行がある`);
+    const capital = (side: 'revenue' | 'expense') =>
+      own.filter(r => r.enterprise_section === '資本的' && r.side === side).reduce((s, r) => s + (r.amount.v ?? 0), 0);
+    const gap = capital('expense') - capital('revenue');
+    const cs = a.enterprise?.capital_shortfall;
+    if (gap > 0 && !cs) err(`会計 ${a.id}: 資本的収支の不足 ${gap} の補填財源がない`);
+    if (cs) {
+      const sum = cs.items.reduce((s, x) => s + x.amount, 0);
+      if (sum !== cs.amount || cs.amount !== gap) err(`会計 ${a.id}: 補填財源の内訳の合計 ${sum} / 不足額 ${cs.amount} / 資本的支出 − 収入 ${gap}`);
+    }
+  }
+  for (const r of file.rows) {
+    if (r.enterprise_section && !file.accounts.some(a => a.id === r.account && a.kind === 'enterprise')) {
+      err(`${r.id}: 公営企業会計でない会計の行に条（enterprise_section）がある`);
     }
   }
 

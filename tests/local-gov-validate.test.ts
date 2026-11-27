@@ -113,6 +113,34 @@ test('基金（funds）: 決算のファイルだけ。区分の検算・合計�
     .some(e => e.includes('今ある基金の推移の合計より小さい')));
 });
 
+test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 不足額 = 資本的支出 − 収入', () => {
+  const ent = (id: string, side: 'revenue' | 'expense', section: '収益的' | '資本的', amount: number): MokuRow => {
+    const [kan, kou, moku] = id.split('-').slice(1).map(Number);
+    return { id: `enterprise:byoin/${side}/${id}`, account: 'enterprise:byoin', side, enterprise_section: section,
+      kan: { no: kan, name: '款', name_src: 'readings' }, kou: { no: kou, name: '項', name_src: 'readings' },
+      moku: { no: moku, name: '目', name_src: 'readings' }, amount: v(amount, 'text'),
+      pages: [{ source: 'r8-setsumeisho-toku', page: 137 }] } as MokuRow;
+  };
+  const rows = [ent('3-1-1-1', 'revenue', '収益的', 100), ent('3-1-1-1', 'expense', '収益的', 90),
+    ent('4-1-1-1', 'revenue', '資本的', 30), ent('4-1-1-1', 'expense', '資本的', 50)];
+  const acc = (amount: number, items = [{ name: '過年度分損益勘定留保資金', amount }]) => ({
+    id: 'enterprise:byoin', kind: 'enterprise' as const, name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount, items, source: { source: 'r8-gian', page: 86 } } },
+  });
+  const errs = (a: ReturnType<typeof acc> | { id: string; kind: 'enterprise'; name: string }, rs = rows) => validateBudgetFile(file(rs, {
+    accounts: [{ id: 'general', kind: 'general', name: '一般会計' }, a],
+    checks: { rows: rs.length, all_ok: rs.length, rules: {} },
+  })).errors;
+  assert.deepEqual(errs(acc(20)), []);
+  assert.equal(expectedRowId(rows[2]), 'enterprise:byoin/revenue/4-1-1-1');
+  assert.ok(errs(acc(19)).some(e => e.includes('補填財源の内訳の合計')));
+  assert.ok(errs(acc(20, [{ name: 'a', amount: 10 }])).some(e => e.includes('補填財源の内訳の合計')));
+  assert.ok(errs({ id: 'enterprise:byoin', kind: 'enterprise', name: '病院事業会計' }).some(e => e.includes('補填財源がない')));
+  // 条のない行・一般会計の行に条
+  const noSection = { ...rows[0], enterprise_section: undefined, id: 'enterprise:byoin/revenue/1-1-1' } as MokuRow;
+  assert.ok(errs(acc(20), [...rows, noSection]).some(e => e.includes('条（enterprise_section）のない行')));
+});
+
 test('ID は会計/歳入歳出/款-項-目', () => {
   assert.equal(expectedRowId(row()), 'general/expense/2-1-1');
   const r = validateBudgetFile(file([row({ id: 'general/expense/2-1-9' })]));
