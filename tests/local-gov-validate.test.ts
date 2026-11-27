@@ -147,6 +147,11 @@ test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 
     .some(e => e.includes('名前がない')));
   assert.ok(errs(acc(20, [{ name: 'a', amount: 25 }, { name: 'b', amount: -5 }]))
     .some(e => e.includes('0 以上の整数でない')));
+  // 内訳・出典のない形の崩れた JSON でも落ちずに失敗を返す
+  const broken = { id: 'enterprise:byoin', kind: 'enterprise' as const, name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount: 20 } } } as unknown as ReturnType<typeof acc>;
+  const brokenErrs = errs(broken);
+  assert.ok(brokenErrs.some(e => e.includes('補填財源の内訳がない')) && brokenErrs.some(e => e.includes('補填財源の出典がない')));
 });
 
 test('ID は会計/歳入歳出/款-項-目', () => {

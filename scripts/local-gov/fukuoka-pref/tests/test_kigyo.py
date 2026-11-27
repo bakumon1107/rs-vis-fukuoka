@@ -8,7 +8,7 @@ ek = load("export_kigyo.py", "export_kigyo")
 
 
 def _kigyo():
-    return {"unit": "千円", "会計": [{
+    return {"unit": "千円", "fails": [], "会計": [{
         "会計": "病院事業会計",
         "収益的収入及び支出": {
             "収入": [{"no": 1, "name": "病院事業収益", "pdf_page": 134, "項": [
@@ -62,13 +62,20 @@ def test_unconfirmed_name_and_unused_fix_fail():
     k["会計"][0]["収益的収入及び支出"]["支出"][0]["項"][0]["目"][0]["name"] = "経嚢"  # 新 OCR にも予算書の本体にもない
     _, fails, _ = kn.decide(k, _yosansho(), FIXES + [{"会計": "病院事業会計", "page": 999, "段": "目", "読み": "x", "名前": "y"}], PAGES)
     assert any("経嚢" in f for f in fails) and any("使われていない" in f for f in fails)
-    # 行の一部だけの名前（字の欠けた「経」）は一致にしない
+    # 同じページの別の名前の頭だけ（「医業費用」の「医業」）は一致にしない
     k = _kigyo()
     k["会計"][0]["収益的収入及び支出"]["支出"][0]["項"][0]["目"][0]["name"] = "医業"
     assert any("「医業」" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
-    # 抽出の失敗は引き継ぐ
+    # 2行に分かれた名前の上の行だけ（金額のない行のかけら）は一致にしない。上下をつないだものは一致
+    lines = kn.ocr_lines("1 支払利息及び\n企業債取扱諸費 50\n2 雑支出 3")
+    assert "支払利息及び企業債取扱諸費" in lines and "支払利息及び" not in lines
+    assert "企業債取扱諸費雑支出" not in lines  # 2つの目にまたがるつなぎ
+    # 抽出の失敗は引き継ぐ。fails のない古い kigyo.json は止める
     k = {**_kigyo(), "fails": ["目の合計が項と合わない"]}
     assert any("実施計画の抽出: 目の合計" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
+    k = _kigyo()
+    del k["fails"]
+    assert any("fails がない" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
 
 
 def test_kan_matched_by_number_not_position():

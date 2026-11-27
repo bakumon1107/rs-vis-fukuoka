@@ -287,7 +287,8 @@ function LocalGovAboutContent() {
           <h2 className="font-bold">検算の結果</h2>
           <ul className="list-disc space-y-0.5 pl-5">
             <li>
-              目 {c.rows} 件のうち、すべての検算が一致したもの <b>{c.all_ok} 件</b>
+              {/* 公営企業会計の目は説明欄・財源・比較・節の検算がない（項ごとの合計だけ。下の「公営企業会計 と 予算書」の行）ので「行った検算」と書く */}
+              目 {c.rows} 件のうち、行った検算がすべて一致したもの <b>{c.all_ok} 件</b>
             </li>
             {c.external &&
               Object.entries(c.external).map(([k, v]) => (

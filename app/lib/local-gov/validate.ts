@@ -268,11 +268,15 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (cs) {
       const nonNeg = (v: number) => Number.isSafeInteger(v) && v >= 0;
       if (!nonNeg(cs.amount)) err(`会計 ${a.id}: 補填財源の不足額が 0 以上の整数でない（${cs.amount}）`);
-      cs.items.forEach((x, i) => {
+      if (!cs.source?.source) err(`会計 ${a.id}: 補填財源の出典がない`);
+      // JSON は型で守られないので、内訳がなくても落ちずに失敗として返す
+      const items = Array.isArray(cs.items) ? cs.items : [];
+      if (!Array.isArray(cs.items)) err(`会計 ${a.id}: 補填財源の内訳がない`);
+      items.forEach((x, i) => {
         if (!x.name) err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない`);
         if (!nonNeg(x.amount)) err(`会計 ${a.id}: 補填財源の内訳「${x.name}」の額が 0 以上の整数でない（${x.amount}）`);
       });
-      const sum = cs.items.reduce((s, x) => s + x.amount, 0);
+      const sum = items.reduce((s, x) => s + x.amount, 0);
       if (sum !== cs.amount || cs.amount !== gap) err(`会計 ${a.id}: 補填財源の内訳の合計 ${sum} / 不足額 ${cs.amount} / 資本的支出 − 収入 ${gap}`);
     }
   }
@@ -319,7 +323,7 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
     for (const id of ev ?? []) if (!ids.has(id)) errors.push(`${where}: 名前の資料 ${id} が index の sources にない`);
   };
   for (const a of file.accounts) {
-    const src = a.enterprise?.capital_shortfall?.source.source;
+    const src = a.enterprise?.capital_shortfall?.source?.source;
     if (src && !ids.has(src)) errors.push(`会計 ${a.id}: 補填財源の出典 ${src} が index の sources にない`);
   }
   for (const row of file.rows) {

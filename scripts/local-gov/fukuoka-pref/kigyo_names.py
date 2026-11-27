@@ -28,6 +28,7 @@ import unicodedata
 # 新 OCR が簡体字で読む字を日本の字に寄せる（比べるときだけ。名前そのものは文字層か修正表から取る）
 GLYPHS = str.maketrans({"资": "資", "减": "減", "损": "損", "债": "債", "产": "産", "產": "産", "营": "営", "设": "設", "费": "費", "单": "単"})
 SECTIONS = {"収益的収入及び支出": 3, "資本的収入及び支出": 4}
+AMOUNT_END = re.compile(r"\d[\d,]*\s*$")  # OCR の行の末尾の金額（款・項・目の行には予定額がある）
 
 
 def norm(s: str) -> str:
@@ -38,9 +39,17 @@ def norm(s: str) -> str:
 
 def ocr_lines(text: str) -> set[str]:
     """OCR のページの文字 → 比べる形にした行の集まり（行は「番号 名前 金額」なので、比べる形にすると名前だけが残る）。
-    行に分かれた名前（「支払利息及び／企業債取扱諸費」「流域下水道管理費／負担／金」）のため、続く3行までをつないだものも入れる"""
-    lines = [n for n in (norm(line) for line in text.splitlines()) if n]
-    return {"".join(lines[i:i + k]) for k in (1, 2, 3) for i in range(len(lines) - k + 1)}
+    行に分かれた名前（「支払利息及び／企業債取扱諸費」「流域下水道管理費／負担／金」）のため、続く3行までをつないだものも入れる。
+    ただし、金額のある行をちょうど1つ含むものだけ（1つの款・項・目の行。名前だけの行のかけら・2つの目にまたがるつなぎは入れない）"""
+    lines = [(norm(line), bool(AMOUNT_END.search(line))) for line in text.splitlines()]
+    lines = [x for x in lines if x[0]]
+    out = set()
+    for k in (1, 2, 3):
+        for i in range(len(lines) - k + 1):
+            win = lines[i:i + k]
+            if sum(has for _, has in win) == 1:
+                out.add("".join(n for n, _ in win))
+    return out
 
 
 def load_ocr(dirs: list[str]) -> dict[int, set[str]]:
@@ -57,9 +66,12 @@ def load_ocr(dirs: list[str]) -> dict[int, set[str]]:
     return pages
 
 
-def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, str]) -> tuple[dict, list[str], dict]:
-    """名前を決める。返り値: (名前を付けた kigyo, 失敗, 出典の数)"""
-    fails: list[str] = [f"実施計画の抽出: {f}" for f in kigyo.get("fails", [])]
+def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, set[str]]) -> tuple[dict, list[str], dict]:
+    """名前を決める。pages は load_ocr の形（ページ → ocr_lines の行の集まり）。返り値: (名前を付けた kigyo, 失敗, 出典の数)"""
+    if "fails" not in kigyo:
+        # 抽出が fails を書くようになる前の kigyo.json は、抽出が失敗していたかが分からない
+        return kigyo, ["kigyo.json に fails がない（古い抽出の出力。extract_kigyo_jisshi.py で作り直す）"], {"readings": 0, "correction": 0}
+    fails: list[str] = [f"実施計画の抽出: {f}" for f in kigyo["fails"]]
     counts = {"readings": 0, "correction": 0}
     fix_at = {(f["会計"], f["page"], f["段"], f["読み"]): f for f in fixes}
     used: set = set()
