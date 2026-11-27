@@ -724,6 +724,24 @@ def main():
     gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
+    # 会計間の繰入れ（純計のため。公開前のサンキー図の足しの設計 2章）: 受け手の歳入の印（transfer）の合計 = 出し手の歳出の節「繰出金」の合計。
+    # 合わなければ印の付け漏れ・付けすぎなので止める（画面の純計 = 総計 − 印の付いた繰入れ）
+    # 公営企業会計は全会計の見方・純計の範囲の外（画面の netTotal と同じ範囲で数える）
+    nets = [r for r in rows if not r["account"].startswith("enterprise:")]
+    transfer_in = sum(r["amount"]["v"] or 0 for r in nets if r["side"] == "revenue" and r.get("transfer"))
+    transfer_out = sum(s["amount"]["v"] or 0 for r in nets if r["side"] == "expense" for s in r.get("setsu", []) if s.get("name") == "繰出金")
+    # 読めない額を 0 円として一致にしない（両方読めないと 0 = 0 で通ってしまう）
+    unread = [r["id"] for r in nets if r["side"] == "revenue" and r.get("transfer") and r["amount"]["v"] is None] + \
+             [r["id"] for r in nets if r["side"] == "expense" for s in r.get("setsu", [])
+              if s.get("name") == "繰出金" and s["amount"]["v"] is None]
+    if unread:
+        sys.exit(f"会計間の繰入れに額が読めない目がある: {unread}")
+    if transfer_in != transfer_out:
+        sys.exit(f"会計間の繰入れが合わない: 歳入の印 {transfer_in:,} 円 ≠ 歳出の節「繰出金」{transfer_out:,} 円")
+    expense_all = sum(r["amount"]["v"] or 0 for r in nets if r["side"] == "expense")
+    # 件数は額のある目だけ（画面の netTotal と同じ。R8 当初で 0 円の繰入れの目が1つある）
+    transfer_line = (f"会計間の繰入れ {sum(1 for r in nets if r.get('transfer') and (r['amount']['v'] or 0) != 0)} 件 {transfer_in:,} 円（歳出の節「繰出金」と一致）。"
+                     f"全会計の総計 {expense_all:,} 円・純計 {expense_all - transfer_in:,} 円")
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",
         "unit_source": "千円", "accounts": accounts, "rows": rows,
@@ -785,6 +803,7 @@ def main():
           file=sys.stderr)
     print(f"一般会計 歳入 {total[(True, 'revenue')]:,} 円・歳出 {total[(True, 'expense')]:,} 円", file=sys.stderr)
     print(f"名前の出典: {name_source_counts(rows)}（名前の修正表 {n_name_fix} 件）", file=sys.stderr)
+    print(transfer_line, file=sys.stderr)
     if gfund:
         print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
               file=sys.stderr)

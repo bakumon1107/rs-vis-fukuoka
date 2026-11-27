@@ -21,7 +21,8 @@ import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
-import { composeDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
+import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
+import { formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
 import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -133,6 +134,16 @@ function LocalGovContent() {
     detailRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     detailRef.current?.focus({ preventScroll: true });
   }, []);
+  // 全会計の純計（会計間の繰入れを除く。設計: 公開前のサンキー図の足し 2章）。繰入れの印のないファイル（決算）は null
+  const net = useMemo(() => (state.status === 'ready' && view === 'all' ? netTotal(state.file) : null), [state, view]);
+  // 選んだ款・項・目のうち人件費の節の割合（同 3章）。財源・部局・歳入の箱を選んだときは出さない
+  const personnel = useMemo(() => {
+    if (state.status !== 'ready' || !display?.selected) return null;
+    // 事項・節を選んだとき: 絞り込みは目までになるので、目全体の額を事項・節の名前の横に出してしまう。出さない
+    if (/^(item|setsu):/.test(display.selected.id)) return null;
+    const sel = selectionToFilter(view, display.selected.id, state.file.basis);
+    return sel ? personnelShare(state.file, sel.filter) : null;
+  }, [state, view, display]);
   // 出典は、この年度のデータの目が参照している資料（年度ごとに資料が違う）。全目をなめるので、データが変わったときだけ求める
   // （ウィンドウの幅を変えている間は、パネルの幅の計算でページが描き直され続ける）
   const sourceTitles = useMemo(() => {
@@ -198,6 +209,11 @@ function LocalGovContent() {
             {view === 'general' ? '一般会計の歳出' : '全会計の歳出（総計・公営企業会計を除く）'}
             {file.basis === 'settlement' ? '（支出済額）' : ''}{' '}
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
+            {net && (
+              <span title="県の資料に純計の数字はないため、このサイトでの計算です">
+                {' '}・純計 {formatBudgetFromYen(net.net)}（会計間の繰入れ {net.count} 件 {formatBudgetFromYen(net.transfers)} を除く。このサイトの計算）
+              </span>
+            )}
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
           <Link href={`/local/${gov}/funds`} className="text-sm text-primary-accent underline">
@@ -287,6 +303,11 @@ function LocalGovContent() {
             <>
               <span>
                 選択中: <b>{display.selected.name}</b>
+                {personnel && (
+                  <span className="ml-2 text-xs text-mirai-text-muted">
+                    うち人件費 {formatBudgetFromYen(personnel.personnel)}（{formatRatio(personnel.ratio)}。節の報酬・給料・職員手当等・共済費の合計）
+                  </span>
+                )}
               </span>
               <button
                 type="button"

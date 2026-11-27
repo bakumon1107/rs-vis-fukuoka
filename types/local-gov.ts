@@ -351,6 +351,6 @@ export interface LocalGraph {
   columns: { key: string; label: string }[];
   nodes: { id: string; col: string; name: string; value: Yen; row?: string; flags?: string[] }[];
   edges: { source: string; target: string; value: Yen }[];
-  /** gross: 総計。net: 純計（会計間の繰入れの重複を除いた額）。純計を計算しない間は省く */
+  /** gross: 総計。net: 純計（会計間の繰入れの重複を除いた額）。今は省く（純計は画面が app/lib/local-gov/totals.ts の netTotal で計算する） */
   totals: { gross: Yen; net?: Yen };
 }

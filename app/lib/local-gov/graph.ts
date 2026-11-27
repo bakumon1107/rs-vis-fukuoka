@@ -351,7 +351,7 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
     columns,
     nodes,
     edges,
-    // 純計（会計間の繰入れの重複を除いた額）は MVP の後。計算しない間は net を省く（画面では総計だけを出す）
+    // 純計（会計間の繰入れの重複を除いた額）はグラフには持たず、画面が totals.ts の netTotal で計算して見出しに出す（net は省く）
     totals: { gross },
   };
 }
