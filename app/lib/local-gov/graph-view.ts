@@ -201,8 +201,8 @@ export const NOTE_ITEM_FUNDING = '事項ごとの財源は資料にないため�
 export const NOTE_REVENUE_UNKNOWN = '歳入のどれが使われたかは資料にないため、歳入の列は色を付けていません';
 export const NOTE_EXPENSE_UNKNOWN = 'どの歳出に使われたかは資料にないため、会計から先は色を付けていません';
 export const NOTE_ENTERPRISE_EXPENSE_UNKNOWN = 'どの支出に使われたかは資料にないため、会計・条から先は色を付けていません';
-export const NOTE_ENTERPRISE_REVENUE_UNKNOWN ='収入・補填財源のどれが使われたかは資料にないため、収入の列は色を付けていません';
-export const NOTE_SETSU_DEPARTMENT ='部局ごとの節は資料にないため、部局の帯は色を付けていません';
+export const NOTE_ENTERPRISE_REVENUE_UNKNOWN = '収入・補填財源のどれが使われたかは資料にないため、収入の列は色を付けていません';
+export const NOTE_SETSU_DEPARTMENT = '部局ごとの節は資料にないため、部局の帯は色を付けていません';
 
 /**
  * 深い列で同じ列に同じ名前の箱が並ぶとき（款を選んだときの目「教職員費」2つ、項を選んだときの事項「職員費」など）は、
@@ -211,7 +211,8 @@ export const NOTE_SETSU_DEPARTMENT ='部局ごとの節は資料にないため�
 function labelDuplicates(deep: LocalGraph['nodes'], all: LocalGraph['nodes'], edges: LocalGraph['edges']): LocalGraph['nodes'] {
   const count = new Map<string, number>();
   for (const n of deep) count.set(`${n.col}\u0000${n.name}`, (count.get(`${n.col}\u0000${n.name}`) ?? 0) + 1);
-  const nameOf = new Map(all.map(n => [n.id, n.name]));
+  // 公営企業会計の支出の項は、名前に「（会計・条）」が添えてあることがある。目のラベルに入れ子の括弧ができないよう、添えた分を外す
+  const nameOf = new Map(all.map(n => [n.id, n.col === 'ekou' ? n.name.replace(/（[^（）]*・(?:収益的|資本的)[^（）]*）$/, '') : n.name]));
   const parentOf = new Map(edges.map(e => [e.target, e.source]));
   return deep.map(n => {
     if ((count.get(`${n.col}\u0000${n.name}`) ?? 0) < 2) return n;
@@ -305,9 +306,9 @@ export function composeDisplay(file: LocalBudgetFile, view: LocalGraphView, sele
       highlight.set(edgeKey(e.source, e.target), e.value);
       highlightNodes.add(other);
     }
-    // 収益的収支の不足（eshort:）はこのサイトが計算した差で、同じ会計・条の支出に入るのは分かっているので、断り書きはいらない
+    // 収益的収支の不足（eshort:）も、会計・条のどの支出の項に入ったかは分からないので同じ断り書き
     const note =
-      n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : /^(erevenue|efill):/.test(n.id) ? NOTE_ENTERPRISE_EXPENSE_UNKNOWN : null;
+      n.col === 'revenue' ? NOTE_EXPENSE_UNKNOWN : /^(erevenue|efill|eshort):/.test(n.id) ? NOTE_ENTERPRISE_EXPENSE_UNKNOWN : null;
     const lit = wholeNodesOnly(base, highlight, highlightNodes, n.id);
     return { graph: base, selected: { id: n.id, name: n.name, col: n.col }, highlight, highlightNodes: lit, row: null, note };
   }

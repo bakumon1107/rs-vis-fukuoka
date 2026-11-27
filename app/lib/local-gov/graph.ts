@@ -278,15 +278,19 @@ function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], 
   const whole = filter?.side === undefined && filter?.kan === undefined && filter?.kou === undefined && filter?.moku === undefined;
   // 支出の項の名前が複数の会計・条にあるとき（R8: 予備費 6・建設改良費 4 など）は、ラベルに会計・条を添える。
   // ファイル全体で数える（絞り込んだグラフでも最初の画面と同じラベルにする。全会計の見方の duplicatedExpenseKanNames と同じ考え方）
-  const sectionsOfKou = new Map<string, Set<string>>();
+  // 同じ会計・条の中で同じ名前の項が別の款にあれば、款の名前も添える
+  const idsOfKou = new Map<string, Set<string>>();
+  const add = (k: string, id: string) => idsOfKou.set(k, (idsOfKou.get(k) ?? new Set<string>()).add(id));
   for (const r of file.rows) {
     if (accountOf.get(r.account)?.kind !== 'enterprise' || r.side !== 'expense' || !r.enterprise_section || amountOf(r) === 0) continue;
-    const s = sectionsOfKou.get(r.kou.name) ?? new Set<string>();
-    s.add(`${r.account}:${r.enterprise_section}`);
-    sectionsOfKou.set(r.kou.name, s);
+    add(r.kou.name, enterpriseIds.kou(r));
+    add(`${r.kou.name}\u0000${r.account}:${r.enterprise_section}`, enterpriseIds.kou(r));
   }
-  const kouLabel = (r: MokuRow, accName: string) =>
-    (sectionsOfKou.get(r.kou.name)?.size ?? 0) > 1 ? `${r.kou.name}（${enterpriseShortName(accName)}・${r.enterprise_section}）` : r.kou.name;
+  const kouLabel = (r: MokuRow, accName: string) => {
+    if ((idsOfKou.get(r.kou.name)?.size ?? 0) < 2) return r.kou.name;
+    const inSection = idsOfKou.get(`${r.kou.name}\u0000${r.account}:${r.enterprise_section}`)?.size ?? 0;
+    return `${r.kou.name}（${enterpriseShortName(accName)}・${r.enterprise_section}${inSection > 1 ? `・${r.kan.name}` : ''}）`;
+  };
   // 会計・条ごとの収入・支出の合計（差の箱を決める）
   const sums = new Map<string, { account: string; section: EnterpriseSection; revenue: Yen; expense: Yen }>();
   let gross = 0;
@@ -316,12 +320,13 @@ function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], 
     const short = enterpriseShortName(acc.name);
     let gap = s.expense - s.revenue; // 正なら不足（左から入れる）、負なら差（右へ出す）
     // 資本的収支の不足は、予算書の第4条の補填財源の内訳から入れる（内訳の合計 = 不足額 は書き出しと validate で確かめている）
-    // 内訳の合計が不足額と合わないデータ（validate を通っていない）では補填財源を描かず、「補填財源の記載なし」の不足の箱にする
-    // （多すぎる内訳を引くと、ありもしない「収入の残り」の箱ができる）
+    // 内訳の合計が不足額より多いデータ（validate を通っていない）では補填財源を描かず、「補填財源の記載なし」の不足の箱にする
+    // （多すぎる内訳を引くと、ありもしない「収入の残り」の箱ができる）。少なければ内訳を描き、残りを「記載なし」にする
     const cs = acc.enterprise?.capital_shortfall;
-    if (s.section === '資本的' && cs && gap > 0 && cs.items.reduce((t, it) => t + it.amount, 0) === gap) {
+    const filled = cs ? cs.items.reduce((t, it) => t + it.amount, 0) : 0;
+    if (s.section === '資本的' && cs && gap > 0 && filled <= gap) {
       for (const it of cs.items) b.edge(b.node(enterpriseIds.fill(it.name), 'erevenue', `補填財源・${it.name}`), secId, it.amount);
-      gap = 0;
+      gap -= filled;
     }
     if (gap > 0) {
       const label = s.section === '収益的' ? `${short}・収益的収支の不足` : `${short}・資本的収支の不足（補填財源の記載なし）`;
