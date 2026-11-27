@@ -22,7 +22,7 @@ import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
-import { formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
+import { enterpriseExpense, formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
 import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -37,6 +37,12 @@ const VIEWS: Record<Basis, ViewInfo[]> = {
       label: '全会計',
       note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
       opens: '会計を選ぶと項、款・項・目を選ぶと目まで開きます',
+    },
+    {
+      key: 'enterprise',
+      label: '公営企業会計',
+      note: '収入の項・補填財源 → 会計・条 → 支出の項 → 目',
+      opens: '会計・条、支出の項を選ぶと目まで開きます',
     },
   ],
   supplementary: [],
@@ -64,13 +70,18 @@ function LocalGovContent() {
   const { gov } = useParams<{ gov: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const view: LocalGraphView = searchParams.get('view') === 'all' ? 'all' : 'general';
+  const qv = searchParams.get('view');
   const selectedId = searchParams.get('sel');
   // 当初・補正後・決算（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
   const qb = searchParams.get('basis');
   const basis: BasisChoice = qb === 'settlement' || qb === 'latest' ? qb : 'initial';
   const year = yearFromQuery(searchParams.get('year'));
   const state = useLocalBudget(gov, year, basis);
+  // 公営企業会計の見方は、当初予算（補正を足していない）で公営企業会計のあるデータだけ（予算実施計画は当初予算だけ。設計 4.4）。
+  // ない年度・補正後・決算で URL に view=enterprise があれば一般会計の見方にする
+  const enterpriseOk =
+    state.status === 'ready' && state.file.basis === 'initial' && !state.file.composed && state.file.accounts.some(a => a.kind === 'enterprise');
+  const view: LocalGraphView = qv === 'all' ? 'all' : qv === 'enterprise' && enterpriseOk ? 'enterprise' : 'general';
   const panel = useSidePanel({ side: 'right' });
   const isNarrow = useIsNarrow();
 
@@ -136,6 +147,8 @@ function LocalGovContent() {
   }, []);
   // 全会計の純計（会計間の繰入れを除く。設計: 公開前のサンキー図の足し 2章）。繰入れの印のないファイル（決算）は null
   const net = useMemo(() => (state.status === 'ready' && view === 'all' ? netTotal(state.file) : null), [state, view]);
+  // 公営企業会計の見方の見出し（第3条・第4条の支出の合計）
+  const ent = useMemo(() => (state.status === 'ready' && view === 'enterprise' ? enterpriseExpense(state.file) : null), [state, view]);
   // 選んだ款・項・目のうち人件費の節の割合（同 3章）。財源・部局・歳入の箱を選んだときは出さない
   const personnel = useMemo(() => {
     if (state.status !== 'ready' || !display?.selected) return null;
@@ -185,7 +198,7 @@ function LocalGovContent() {
   }
   // 見出しの基準の名前（補正後はどの回までを足したか）
   const basisTitle = file.composed ? `補正後予算（${file.composed.through}まで）` : BASIS_LABEL[file.basis];
-  const views = VIEWS[file.basis];
+  const views = VIEWS[file.basis].filter(v => v.key !== 'enterprise' || enterpriseOk);
   // 「データについて」へのリンク。今の見方・選択（クエリ全体）を back で渡し、「← サンキー図に戻る」で同じ表示に戻れるようにする
   const aboutHref = (hash = '') =>
     `/local/${gov}/about?year=${file.year}${file.basis === 'settlement' ? '&basis=settlement' : ''}` +
@@ -206,9 +219,18 @@ function LocalGovContent() {
           </h1>
           <span className="text-sm text-mirai-text-muted">
             {/* 公営企業会計は全会計の見方に描かない（歳入と歳出が一致しない様式。設計書 3.2）ので、いつも「除く」と示す */}
-            {view === 'general' ? '一般会計の歳出' : '全会計の歳出（総計・公営企業会計を除く）'}
+            {view === 'enterprise'
+              ? `公営企業会計（${ent?.accounts ?? 0}会計）の支出`
+              : view === 'general'
+                ? '一般会計の歳出'
+                : '全会計の歳出（総計・公営企業会計を除く）'}
             {file.basis === 'settlement' ? '（支出済額）' : ''}{' '}
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
+            {ent && (
+              <>
+                {' '}（収益的支出 {formatBudgetFromYen(ent.revenueSection)}・資本的支出 {formatBudgetFromYen(ent.capitalSection)}）
+              </>
+            )}
             {net && (
               <span title="県の資料に純計の数字はないため、このサイトでの計算です">
                 {' '}・純計 {formatBudgetFromYen(net.net)}（会計間の繰入れ {net.count} 件 {formatBudgetFromYen(net.transfers)} を除く。このサイトの計算）
@@ -269,11 +291,28 @@ function LocalGovContent() {
           ))}
           <span className="text-xs text-mirai-text-muted">
             {views.find(v => v.key === view)?.note}
-            {view === 'all' && file.basis === 'initial' &&
-              '。公営企業会計は含みません。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
-                '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
+            {view === 'all' && file.basis === 'initial' && (
+              <>
+                。公営企業会計は含みません
+                {enterpriseOk && (
+                  <>
+                    （
+                    <button type="button" className="text-primary-accent underline" onClick={() => setQuery({ view: 'enterprise' })}>
+                      公営企業会計の見方
+                    </button>
+                    ）
+                  </>
+                )}
+                {'。国庫支出金・地方債（県債・市債など）の額が一般会計の見方の財源と違うのは、全会計の分であることと、' +
+                  '歳出の財源内訳の区分（国庫支出金・地方債・その他・一般財源）が歳入の款の区分と一致しないためです'}
+              </>
+            )}
+            {view === 'enterprise' &&
+              '。収益的収支（毎年の営業）と資本的収支（施設の建設・借金の返済）に分かれます。資本的収支の不足は、会計の中に留保した資金などで' +
+                '埋めます（予算書の第4条の補填財源）。収入には一般会計からの負担金・補助金を含みます（全会計の見方と重なります）。' +
+                '予算実施計画は目までなので、説明欄・財源内訳・節はありません'}
             {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
-            {(fundingNotes(file).length > 0 || file.general_fund) && (
+            {view !== 'enterprise' && (fundingNotes(file).length > 0 || file.general_fund) && (
               <>
                 {view === 'all'
                   ? '（調べた内訳は'

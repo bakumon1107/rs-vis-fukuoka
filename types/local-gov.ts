@@ -356,7 +356,12 @@ export interface LocalGraph {
   year: number;
   basis: 'initial' | 'latest' | 'settlement';
   /** 列の一覧。見方ごとに app/lib/local-gov/graph.ts が決める（例: 財源 / 款 / 項 / 目 / 事項） */
-  columns: { key: string; label: string }[];
+  columns: {
+    key: string;
+    label: string;
+    /** 箱のラベルに金額を出さない（真ん中の列で名前が長く、隣の列に重なるとき。金額はツールチップで見る） */
+    hideAmount?: boolean;
+  }[];
   nodes: { id: string; col: string; name: string; value: Yen; row?: string; flags?: string[] }[];
   edges: { source: string; target: string; value: Yen }[];
   /** gross: 総計。net: 純計（会計間の繰入れの重複を除いた額）。今は省く（純計は画面が app/lib/local-gov/totals.ts の netTotal で計算する） */

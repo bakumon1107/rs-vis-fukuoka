@@ -29,6 +29,16 @@ export function netTotal(file: LocalBudgetFile): NetTotal | null {
   return { gross, transfers, count: marked.filter(r => (r.amount.v ?? 0) !== 0).length, net: gross - transfers };
 }
 
+/** 公営企業会計の支出の合計（第3条 = 収益的支出・第4条 = 資本的支出。設計 4.4 の見出し）。公営企業会計がなければ null */
+export function enterpriseExpense(file: LocalBudgetFile): { accounts: number; revenueSection: Yen; capitalSection: Yen } | null {
+  const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  if (enterprise.size === 0) return null;
+  const sum = (s: '収益的' | '資本的') => file.rows
+    .filter(r => enterprise.has(r.account) && r.side === 'expense' && r.enterprise_section === s)
+    .reduce((t, r) => t + (r.amount.v ?? 0), 0);
+  return { accounts: enterprise.size, revenueSection: sum('収益的'), capitalSection: sum('資本的') };
+}
+
 /** 割合の表示（小数1桁の %）。0 より大きく 0.05% 未満は「0.1%未満」（0.0% と出すと 0 に見える） */
 export function formatRatio(ratio: number): string {
   if (ratio > 0 && ratio < 0.0005) return '0.1%未満';
@@ -52,7 +62,8 @@ function matchesFilter(r: MokuRow, f: LocalGraphFilter): boolean {
     && (f.side === undefined || r.side === f.side)
     && (f.kan === undefined || r.kan.no === f.kan)
     && (f.kou === undefined || r.kou.no === f.kou)
-    && (f.moku === undefined || r.moku.no === f.moku);
+    && (f.moku === undefined || r.moku.no === f.moku)
+    && (f.section === undefined || r.enterprise_section === f.section);
 }
 
 /**
