@@ -1,20 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fundFlows, fundRows, niceStep } from '../app/lib/local-gov/funds';
+import type { LocalBudgetFile, LocalFunds, MokuRow, Value } from '../types/local-gov';
 
 test('基金ごとのグラフの目盛りの間隔は 1・2・5 × 10^k で、最大値を 4 本前後で区切る', () => {
   assert.equal(niceStep(749_256_000_000), 200_000_000_000); // 減債基金 7492.56億円 → 2000億円ごと
   assert.equal(niceStep(56_427_000), 10_000_000); // 5642.7万円 → 1000万円ごと（6 本）
   assert.equal(niceStep(4_000), 1_000);
   assert.equal(niceStep(0), 1);
-  for (const max of [1, 37, 999, 1_234_567, 9_999_999_999]) {
+  // 1円より細かくしない（円の表示で「0円・0円・1円」と並んでしまう）
+  assert.equal(niceStep(1), 1);
+  assert.equal(niceStep(3), 1);
+  for (const max of [37, 999, 1_234_567, 9_999_999_999]) {
     const s = niceStep(max);
     const lead = s / 10 ** Math.floor(Math.log10(s));
     assert.ok([1, 2, 5].includes(Math.round(lead)), `${max} → ${s}`);
     assert.ok(max / s >= 2.4 && max / s <= 7, `${max} → ${s} は ${max / s} 本`);
   }
 });
-import type { LocalBudgetFile, LocalFunds, MokuRow, Value } from '../types/local-gov';
 
 const v = (n: number | null): Value => ({ v: n, src: 'ocr' });
 

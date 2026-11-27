@@ -48,16 +48,18 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
   const planCell = (v: number) => (plan === 'ready' ? yen(v) : plan === 'loading' ? '…' : '?');
   // 額の列: 小さい画面でも横にはみ出さないよう、表の幅は画面に合わせ（最小幅を付けない）、基金の名前の列を早めに折り返す。
   // 推移の小さい折れ線はスマートフォンの幅では出さない（行を開くと大きいグラフが出る）
+  // とても狭い画面（320px 前後）では額が列に収まらないので、表に最小幅を付けて横にずらせるようにする（390px 前後なら収まる）。
+  // 推移の列はスマートフォンの幅では幅 0（col を display:none にすると、ブラウザによって列の幅の割り当てがずれる）
   const num = 'whitespace-nowrap px-1 py-1.5 text-right tabular-nums';
   return (
-    <div>
-      <table className="w-full table-fixed text-xs sm:text-sm">
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[340px] table-fixed text-[11px] sm:text-sm">
         <colgroup>
-          <col className="w-[36%] sm:w-[34%]" />
+          <col className="w-[35%] sm:w-[34%]" />
           <col className="w-[22%] sm:w-[17%]" />
-          <col className="hidden sm:table-column sm:w-[13%]" />
-          <col className="w-[21%] sm:w-[18%]" />
-          <col className="w-[21%] sm:w-[18%]" />
+          <col className="w-0 sm:w-[13%]" />
+          <col className="w-[21.5%] sm:w-[18%]" />
+          <col className="w-[21.5%] sm:w-[18%]" />
         </colgroup>
         <thead>
           <tr className="text-xs text-mirai-text-muted">
@@ -103,7 +105,7 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
                   <tr className="bg-mirai-surface">
                     <td colSpan={5} className="space-y-3 px-2 py-3 text-xs">
                       {/* その基金の年度末現在高の推移（大きめの棒グラフ） */}
-                      {r.fund && !r.fund.no_figures && r.fund.history.length > 1 && (
+                      {r.fund && !r.fund.no_figures && r.fund.history.length > 1 && r.fund.history.some(h => h.end > 0) && (
                         <div className="rounded-xl bg-card p-2">
                           <FundHistoryChart name={r.name} history={r.fund.history} />
                         </div>

@@ -104,6 +104,7 @@ export function niceStep(max: number): number {
   const raw = max / 4;
   const p = 10 ** Math.floor(Math.log10(raw));
   const m = raw / p;
-  // 4 本の幅を 1・2・5 に寄せる（切り上げだけだと 2.5 → 5 で 2 本になるので、近い方へ寄せる）
-  return (m <= 1.5 ? 1 : m <= 3 ? 2 : m <= 7 ? 5 : 10) * p;
+  // 4 本の幅を 1・2・5 に寄せる（切り上げだけだと 2.5 → 5 で 2 本になるので、近い方へ寄せる）。
+  // 1円より細かい目盛りにはしない（円の表示で同じ額が並んでしまう）
+  return Math.max(1, (m <= 1.5 ? 1 : m <= 3 ? 2 : m <= 7 ? 5 : 10) * p);
 }
