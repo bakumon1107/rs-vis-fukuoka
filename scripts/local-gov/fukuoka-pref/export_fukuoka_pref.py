@@ -730,6 +730,12 @@ def main():
     nets = [r for r in rows if not r["account"].startswith("enterprise:")]
     transfer_in = sum(r["amount"]["v"] or 0 for r in nets if r["side"] == "revenue" and r.get("transfer"))
     transfer_out = sum(s["amount"]["v"] or 0 for r in nets if r["side"] == "expense" for s in r.get("setsu", []) if s.get("name") == "繰出金")
+    # 読めない額を 0 円として一致にしない（両方読めないと 0 = 0 で通ってしまう）
+    unread = [r["id"] for r in nets if r["side"] == "revenue" and r.get("transfer") and r["amount"]["v"] is None] + \
+             [r["id"] for r in nets if r["side"] == "expense" for s in r.get("setsu", [])
+              if s.get("name") == "繰出金" and s["amount"]["v"] is None]
+    if unread:
+        sys.exit(f"会計間の繰入れに額が読めない目がある: {unread}")
     if transfer_in != transfer_out:
         sys.exit(f"会計間の繰入れが合わない: 歳入の印 {transfer_in:,} 円 ≠ 歳出の節「繰出金」{transfer_out:,} 円")
     expense_all = sum(r["amount"]["v"] or 0 for r in nets if r["side"] == "expense")
