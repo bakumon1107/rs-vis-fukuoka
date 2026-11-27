@@ -26,6 +26,12 @@ export default function LocalFundsPage() {
   );
 }
 
+/** 決算の年度（西暦）の次の年度の和暦の名前（2024 → 令和7年度）。残高を更新する予定の年度の注記に使う */
+function nextYearLabel(year: number): string {
+  const y = year + 1;
+  return y >= 2019 ? (y === 2019 ? '令和元年度' : `令和${y - 2018}年度`) : `平成${y - 1988}年度`;
+}
+
 function LocalFundsContent() {
   const { gov } = useParams<{ gov: string }>();
   const settlement = useLocalBudget(gov, undefined, 'settlement');
@@ -73,6 +79,11 @@ function LocalFundsContent() {
           基金は、特定の目的のために県が積み立てているお金です。{funds.as_of.label}の現在高は、調書に載る {funds.items.length} 基金
           （うち残高のあるもの {holding}）の計 <b>{formatBudgetFromYen(total)}</b>。うち県債（借金）の返済に備える減債基金が {formatBudgetFromYen(latest.debt_reduction)}、
           年度間の財源の調整に使う財政調整基金が {formatBudgetFromYen(latest.fiscal_adjustment)} です。
+        </p>
+        {/* 残高（決算）と予定（当初予算）は時点が違う。間の年度は残高も予定もないことを先に示す（設計: 公開前のサンキー図の足し 3章） */}
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          時点に注意: 残高は{funds.as_of.label}（決算。財産に関する調書）、積み立て・取り崩しは{budgetLabel}の予定です。
+          {nextYearLabel(funds.as_of.year)}末の残高は、{nextYearLabel(funds.as_of.year)}決算の調書が公表されたら（例年12月ごろ）更新します。
         </p>
 
         <section className="space-y-2">
