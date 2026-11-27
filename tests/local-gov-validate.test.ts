@@ -158,6 +158,8 @@ test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 
     const noPage = { ...acc(20), enterprise: { capital_shortfall: { ...acc(20).enterprise.capital_shortfall, source } } } as ReturnType<typeof acc>;
     assert.ok(errs(noPage).some(e => e.includes('出典（資料とページ）がない')), JSON.stringify(source));
   }
+  // 名前は空でない文字列（数値は通さない）
+  assert.ok(errs(acc(20, [{ name: 123 as unknown as string, amount: 20 }])).some(e => e.includes('名前がない')));
   const nullItem = acc(20, [null as unknown as { name: string; amount: number }]);
   assert.ok(errs(nullItem).some(e => e.includes('形になっていない')));
 });

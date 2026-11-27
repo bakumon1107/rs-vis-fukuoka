@@ -54,6 +54,16 @@ def build(work: str) -> tuple[list[dict], list[dict], list[str], list[str], dict
         acc_id = f"enterprise:{SLUGS[acc_name]}"
         acc = {"id": acc_id, "kind": "enterprise", "name": acc_name}
         hf = yo.get(acc_name, {}).get("補填")
+        # 補填財源の内訳の合計 = 不足額 = 資本的支出 − 資本的収入（予算書の本体の第4条）。抽出（extract_yosansho.py）も確かめるが、
+        # 失敗しても yosansho.json は書かれるので、公開データに入れる前にここでも止める
+        yo_arts = yo.get(acc_name, {}).get("条", {})
+        cap = yo_arts.get("4") or yo_arts.get(4) or {}
+        cap_gap = sum(k["金額"] for k in cap.get("支出", [])) - sum(k["金額"] for k in cap.get("収入", []))
+        if hf and not (sum(x["金額"] for x in hf["内訳"]) == hf["不足額"] == cap_gap):
+            fails.append(f"公営企業会計 {acc_name}: 補填財源の内訳の合計 {sum(x['金額'] for x in hf['内訳']):,} / 不足額 {hf['不足額']:,} / "
+                         f"資本的支出 − 収入 {cap_gap:,} 千円が合わない")
+        if not hf and cap_gap > 0:
+            fails.append(f"公営企業会計 {acc_name}: 資本的収支の不足 {cap_gap:,} 千円の補填財源が予算書の本体から取れていない")
         if hf:
             acc["enterprise"] = {"capital_shortfall": {
                 "amount": hf["不足額"] * 1000,

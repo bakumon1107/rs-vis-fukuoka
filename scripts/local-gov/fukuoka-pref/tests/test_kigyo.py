@@ -137,6 +137,16 @@ def test_export_rows_accounts_and_checks(tmp_path):
     y["会計"].append({"会計": "電気事業会計", "条": {}})
     (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
     assert any("電気事業会計" in f and "取れていない" in f for f in ek.build(str(tmp_path))[3])
+    # 補填財源の内訳の合計が不足額・資本的支出 − 収入と合わない（抽出が失敗しても yosansho.json は書かれる）
+    y = _yosansho()
+    y["会計"][0]["補填"]["内訳"][0]["金額"] = 19
+    (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
+    assert any("補填財源の内訳の合計" in f for f in ek.build(str(tmp_path))[3])
+    # 資本的収支が不足なのに補填財源が取れていない
+    y = _yosansho()
+    del y["会計"][0]["補填"]
+    (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
+    assert any("補填財源が予算書の本体から取れていない" in f for f in ek.build(str(tmp_path))[3])
     # 目の金額が読めていない
     (tmp_path / "yosansho.json").write_text(json.dumps(_yosansho(), ensure_ascii=False), encoding="utf-8")
     broken = json.loads(json.dumps(named))
