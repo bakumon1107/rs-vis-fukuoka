@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { composeLatest, supplementDatasets } from '@/app/lib/local-gov/supplement';
+import { withBasePath } from '@/app/lib/local-gov/site-edition';
 import { LOCAL_GOV_SCHEMA_VERSION, type Basis, type LocalBudgetFile, type LocalGovIndex } from '@/types/local-gov';
 
 /** 画面で選ぶ基準。latest は 当初 + Σ補正（ファイルはなく、当初と同じ年度の補正のファイルから組み立てる） */
@@ -55,7 +56,8 @@ export function useLocalBudget(gov: string, year?: number, basis: BasisChoice = 
     setState({ status: 'loading' });
     (async () => {
       try {
-        const base = `/data/local-gov/${gov}`;
+        // 静的サイト（GitHub Pages のプロジェクトページ）では basePath の下に置かれる。fetch には Next.js が付けないので自分で付ける
+        const base = withBasePath(`/data/local-gov/${gov}`);
         const indexRes = await fetch(`${base}/index.json`);
         if (!indexRes.ok) throw new Error('この自治体のデータはまだありません');
         const index = (await indexRes.json()) as LocalGovIndex;

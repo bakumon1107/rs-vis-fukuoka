@@ -78,4 +78,5 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default nextConfig;
+import { withLocalStaticExport } from './next.config.local'; // フォーク独自: 地方版のときだけ静的書き出しにする
+export default withLocalStaticExport(nextConfig);

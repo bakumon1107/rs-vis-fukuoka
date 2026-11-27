@@ -1,0 +1,82 @@
+# 地方版（予算ビュー＠福岡県）を GitHub Pages の静的サイトとして書き出してデプロイする（フォーク独自。本家のワークフローは変えない）。
+# - PR: 書き出しと公開物の組み立てだけを確かめる（本家を取り込んだときに地方版の書き出しが壊れていないか）
+# - local-main への push・手動実行: 書き出してデプロイする
+# 設計: docs/local-gov/tasks/20261127_1752_サイト全体から国版を外す設計.md 10章
+# 事前準備: リポジトリの Settings → Pages の Source を「GitHub Actions」にする
+name: Pages (local edition)
+on:
+  pull_request:
+  push:
+    branches: [local-main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-local-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  # 型チェック・lint・テスト。本家の Checks（checks.yml）はこのフォークでは Actions の設定で無効にしている
+  # （国版の画面テストは福岡県版では使わず、本家の取り込みとの衝突を避けるためファイルは変えない。2026-11-27 ユーザー決定）
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+  build:
+    runs-on: ubuntu-latest
+    # configure-pages が Pages の設定（base_path・base_url）を読むのに pages の読み取り権限が要る。
+    # PR のコードを動かすジョブなので書き込みは渡さない（書き込みは deploy ジョブだけ）
+    permissions:
+      contents: read
+      pages: read
+    # 自治体 ID は書き出しと公開物の組み立てで同じ値を使う（片方だけ変えると、組み立てが別の自治体を探して止まる）
+    env:
+      NEXT_PUBLIC_LOCAL_GOV_ID: fukuoka-pref
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # basePath とサイトの URL は Pages の設定から取る（リポジトリの改名・独自ドメインに追従する）。PR では既定の値で書き出す
+      - id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      # npm run build は prebuild で国のデータ（120MB 超）を展開するので使わない。地方版のデータは JSON のまま Git にある
+      # Google Fonts（next/font）の取得がときどき失敗してビルドが落ちる（「An error occurred in `next/font`」。やり直すと通る）。
+      # 2 回までやり直す（コードの誤りなら 3 回とも落ちる）
+      - name: Build (static export)
+        run: npx next build || (echo "::warning::build failed, retrying (next/font fetch is flaky)" && sleep 20 && npx next build) || (sleep 60 && npx next build)
+        env:
+          NEXT_PUBLIC_SITE_EDITION: local
+          NEXT_PUBLIC_BASE_PATH: ${{ github.event_name == 'pull_request' && '/yosan-view-fukuoka-pref' || steps.pages.outputs.base_path }}
+          NEXT_PUBLIC_SITE_URL: ${{ github.event_name == 'pull_request' && 'https://bakumon1107.github.io/yosan-view-fukuoka-pref' || steps.pages.outputs.base_url }}
+          NEXT_TELEMETRY_DISABLED: '1'
+      - name: Assemble the published files
+        run: node scripts/local-gov/assemble-pages.mjs .next-local out
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+  deploy:
+    if: github.event_name != 'pull_request'
+    # テストが落ちたら公開しない
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

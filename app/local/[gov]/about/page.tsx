@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
-import { AppHeader } from '@/components/navigation/AppHeader';
+import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { ValueSourceMark } from '@/client/components/local-gov/ValueSourceMark';
@@ -103,10 +103,10 @@ function LocalGovAboutContent() {
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
-    // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+    // ヘッダーは固定で重なるので、エラーのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
     return (
       <div className="min-h-screen bg-mirai-surface">
-        <AppHeader current="/" />
+        <LocalHeaderSpacer />
         <p className="px-4 pt-4 text-sm text-destructive">{state.message}</p>
       </div>
     );
@@ -154,7 +154,7 @@ function LocalGovAboutContent() {
 
   return (
     <div className="min-h-screen bg-mirai-surface">
-      <AppHeader current="/" />
+      <LocalHeaderSpacer />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-sm text-mirai-text">
         <div>
           <Link

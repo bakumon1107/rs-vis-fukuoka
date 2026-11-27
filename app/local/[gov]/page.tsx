@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Suspense, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
-import { AppHeader } from '@/components/navigation/AppHeader';
+import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
 import { type BasisChoice, pickDataset, supplementDatasets, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
@@ -167,10 +167,10 @@ function LocalGovContent() {
 
   if (state.status === 'loading') return <LoadingSpinner fullscreen />;
   if (state.status === 'error') {
-    // ヘッダーは固定で重なるので、エラーのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+    // ヘッダーは固定で重なるので、エラーのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
     return (
       <div className="min-h-screen bg-mirai-surface">
-        <AppHeader current="/" />
+        <LocalHeaderSpacer />
         <p className="px-4 pt-4 text-sm text-destructive">{state.message}</p>
       </div>
     );
@@ -208,7 +208,7 @@ function LocalGovContent() {
 
   return (
     <div className="min-h-screen bg-mirai-surface">
-      <AppHeader current="/" />
+      <LocalHeaderSpacer />
       {/* 広い幅では詳細を図の下に置くので、図の幅は選んでも変わらない（横のパネルで図が縮み名前が重なった。2026-11-14 ユーザー決定） */}
       {/* 狭い幅で詳細パネル（画面の下から 45dvh）が出ているときは、図の下端と出典の行がパネルの裏に隠れないよう下に余白を足す */}
       <main className="px-4 pb-16 pt-4" style={{ paddingBottom: hasDetail && isNarrow ? '50dvh' : undefined }}>

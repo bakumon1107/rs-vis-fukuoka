@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
+import { LOCAL_PAGE_PATHS, localPageMetadata } from '@/app/lib/local-gov/site';
 
-// 地方版の画面（試作）。国版と地方版の切り替え（ナビ・トップ）は全体計画のフェーズ2。それまでは URL を直接開いて確認する。
-// 数字・名前の確認が済むまで検索エンジンには載せない
-export const metadata: Metadata = {
-  title: '地方版予算ビュー（試作）',
-  robots: { index: false, follow: false },
-};
+// 地方版の画面（試作）。福岡県版は GitHub Pages の静的サイトとして書き出す（NEXT_PUBLIC_SITE_EDITION=local。
+// 入口は layout.local.tsx・page.local.tsx。docs/local-gov/tasks/20261127_1752_サイト全体から国版を外す設計.md 10章）。
+// 国版のビルドではこのファイルがそのまま使われるので、国版の description・OGP を継承しないよう地方版のものに上書きする
+// （国版のビルドでは noindex のまま・canonical なし。localPageMetadata）。
+export const metadata: Metadata = localPageMetadata('サンキー図', LOCAL_PAGE_PATHS.sankey());
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return children;

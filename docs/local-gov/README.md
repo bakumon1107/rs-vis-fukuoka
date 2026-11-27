@@ -38,6 +38,28 @@ docs/local-gov/
 
 地方版の作業文書は本家の `docs/tasks/` ではなくここに置く（本家取り込み時の衝突回避と、文書の埋没を防ぐため）。
 
+## 地方版のサイトとして出す（版の切り替え）
+
+「予算ビュー＠福岡県」は **GitHub Pages の静的サイト**（`https://bakumon1107.github.io/yosan-view-fukuoka-pref/`。リポジトリの改名後）。
+環境変数 `NEXT_PUBLIC_SITE_EDITION=local` を付けてビルドしたときだけ、地方版のページだけを静的に書き出す。
+未設定なら本家と同じ国版のまま。CI は `.github/workflows/pages-local.yml`（型チェック・lint・テスト・福岡県版の書き出し）だけで、
+本家の `checks.yml`（国版のビルド・e2e）はこのフォークでは Actions の設定で無効にしている（国版のビルドは CI で確かめない）。
+
+- 仕組み: `next.config.local.ts` が地方版のときだけ `output: 'export'`・`pageExtensions: ['local.tsx', 'local.ts']`・`basePath` にする。ルートになるのは `*.local.tsx`（`app/layout.local.tsx`・`app/page.local.tsx`・`app/local/[gov]/*.local.tsx`・`app/terms/page.local.tsx` 等）だけで、国版のページ・API は入らない
+- 書き出しと公開物（ローカル）:
+  ```bash
+  NEXT_PUBLIC_SITE_EDITION=local NEXT_PUBLIC_LOCAL_GOV_ID=fukuoka-pref NEXT_PUBLIC_BASE_PATH=/yosan-view-fukuoka-pref npx next build   # → .next-local/
+  node scripts/local-gov/assemble-pages.mjs   # 許可リストで out/ に組み立てる（国のデータ等を外す）
+  ```
+  `npm run build` は国のデータを展開する（prebuild）ので使わない。見るときは `out/` を `/yosan-view-fukuoka-pref/` の下に置いて静的サーバーで配信する
+- デプロイ: `.github/workflows/pages-local.yml`（PR では書き出しの確認だけ、`local-main` への push と手動実行でデプロイ）。Settings → Pages の Source を「GitHub Actions」にしておく
+- 名前・運営者・連絡先・配色は `app/lib/local-gov/site.ts`。外枠（ヘッダー・フッター）は `client/components/local-gov/LocalSiteShell.tsx`
+- 本家のファイルで変えたのは `next.config.ts` の末尾 2 行だけ。本家を取り込んだら PR の `pages-local.yml` で地方版の書き出しが通るかを確かめる
+- GA は読み込まない（`NEXT_PUBLIC_GA_MEASUREMENT_ID` を明示したときだけ読み込む作り。本家の既定の ID には送らない）
+- リポジトリを改名したら、`site.ts` の `repositoryUrl`（フッターのソースコードのリンク）と文書中の `github.com/bakumon1107/rs-vis-fukuoka` を `github.com/bakumon1107/yosan-view-fukuoka-pref` に直す
+
+設計: [tasks/20261127_1752_サイト全体から国版を外す設計.md](tasks/20261127_1752_サイト全体から国版を外す設計.md)
+
 ## ロードマップ
 
 詳細は [tasks/20261106_0111_地方版予算ビュー全体計画.md](tasks/20261106_0111_地方版予算ビュー全体計画.md)。

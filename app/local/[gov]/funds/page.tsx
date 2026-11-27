@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
-import { AppHeader } from '@/components/navigation/AppHeader';
+import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { useLocalBudget } from '@/client/hooks/useLocalBudget';
 import { FundsTrendChart } from '@/client/components/local-gov/FundsTrendChart';
 import { FundsTable } from '@/client/components/local-gov/FundsTable';
@@ -42,11 +42,11 @@ function LocalFundsContent() {
   const rows = useMemo(() => (funds ? fundRows(funds, flows) : []), [funds, flows]);
 
   if (settlement.status === 'loading') return <LoadingSpinner fullscreen />;
-  // ヘッダーは固定で重なるので、エラー・データなしのときも AppHeader を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
+  // ヘッダーは固定で重なるので、エラー・データなしのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
   if (settlement.status === 'error' || !funds) {
     return (
       <div className="min-h-screen bg-mirai-surface">
-        <AppHeader current="/" />
+        <LocalHeaderSpacer />
         <p className={`px-4 pt-4 text-sm ${settlement.status === 'error' ? 'text-destructive' : ''}`}>
           {settlement.status === 'error' ? `読み込めませんでした: ${settlement.message}` : 'この自治体の基金のデータはまだありません。'}
         </p>
@@ -67,7 +67,7 @@ function LocalFundsContent() {
 
   return (
     <div className="min-h-screen bg-mirai-surface">
-      <AppHeader current="/" />
+      <LocalHeaderSpacer />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-mirai-text">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <h1 className="text-xl font-bold">{index.gov.name} 基金</h1>
