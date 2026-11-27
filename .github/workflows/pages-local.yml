@@ -29,8 +29,10 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
       # npm run build は prebuild で国のデータ（120MB 超）を展開するので使わない。地方版のデータは JSON のまま Git にある
+      # Google Fonts（next/font）の取得がときどき失敗してビルドが落ちる（「An error occurred in `next/font`」。やり直すと通る）。
+      # 2 回までやり直す（コードの誤りなら 3 回とも落ちる）
       - name: Build (static export)
-        run: npx next build
+        run: npx next build || (echo "::warning::build failed, retrying (next/font fetch is flaky)" && sleep 20 && npx next build) || (sleep 60 && npx next build)
         env:
           NEXT_PUBLIC_SITE_EDITION: local
           NEXT_PUBLIC_LOCAL_GOV_ID: fukuoka-pref
