@@ -279,7 +279,7 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
         return ok;
       });
       items.forEach((x, i) => {
-        if (!x.name) err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない`);
+        if (typeof x.name !== 'string' || x.name.trim() === '') err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない（文字列でない）`);
         if (!nonNeg(x.amount)) err(`会計 ${a.id}: 補填財源の内訳「${x.name}」の額が 0 以上の整数でない（${x.amount}）`);
       });
       const sum = items.reduce((s, x) => s + (nonNeg(x.amount) ? x.amount : 0), 0);
