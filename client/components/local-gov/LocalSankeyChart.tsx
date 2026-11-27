@@ -112,7 +112,9 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
       const d = deltas?.get(id);
       return !!d && (d.added || shortDelta(d.delta) !== '');
     };
-    const withDelta = (col: string | undefined) => (size.showAmount && deltas && graph.nodes.some(n => n.col === col && shows(n.id)) ? DELTA_LABEL_PX : 0);
+    // 描く条件（金額を出す列だけ）と同じにする
+    const withDelta = (col: string | undefined) =>
+      size.showAmount && deltas && col && !hideAmountCols.has(col) && graph.nodes.some(n => n.col === col && shows(n.id)) ? DELTA_LABEL_PX : 0;
     const labelPx = (col: string | undefined) =>
       Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx +
       size.amountPx + withDelta(col);
@@ -122,7 +124,7 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
       left: Math.min(size.maxSide, labelPx(presentCols[0]?.key)),
       right: Math.min(size.maxSide, labelPx(presentCols.at(-1)?.key)),
     };
-  }, [graph, size, deltas]);
+  }, [graph, size, deltas, hideAmountCols]);
   const layout = useMemo(
     () =>
       computeMOFSankeyLayout<GraphNode>(

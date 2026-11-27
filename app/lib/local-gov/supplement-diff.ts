@@ -3,12 +3,13 @@
  * 設計: docs/local-gov/tasks/20261127_2337_補正後予算の当初からの増減の表示の設計.md
  *
  * - 図の箱の当初の額: 当初のファイルから同じ見方の図を組み立て、箱の ID で対応させる（箱の ID は会計・款・項・目の番号と
- *   目の行の ID で決まるので、当初と補正後で同じ）。当初の図にない箱は補正で新しくできた箱
+ *   目の行の ID で決まるので、当初と補正後で同じ）。当初の図にない箱の当初の額は 0。
+ *   「新」は当初予算のファイルのどの行も入らない箱（initialBoxIds。当初 0 円の目は新ではない）
  * - 増減の表: 補正後のファイルの目の行（before = 当初、amount = 補正後、supplements = 回ごとの補正額）を足し上げる
  * - 推計しない（資料の数字の足し算だけ）
  */
 import type { LocalBudgetFile, LocalGraph, Side, Yen } from '@/types/local-gov';
-import { buildLocalGraph, type LocalGraphView } from './graph';
+import { buildLocalGraph, rowBoxIds, type LocalGraphView } from './graph';
 
 /** 増減を出す列。財源の箱には出さない（財源内訳を足し合わせられない目があり、財源の実際の増減と合わない。2026-11-27 ユーザー決定）。
  * 事項・節は補正で並びが変わることがある（同じ ID が同じものを指すとは限らない）ので出さない */
@@ -23,21 +24,28 @@ export function initialBoxValues(initial: LocalBudgetFile, view: LocalGraphView)
 export interface BoxDelta {
   /** 補正後 − 当初（円） */
   delta: Yen;
-  /** 当初の図になかった箱（補正で新しくできた） */
+  /** 当初予算のファイルのどの行も入らない箱（補正で新しくできた。initialBoxIds にない） */
   added: boolean;
 }
 
 /**
- * 補正後の図の箱ごとの増減。増減を出さない列・「その他」にまとめた箱は入れない。
- * 「新」は補正で新しく設けた目（行の added_in。表と同じ決め方）だけ。当初の図にない箱でも、当初 0 円の目や
- * その上の箱（当初の図は 0 円の行・箱を作らない）は当初 0 からの増として扱う
+ * 当初予算のファイルにある箱の ID（0 円の行も含む）。図は 0 円の行・箱を作らないので、当初の図の箱だけでは
+ * 「当初 0 円だった目」と「補正で新しく設けた目」を見分けられない。行から直接集める（前年度にだけあった目は除く）
  */
-export function boxDeltas(graph: LocalGraph, before: Map<string, Yen>, composed: LocalBudgetFile): Map<string, BoxDelta> {
-  const addedMoku = new Set(composed.rows.filter(r => r.added_in).map(r => `moku:${r.id}`));
+export function initialBoxIds(initial: LocalBudgetFile): Set<string> {
+  return new Set(initial.rows.filter(r => !r.previous_only).flatMap(rowBoxIds));
+}
+
+/**
+ * 補正後の図の箱ごとの増減。増減を出さない列・「その他」にまとめた箱は入れない。
+ * 「新」（added）は当初予算のファイルのどの行もその箱に入らない箱（補正で新しく設けた目・項・款・歳入の款）。
+ * 当初 0 円の目とその上の箱は当初 0 からの増として扱う（新ではない）
+ */
+export function boxDeltas(graph: LocalGraph, before: Map<string, Yen>, initialIds: Set<string>): Map<string, BoxDelta> {
   const out = new Map<string, BoxDelta>();
   for (const n of graph.nodes) {
     if (!DELTA_COLUMNS.has(n.col) || n.flags?.includes('aggregate')) continue;
-    out.set(n.id, { delta: n.value - (before.get(n.id) ?? 0), added: addedMoku.has(n.id) });
+    out.set(n.id, { delta: n.value - (before.get(n.id) ?? 0), added: !initialIds.has(n.id) });
   }
   return out;
 }
@@ -134,10 +142,19 @@ export function supplementDiffTree(file: LocalBudgetFile, opts: DiffTreeOptions)
   return top;
 }
 
-/** 表の並べ替え（各段の中で）。delta: 増減の絶対値の大きい順（同じなら元の順）。order: 款・項・目の順（データの順） */
+/**
+ * 並べ替えの大きさ: 自分の増減の絶対値。自分が 0 なら子の大きさの合計（同じ項の中で目の間で付け替えた項を、
+ * 動いた額の分だけ上に出す。0 のままだと「増減の大きい順」で一番下に回る）
+ */
+function activity(n: DiffNode): number {
+  const own = Math.abs(n.after - n.before);
+  return own !== 0 ? own : n.children.reduce((t, c) => t + activity(c), 0);
+}
+
+/** 表の並べ替え（各段の中で）。delta: 増減の大きい順（activity。同じなら元の順）。order: 款・項・目の順（データの順） */
 export function sortDiff(nodes: DiffNode[], by: 'delta' | 'order'): DiffNode[] {
   const sorted = by === 'delta'
-    ? nodes.map((n, i) => ({ n, i })).sort((a, b) => Math.abs(b.n.after - b.n.before) - Math.abs(a.n.after - a.n.before) || a.i - b.i).map(x => x.n)
+    ? nodes.map((n, i) => ({ n, i, a: activity(n) })).sort((x, y) => y.a - x.a || x.i - y.i).map(x => x.n)
     : nodes;
   return sorted.map(n => ({ ...n, children: sortDiff(n.children, by) }));
 }

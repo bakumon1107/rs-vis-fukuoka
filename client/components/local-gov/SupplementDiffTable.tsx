@@ -66,7 +66,7 @@ export function SupplementDiffTable({ file, byAccount, gov, year }: Props) {
                 <Link
                   href={`/local/${gov}?basis=latest&year=${year}&view=${byAccount ? 'all' : 'general'}&sel=${encodeURIComponent(`moku:${n.rowId}`)}`}
                   replace
-                  scroll={false}
+                  // 図は表より上にあるので、押したら上へ戻る（scroll を止めると、図の外で選ばれて何も起きないように見える）
                   className="text-primary-accent underline-offset-2 hover:underline"
                 >
                   {n.name}
