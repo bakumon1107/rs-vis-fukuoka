@@ -94,3 +94,17 @@ export function fundRows(funds: LocalFunds, flows: FundFlows | null): FundRow[] 
   }
   return rows;
 }
+
+/**
+ * グラフの目盛りの間隔（円）。最大値を 4 本前後で区切れる 1・2・5 × 10^k にする
+ * （基金ごとの推移のグラフ。基金の額は数百万円〜7,000億円と幅が広いので、決まった間隔にできない）
+ */
+export function niceStep(max: number): number {
+  if (!(max > 0)) return 1;
+  const raw = max / 4;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const m = raw / p;
+  // 4 本の幅を 1・2・5 に寄せる（切り上げだけだと 2.5 → 5 で 2 本になるので、近い方へ寄せる）。
+  // 1円より細かい目盛りにはしない（円の表示で同じ額が並んでしまう）
+  return Math.max(1, (m <= 1.5 ? 1 : m <= 3 ? 2 : m <= 7 ? 5 : 10) * p);
+}

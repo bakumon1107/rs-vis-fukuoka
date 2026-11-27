@@ -13,7 +13,8 @@ const SERIES = [
   { key: 'other', label: 'その他の基金（特定の目的）', className: 'fill-slate-400' },
 ] as const;
 
-function eraLabel(year: number): string {
+/** 年度の短い和暦（2024 → R6、2018 → H30）。基金ごとの推移のグラフ（FundHistoryChart）でも使う */
+export function eraLabel(year: number): string {
   return year >= 2019 ? `R${year - 2018}` : `H${year - 1988}`;
 }
 
