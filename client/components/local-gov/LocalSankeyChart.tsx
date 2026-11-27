@@ -46,6 +46,18 @@ function useWidth<T extends HTMLElement>(minWidth: number) {
   return { ref, width };
 }
 
+/**
+ * 帯を描くときの最低の太さ（px）。額に比例した太さだと、数百万円の帯（公営企業会計の収益的収支の差 527.9万円など）は
+ * 0.02px ほどになり、箱だけが浮いて見える。描くときだけ太さを足す（配置・箱の額・合計は変えない）。
+ * 本来の位置の中心に合わせて太らせるので、隣の帯と最大 0.5px ずつ重なる
+ */
+const MIN_RIBBON_PX = 1;
+function visible<T extends { width: number; y0: number; y1: number }>(link: T): T {
+  if (link.width >= MIN_RIBBON_PX) return link;
+  const pad = (MIN_RIBBON_PX - link.width) / 2;
+  return { ...link, width: MIN_RIBBON_PX, y0: link.y0 - pad, y1: link.y1 - pad };
+}
+
 /** 狭い幅（スマートフォン）の描き方: 3列だけを描くので、図の最小幅・ラベルの長さ・左右の余白を小さくする（設計書 4.3） */
 const NARROW = { minWidth: 300, labelMax: 6, amountPx: 8, maxSide: 90, fontSize: 11, charPx: 11, showAmount: false };
 const WIDE = {
@@ -138,7 +150,7 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
             const color = colorOf(link.target.column);
             if (!selected) {
               const dim = hoveredShown !== null && hoveredShown !== link.source.id && hoveredShown !== link.target.id;
-              return <path key={k} d={mofRibbonPath(link)} fill={color} opacity={dim ? 0.08 : 0.3} />;
+              return <path key={k} d={mofRibbonPath(visible(link))} fill={color} opacity={dim ? 0.08 : 0.3} />;
             }
             const part = highlight.get(k) ?? 0;
             // 選んだものに含まれる分だけを、帯の上側に元の色で重ねる（按分しない。値は組み立て直したグラフの値）
@@ -146,8 +158,8 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
               part > 0 && link.value > 0 ? { ...link, width: link.width * Math.min(1, part / link.value) } : null;
             return (
               <g key={k}>
-                <path d={mofRibbonPath(link)} fill={GREY} opacity={0.35} />
-                {sub && <path d={mofRibbonPath(sub)} fill={color} opacity={0.55} />}
+                <path d={mofRibbonPath(visible(link))} fill={GREY} opacity={0.35} />
+                {sub && <path d={mofRibbonPath(visible(sub))} fill={color} opacity={0.55} />}
               </g>
             );
           })}
