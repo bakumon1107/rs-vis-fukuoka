@@ -151,7 +151,9 @@ test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 
   const broken = { id: 'enterprise:byoin', kind: 'enterprise' as const, name: '病院事業会計',
     enterprise: { capital_shortfall: { amount: 20 } } } as unknown as ReturnType<typeof acc>;
   const brokenErrs = errs(broken);
-  assert.ok(brokenErrs.some(e => e.includes('補填財源の内訳がない')) && brokenErrs.some(e => e.includes('補填財源の出典がない')));
+  assert.ok(brokenErrs.some(e => e.includes('補填財源の内訳がない')) && brokenErrs.some(e => e.includes('補填財源の出典')));
+  const nullItem = acc(20, [null as unknown as { name: string; amount: number }]);
+  assert.ok(errs(nullItem).some(e => e.includes('形になっていない')));
 });
 
 test('ID は会計/歳入歳出/款-項-目', () => {

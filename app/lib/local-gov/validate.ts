@@ -268,15 +268,21 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (cs) {
       const nonNeg = (v: number) => Number.isSafeInteger(v) && v >= 0;
       if (!nonNeg(cs.amount)) err(`会計 ${a.id}: 補填財源の不足額が 0 以上の整数でない（${cs.amount}）`);
-      if (!cs.source?.source) err(`会計 ${a.id}: 補填財源の出典がない`);
-      // JSON は型で守られないので、内訳がなくても落ちずに失敗として返す
-      const items = Array.isArray(cs.items) ? cs.items : [];
+      const page = cs.source?.page;
+      if (!cs.source?.source || !(Number.isInteger(page) && page > 0)) err(`会計 ${a.id}: 補填財源の出典（資料とページ）がない`);
+      // JSON は型で守られないので、内訳がない・内訳の要素が崩れていても落ちずに失敗として返す
       if (!Array.isArray(cs.items)) err(`会計 ${a.id}: 補填財源の内訳がない`);
+      const raw: unknown[] = Array.isArray(cs.items) ? cs.items : [];
+      const items = raw.filter((x, i): x is { name: string; amount: number } => {
+        const ok = typeof x === 'object' && x !== null;
+        if (!ok) err(`会計 ${a.id}: 補填財源の内訳 ${i} が形になっていない`);
+        return ok;
+      });
       items.forEach((x, i) => {
         if (!x.name) err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない`);
         if (!nonNeg(x.amount)) err(`会計 ${a.id}: 補填財源の内訳「${x.name}」の額が 0 以上の整数でない（${x.amount}）`);
       });
-      const sum = items.reduce((s, x) => s + x.amount, 0);
+      const sum = items.reduce((s, x) => s + (nonNeg(x.amount) ? x.amount : 0), 0);
       if (sum !== cs.amount || cs.amount !== gap) err(`会計 ${a.id}: 補填財源の内訳の合計 ${sum} / 不足額 ${cs.amount} / 資本的支出 − 収入 ${gap}`);
     }
   }

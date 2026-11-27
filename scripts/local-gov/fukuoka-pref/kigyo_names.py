@@ -5,13 +5,16 @@
 （「建設改良費」→「建云比又几改良費」など）。名前を次の順で決める:
 
 1. 修正表（ocr/corrections/r8-kigyo-names.json。原本の画像で確かめた名前）にあれば、その名前（出典 correction）
-2. 文字層の名前が、同じページの新 OCR（ocr/ocr_lines.py）の行（続く3行までをつないだもの）と同じか、款・項なら予算書の本体
-   （extract_yosansho.py の条文の款・項を番号で対応させたもの。発行元の本物の文字）と同じなら、そのまま（出典 readings）
+2. 文字層の名前が、同じページの新 OCR（ocr/ocr_lines.py）の行と同じか、款・項なら予算書の本体
+   （extract_yosansho.py の条文の款・項を番号で対応させたもの。発行元の本物の文字）と同じなら、そのまま（出典 readings）。
+   新 OCR の行は、続く3行までをつないだもののうち、金額のある行をちょうど1つ含むもの（ocr_lines）
 3. どちらでもなければ止める（画像で確かめて修正表に足す）
 
-比べる形（norm）は空白・数字・中黒・点を除くので、「償還元金」と「償還金」は別だが、中黒の有無の違いは見逃す。
+この比べ方は粗いふるいで、名前が正しいことの保証は画像の確認にある:
+- 比べる形（norm）は空白・数字・中黒・点を除くので、「償還元金」と「償還金」は別だが、中黒の有無の違いは見逃す
+- 2行の名前で金額が上の行にあると、上の行だけ（名前のかけら）も一致に見える
 R8 は17ページすべての名前を画像で見比べ、そうしたものも修正表に入れた。別の年度を取り込むときも、ページが少ないので全部を画像で見る。
-抽出（extract_kigyo_jisshi.py）の失敗（kigyo.json の fails）はそのまま失敗に引き継ぐ。
+抽出（extract_kigyo_jisshi.py）の失敗（kigyo.json の fails）はそのまま失敗に引き継ぐ。fails のない kigyo.json（古い出力）は止める。
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/kigyo_names.py <kigyo.json> <yosansho.json> <OCR の行のディレクトリ>... > kigyo-named.json
@@ -28,7 +31,10 @@ import unicodedata
 # 新 OCR が簡体字で読む字を日本の字に寄せる（比べるときだけ。名前そのものは文字層か修正表から取る）
 GLYPHS = str.maketrans({"资": "資", "减": "減", "损": "損", "债": "債", "产": "産", "產": "産", "营": "営", "设": "設", "费": "費", "单": "単"})
 SECTIONS = {"収益的収入及び支出": 3, "資本的収入及び支出": 4}
-AMOUNT_END = re.compile(r"\d[\d,]*\s*$")  # OCR の行の末尾の金額（款・項・目の行には予定額がある）
+# OCR の行の金額（款・項・目の行には予定額がある）。行の頭の款・項・目の番号（1〜2桁）は除いてから探す。
+# 金額の後に説明の文字が続く行・金額だけの行もあるので、末尾に限らない
+LEAD_NO = re.compile(r"^\s*\d{1,2}(?!\d|,)")
+HAS_AMOUNT = re.compile(r"\d")
 
 
 def norm(s: str) -> str:
@@ -41,14 +47,21 @@ def ocr_lines(text: str) -> set[str]:
     """OCR のページの文字 → 比べる形にした行の集まり（行は「番号 名前 金額」なので、比べる形にすると名前だけが残る）。
     行に分かれた名前（「支払利息及び／企業債取扱諸費」「流域下水道管理費／負担／金」）のため、続く3行までをつないだものも入れる。
     ただし、金額のある行をちょうど1つ含むものだけ（1つの款・項・目の行。名前だけの行のかけら・2つの目にまたがるつなぎは入れない）"""
-    lines = [(norm(line), bool(AMOUNT_END.search(line))) for line in text.splitlines()]
-    lines = [x for x in lines if x[0]]
+    # 名前は金額より前だけ（後ろの説明の文字は名前に付けない）。金額だけの行（名前が空）も、金額の印として残す
+    lines = []
+    for line in text.splitlines():
+        body = LEAD_NO.sub("", line)
+        m = HAS_AMOUNT.search(body)
+        name = norm(body[:m.start()] if m else body)
+        if name or m:
+            lines.append((name, bool(m)))
     out = set()
     for k in (1, 2, 3):
         for i in range(len(lines) - k + 1):
             win = lines[i:i + k]
-            if sum(has for _, has in win) == 1:
-                out.add("".join(n for n, _ in win))
+            joined = "".join(n for n, _ in win)
+            if joined and sum(has for _, has in win) == 1:
+                out.add(joined)
     return out
 
 
@@ -68,7 +81,7 @@ def load_ocr(dirs: list[str]) -> dict[int, set[str]]:
 
 def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, set[str]]) -> tuple[dict, list[str], dict]:
     """名前を決める。pages は load_ocr の形（ページ → ocr_lines の行の集まり）。返り値: (名前を付けた kigyo, 失敗, 出典の数)"""
-    if "fails" not in kigyo:
+    if not isinstance(kigyo.get("fails"), list):
         # 抽出が fails を書くようになる前の kigyo.json は、抽出が失敗していたかが分からない
         return kigyo, ["kigyo.json に fails がない（古い抽出の出力。extract_kigyo_jisshi.py で作り直す）"], {"readings": 0, "correction": 0}
     fails: list[str] = [f"実施計画の抽出: {f}" for f in kigyo["fails"]]

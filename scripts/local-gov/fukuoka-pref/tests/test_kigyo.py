@@ -70,6 +70,9 @@ def test_unconfirmed_name_and_unused_fix_fail():
     lines = kn.ocr_lines("1 支払利息及び\n企業債取扱諸費 50\n2 雑支出 3")
     assert "支払利息及び企業債取扱諸費" in lines and "支払利息及び" not in lines
     assert "企業債取扱諸費雑支出" not in lines  # 2つの目にまたがるつなぎ
+    # 金額が別の行に出た名前・金額の後に文字が続く行も使える
+    assert "入院収益" in kn.ocr_lines("1 入院収益\n   100")
+    assert "外来収益" in kn.ocr_lines("2 外来収益   20 千円")
     # 抽出の失敗は引き継ぐ。fails のない古い kigyo.json は止める
     k = {**_kigyo(), "fails": ["目の合計が項と合わない"]}
     assert any("実施計画の抽出: 目の合計" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
