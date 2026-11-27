@@ -107,7 +107,12 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
   // （全会計の見方の歳入の款のように名前が長い列で、ラベルが画面の端で切れないように）
   const margin = useMemo(() => {
     const presentCols = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key));
-    const withDelta = (col: string | undefined) => (size.showAmount && deltas && graph.nodes.some(n => n.col === col && deltas.has(n.id)) ? DELTA_LABEL_PX : 0);
+    // 増減の印を実際に出す箱（1万円未満は出さない）がある列だけ、余白を足す
+    const shows = (id: string) => {
+      const d = deltas?.get(id);
+      return !!d && (d.added || shortDelta(d.delta) !== '');
+    };
+    const withDelta = (col: string | undefined) => (size.showAmount && deltas && graph.nodes.some(n => n.col === col && shows(n.id)) ? DELTA_LABEL_PX : 0);
     const labelPx = (col: string | undefined) =>
       Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx +
       size.amountPx + withDelta(col);
@@ -199,7 +204,8 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
               onSelect(node.id);
             };
             // キーボード・支援技術でも選べるように、選べる箱はボタンとして扱う（Enter・Space で選ぶ）
-            const label = `${n.name} ${formatBudgetFromYen(n.value)}${ocrName ? '（名前は読み取り）' : ''}${isSelected ? '（選択中）' : ''}`;
+            // 読み上げにも増減を入れる（aria-label は <title> より優先されるので、ツールチップと同じ文を足す）
+            const label = `${n.name} ${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value).replace('\n', '。')}${ocrName ? '（名前は読み取り）' : ''}${isSelected ? '（選択中）' : ''}`;
             return (
               <g
                 key={node.id}

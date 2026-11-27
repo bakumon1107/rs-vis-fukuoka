@@ -23,7 +23,7 @@ import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
 import { enterpriseExpense, formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
-import { boxDeltas, grossDelta, initialBoxValues } from '@/app/lib/local-gov/supplement-diff';
+import { boxDeltas, initialBoxValues, initialGross } from '@/app/lib/local-gov/supplement-diff';
 import { SupplementDiffTable } from '@/client/components/local-gov/SupplementDiffTable';
 import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
@@ -157,11 +157,16 @@ function LocalGovContent() {
     () => (state.status === 'ready' && state.initial && view !== 'enterprise' ? initialBoxValues(state.initial, view) : null),
     [state, view]
   );
-  const deltas = useMemo(() => (initialValues && shown ? boxDeltas(shown.graph, initialValues) : undefined), [initialValues, shown]);
-  const totalDelta = useMemo(
-    () => (state.status === 'ready' && state.initial && display && view !== 'enterprise' ? grossDelta(state.initial, view, display.graph.totals.gross) : null),
-    [state, view, display]
+  const deltas = useMemo(
+    () => (initialValues && shown && state.status === 'ready' ? boxDeltas(shown.graph, initialValues, state.file) : undefined),
+    [initialValues, shown, state]
   );
+  // 当初の総計は見方ごとに一度だけ求める（選ぶたびに当初の図を組み立て直さない）
+  const initialTotal = useMemo(
+    () => (state.status === 'ready' && state.initial && view !== 'enterprise' ? initialGross(state.initial, view) : null),
+    [state, view]
+  );
+  const totalDelta = initialTotal !== null && display ? display.graph.totals.gross - initialTotal : null;
   // 選んだ款・項・目のうち人件費の節の割合（同 3章）。財源・部局・歳入の箱を選んだときは出さない
   const personnel = useMemo(() => {
     if (state.status !== 'ready' || !display?.selected) return null;
@@ -423,7 +428,7 @@ function LocalGovContent() {
         {/* 補正後: 当初からの増減の表（図の下に折りたたみ。歳出・歳入。2026-11-27 ユーザー決定） */}
         {file.composed && view !== 'enterprise' && (
           <div className="mt-3">
-            <SupplementDiffTable file={file} byAccount={view === 'all'} gov={gov} />
+            <SupplementDiffTable file={file} byAccount={view === 'all'} gov={gov} year={file.year} />
           </div>
         )}
 

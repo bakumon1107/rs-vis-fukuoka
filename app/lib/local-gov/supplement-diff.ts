@@ -27,13 +27,17 @@ export interface BoxDelta {
   added: boolean;
 }
 
-/** 補正後の図の箱ごとの増減。増減を出さない列・「その他」にまとめた箱は入れない */
-export function boxDeltas(graph: LocalGraph, before: Map<string, Yen>): Map<string, BoxDelta> {
+/**
+ * 補正後の図の箱ごとの増減。増減を出さない列・「その他」にまとめた箱は入れない。
+ * 「新」は補正で新しく設けた目（行の added_in。表と同じ決め方）だけ。当初の図にない箱でも、当初 0 円の目や
+ * その上の箱（当初の図は 0 円の行・箱を作らない）は当初 0 からの増として扱う
+ */
+export function boxDeltas(graph: LocalGraph, before: Map<string, Yen>, composed: LocalBudgetFile): Map<string, BoxDelta> {
+  const addedMoku = new Set(composed.rows.filter(r => r.added_in).map(r => `moku:${r.id}`));
   const out = new Map<string, BoxDelta>();
   for (const n of graph.nodes) {
     if (!DELTA_COLUMNS.has(n.col) || n.flags?.includes('aggregate')) continue;
-    const b = before.get(n.id);
-    out.set(n.id, { delta: n.value - (b ?? 0), added: b === undefined });
+    out.set(n.id, { delta: n.value - (before.get(n.id) ?? 0), added: addedMoku.has(n.id) });
   }
   return out;
 }
@@ -47,9 +51,12 @@ export function shortDelta(v: Yen): string {
   if (a < 10_000) return '';
   const sign = v > 0 ? '+' : '△';
   const trim = (s: string) => s.replace(/\.0+$/, '');
-  if (a >= 1e12) return `${sign}${trim((a / 1e12).toFixed(2))}兆`;
-  if (a >= 1e8) return `${sign}${trim((a / 1e8).toFixed(1))}億`;
-  return `${sign}${Math.round(a / 1e4)}万`;
+  // 丸めてから単位を決める（丸めると次の単位に届く額が「10000万」「10000億」にならないように）
+  const oku = Number((a / 1e8).toFixed(1));
+  if (oku >= 10000) return `${sign}${trim((a / 1e12).toFixed(2))}兆`;
+  const man = Math.round(a / 1e4);
+  if (man >= 10000) return `${sign}${trim(oku.toFixed(1))}億`;
+  return `${sign}${man}万`;
 }
 
 /** 増減の表の1行（会計・款・項・目）。子を開くと下の段 */
@@ -135,9 +142,14 @@ export function sortDiff(nodes: DiffNode[], by: 'delta' | 'order'): DiffNode[] {
   return sorted.map(n => ({ ...n, children: sortDiff(n.children, by) }));
 }
 
-/** 増減のない行を外す（子も含めて増減 0 の行）。回ごとの補正額が打ち消し合って 0 の行は、増減 0 として外す */
+/**
+ * 増減のない行を外す。子を先に絞り、自分の増減が 0 でも増減のある子が残る行は残す
+ * （同じ項の中で目の間で付け替えた補正は、項の増減が 0 でも目は動いている）
+ */
 export function withoutZero(nodes: DiffNode[]): DiffNode[] {
-  return nodes.filter(n => n.after !== n.before).map(n => ({ ...n, children: withoutZero(n.children) }));
+  return nodes
+    .map(n => ({ ...n, children: withoutZero(n.children) }))
+    .filter(n => n.after !== n.before || n.children.length > 0);
 }
 
 /** 行の当初・補正後の合計（表の合計の行） */
@@ -145,8 +157,13 @@ export function diffTotal(nodes: DiffNode[]): { before: Yen; after: Yen } {
   return nodes.reduce((t, n) => ({ before: t.before + n.before, after: t.after + n.after }), { before: 0, after: 0 });
 }
 
+/** 当初の図の総計（見出しの「補正 +○○」の元。見方ごとに一度だけ求める） */
+export function initialGross(initial: LocalBudgetFile, view: LocalGraphView): Yen {
+  return buildLocalGraph(initial, { view, depth: 1 }).totals.gross;
+}
+
 /** 図の総計の増減（見出しの「補正 +○○」）。当初の図の総計との差 */
 export function grossDelta(initial: LocalBudgetFile, view: LocalGraphView, composedGross: Yen): Yen {
-  return composedGross - buildLocalGraph(initial, { view, depth: 1 }).totals.gross;
+  return composedGross - initialGross(initial, view);
 }
 

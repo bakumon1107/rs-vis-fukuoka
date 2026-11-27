@@ -9,9 +9,9 @@ import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import { composeLatest } from '../app/lib/local-gov/supplement';
 import {
-  boxDeltas, diffTotal, grossDelta, initialBoxValues, shortDelta, sortDiff, supplementDiffTree, withoutZero,
+  boxDeltas, diffTotal, grossDelta, initialBoxValues, shortDelta, sortDiff, supplementDiffTree, withoutZero, type DiffNode,
 } from '../app/lib/local-gov/supplement-diff';
-import type { LocalBudgetFile } from '../types/local-gov';
+import type { LocalBudgetFile, LocalGraph } from '../types/local-gov';
 
 test('短い増減: 1万円未満は出さない。億は小数1桁、兆は2桁、万は整数。減は △', () => {
   assert.equal(shortDelta(0), '');
@@ -21,6 +21,31 @@ test('短い増減: 1万円未満は出さない。億は小数1桁、兆は2桁
   assert.equal(shortDelta(1_230_000_000), '+12.3億');
   assert.equal(shortDelta(2_000_000_000), '+20億');
   assert.equal(shortDelta(1_234_000_000_000), '+1.23兆');
+  // 丸めると次の単位に届く額（「10000万」「10000億」にしない）
+  assert.equal(shortDelta(99_995_000), '+1億');
+  assert.equal(shortDelta(-999_995_000_000), '△1兆');
+});
+
+test('増減のない行を外す: 子の増減が打ち消し合って親の増減が 0 でも、動いた子があれば親ごと残す', () => {
+  const node = (key: string, before: number, after: number, children: DiffNode[] = []): DiffNode =>
+    ({ key, name: key, level: 'moku', before, after, rounds: [after - before], children });
+  const kou = node('kou', 10, 10, [node('a', 5, 10), node('b', 5, 0), node('c', 3, 3)]);
+  const out = withoutZero([kou, node('zero', 1, 1)]);
+  assert.deepEqual(out.map(n => n.key), ['kou']);
+  assert.deepEqual(out[0].children.map(n => n.key), ['a', 'b']);
+});
+
+test('図の「新」は補正で新しく設けた目（added_in）だけ。当初 0 円の目は当初 0 からの増', () => {
+  const graph = {
+    schema_version: 1, gov_id: 't', year: 2026, basis: 'initial', totals: { gross: 8 }, edges: [],
+    columns: [{ key: 'moku', label: '目' }],
+    nodes: [{ id: 'moku:general/expense/1-1-1', col: 'moku', name: '当初0円の目', value: 3 },
+      { id: 'moku:general/expense/1-1-2', col: 'moku', name: '新設の目', value: 5 }],
+  } as LocalGraph;
+  const file = { rows: [{ id: 'general/expense/1-1-2', added_in: '6月補正（第1号）' }] } as unknown as LocalBudgetFile;
+  const d = boxDeltas(graph, new Map(), file);
+  assert.deepEqual(d.get('moku:general/expense/1-1-1'), { delta: 3, added: false });
+  assert.deepEqual(d.get('moku:general/expense/1-1-2'), { delta: 5, added: true });
 });
 
 const DIR = path.join(process.cwd(), 'public', 'data', 'local-gov', 'fukuoka-pref');
@@ -68,7 +93,8 @@ test('実データ R8: 図の箱の増減 = 補正後の箱の額 − 当初の�
   for (const view of ['general', 'all'] as const) {
     const before = initialBoxValues(initial, view);
     const after = buildLocalGraph(composed, { view });
-    const deltas = boxDeltas(after, before);
+    const deltas = boxDeltas(after, before, composed);
+    const addedMoku = new Set(composed.rows.filter(r => r.added_in).map(r => `moku:${r.id}`));
     const initialGraph = buildLocalGraph(initial, { view });
     for (const n of after.nodes) {
       const d = deltas.get(n.id);
@@ -78,7 +104,7 @@ test('実データ R8: 図の箱の増減 = 補正後の箱の額 − 当初の�
       }
       const b = initialGraph.nodes.find(x => x.id === n.id);
       assert.equal(d?.delta, n.value - (b?.value ?? 0), n.id);
-      assert.equal(d?.added, b === undefined, n.id);
+      assert.equal(d?.added, addedMoku.has(n.id), n.id);
     }
     // 見出しの総計の増減 = 補正後の総計 − 当初の総計
     assert.equal(grossDelta(initial, view, after.totals.gross), after.totals.gross - initialGraph.totals.gross);

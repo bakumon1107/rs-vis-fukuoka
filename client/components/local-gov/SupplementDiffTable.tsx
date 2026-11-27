@@ -2,7 +2,8 @@
 
 /**
  * 補正後予算の、当初からの増減の表（表示専用）。図の下に折りたたみで置く（2026-11-27 ユーザー決定）。
- * 会計（全会計の見方）／款 → 項 → 目。押すと下の段を開く。広い画面は回ごとの補正額の列も、スマートフォンは 当初・増減・補正後 だけ。
+ * 会計（全会計の見方）／款 → 項 → 目。押すと下の段を開く。広い画面は回ごとの補正額の列も、スマートフォンは 当初・増減・補正後 の列で、
+ * 回ごとの補正額は名前の下に小さく出す。
  * 表の中身は app/lib/local-gov/supplement-diff.ts の supplementDiffTree（目の値の足し上げ。推計しない）。
  * 設計: docs/local-gov/tasks/20261127_2337_補正後予算の当初からの増減の表示の設計.md 4.2
  */
@@ -23,9 +24,11 @@ interface Props {
   /** 全会計の見方なら会計の段から。一般会計の見方なら一般会計の款から */
   byAccount: boolean;
   gov: string;
+  /** 見ている年度（目の名前のリンクで同じ年度の補正後を開く。年度を落とすと最新の年度を開いてしまう） */
+  year: number;
 }
 
-export function SupplementDiffTable({ file, byAccount, gov }: Props) {
+export function SupplementDiffTable({ file, byAccount, gov, year }: Props) {
   const [side, setSide] = useState<Side>('expense');
   const [sortBy, setSortBy] = useState<'delta' | 'order'>('delta');
   const [showZero, setShowZero] = useState(false);
@@ -60,13 +63,24 @@ export function SupplementDiffTable({ file, byAccount, gov }: Props) {
                 </button>
               ) : n.rowId && n.rowId.includes('/expense/') ? (
                 // 目は図でその目を選んだ状態にする（補正後の見方のまま）
-                <Link href={`/local/${gov}?basis=latest&view=${byAccount ? 'all' : 'general'}&sel=${encodeURIComponent(`moku:${n.rowId}`)}`} className="text-primary-accent underline-offset-2 hover:underline">
+                <Link
+                  href={`/local/${gov}?basis=latest&year=${year}&view=${byAccount ? 'all' : 'general'}&sel=${encodeURIComponent(`moku:${n.rowId}`)}`}
+                  replace
+                  scroll={false}
+                  className="text-primary-accent underline-offset-2 hover:underline"
+                >
                   {n.name}
                 </Link>
               ) : (
                 n.name
               )}
               {n.addedIn && <span className="ml-1 text-[10px] font-bold text-amber-700">新</span>}
+              {/* スマートフォンでは回ごとの列を出さないので、どの回の補正かを名前の下に小さく出す */}
+              {n.rounds.some(v => v !== 0) && (
+                <span className="block text-[10px] text-mirai-text-muted md:hidden">
+                  {rounds.map((r, i) => (n.rounds[i] !== 0 ? `${shortRound(r)} ${signed(n.rounds[i])}` : null)).filter(Boolean).join('・')}
+                </span>
+              )}
             </td>
             <td className="whitespace-nowrap px-1 py-1.5 text-right tabular-nums">{yen(n.before)}</td>
             {rounds.map((r, i) => (
