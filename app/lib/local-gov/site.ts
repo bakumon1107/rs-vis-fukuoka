@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { SITE_URL } from '@/app/lib/site-url';
-import { localGovId } from './site-edition';
+import { localGovId, withBasePath } from './site-edition';
 
 /**
  * 地方版のブランド設定（福岡市版「みらい議会＠福岡市」の site.config.ts と同じ形）。
@@ -13,7 +13,11 @@ export const localSiteConfig = {
   logo: { main: '予算ビュー', sub: '＠福岡県' },
   siteDescription: '福岡県の予算・決算を、会計・款・項・目のサンキー図と基金の推移でたどる非公式のビューアです。',
   prefName: '福岡県',
-  /** ソースコード（AGPL-3.0）。改変版の利用者にソースを示すため、本家ではなくこのフォークを指す */
+  /**
+   * ソースコード（AGPL-3.0）。改変版の利用者にソースを示すため、本家ではなくこのフォークを指す。
+   * リポジトリを yosan-view-fukuoka-pref に改名したら https://github.com/bakumon1107/yosan-view-fukuoka-pref に直す
+   * （GitHub は旧 URL を転送するが、リンクは直す）
+   */
   repositoryUrl: 'https://github.com/bakumon1107/rs-vis-fukuoka',
   /** 本家（もとにしたソフトウェア） */
   upstream: { name: '政府予算ビュー', repositoryUrl: 'https://github.com/team-mirai-volunteer/rs-vis' },
@@ -61,8 +65,10 @@ export const LOCAL_POLICY_LINKS = [
 ] as const;
 
 /**
- * 地方版の既定のメタデータ（ルートレイアウト）。数字の確認が済むまで検索エンジンには載せない（noindex）。
+ * 地方版の既定のメタデータ（ルートレイアウト app/layout.local.tsx）。
+ * 検索エンジンに載せる（2026-11-27 ユーザー決定で noindex を外した）。
  * OGP 画像は地方版のものを作るまで付けない（国版の画像は出さない）。
+ * アイコンは basePath を付けて地方版のものを指す（本家の app/icon.* は書き出し後に公開物から外す）。
  */
 export function localSiteMetadata(): Metadata {
   const { siteName, siteDescription } = localSiteConfig;
@@ -71,7 +77,7 @@ export function localSiteMetadata(): Metadata {
     title: { default: siteName, template: `%s｜${siteName}` },
     description: siteDescription,
     applicationName: siteName,
-    robots: { index: false, follow: false },
+    icons: { icon: withBasePath('/local-site/icon.svg'), apple: withBasePath('/local-site/icon.svg') },
     openGraph: { title: siteName, description: siteDescription, siteName, locale: 'ja_JP', type: 'website' },
     twitter: { card: 'summary', title: siteName, description: siteDescription },
   };
@@ -88,7 +94,6 @@ export function localPageMetadata(pageName: string): Metadata {
   return {
     title: { absolute: title },
     description: siteDescription,
-    robots: { index: false, follow: false },
     openGraph: { title, description: siteDescription, siteName, locale: 'ja_JP', type: 'website', images: [] },
     twitter: { card: 'summary', title, description: siteDescription, images: [] },
   };

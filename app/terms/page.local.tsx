@@ -3,7 +3,7 @@ import { LegalList, LegalParagraph, LegalSectionTitle, LocalLegalPage } from '@/
 import { localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
 
 /**
- * 地方版の利用規約（福岡県版では middleware が /terms をここへ書き換える）。
+ * 地方版（静的サイト）の利用規約 `/terms/`。地方版のビルドだけでルートになる（国版は同じフォルダの page.tsx）。
  * 福岡市版「みらい議会＠福岡市」の利用規約（第1〜6条）をもとに、AI 機能の条項を外し、
  * 第2条に AGPL-3.0 と県の公開資料についてのただし書き、第3条に原資料の確認のお願いを足した。
  */

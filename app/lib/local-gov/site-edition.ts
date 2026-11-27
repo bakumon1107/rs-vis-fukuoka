@@ -1,12 +1,9 @@
 /**
- * サイトの版（国版 / 地方版）の判定と、地方版のときの URL の振り分け。
+ * サイトの版（国版 / 地方版）と自治体 ID の判定。
  *
- * 地方版は環境変数 `NEXT_PUBLIC_SITE_EDITION=local` を立てたデプロイだけ。未設定なら本家と同じ国版のまま
- * （CI・本家の e2e はそのまま通る）。`NEXT_PUBLIC_` なのでビルド時に埋め込まれる（版を変えたら再ビルド）。
- * 設計: docs/local-gov/tasks/20261127_1752_サイト全体から国版を外す設計.md
- *
- * 振り分けは許可リスト方式。本家が新しいページや API を足しても、地方版では自動で隠れる。
- * middleware.ts はこのファイルの routeForLocalEdition を呼ぶだけにする（本家との衝突を小さく保つ）。
+ * 地方版は環境変数 `NEXT_PUBLIC_SITE_EDITION=local` を立てたビルドだけ（GitHub Pages の静的サイト。next.config.local.ts）。
+ * 未設定なら本家と同じ国版のまま（CI・本家の e2e はそのまま通る）。`NEXT_PUBLIC_` なのでビルド時に埋め込まれる。
+ * 設計: docs/local-gov/tasks/20261127_1752_サイト全体から国版を外す設計.md 10章
  */
 
 export type SiteEdition = 'national' | 'local';
@@ -29,56 +26,18 @@ export function localGovId(value: string | undefined = process.env.NEXT_PUBLIC_L
   return trimmed && GOV_ID_PATTERN.test(trimmed) ? trimmed : DEFAULT_LOCAL_GOV_ID;
 }
 
-export type LocalRoute =
-  | { kind: 'pass' }
-  | { kind: 'rewrite'; to: string }
-  | { kind: 'redirect'; to: string }
-  | { kind: 'notFound' };
-
-/** 地方版の書き換え先（URL は変えずに地方版の中身を出す） */
-const REWRITES: Record<string, string> = {
-  '/terms': '/local-site/terms',
-  '/privacy': '/local-site/privacy',
-  '/sitemap.xml': '/local-site/sitemap.xml',
-  '/robots.txt': '/local-site/robots.txt',
-  // アイコンは本家の app/icon.* 等を変えずに、地方版のアイコンへ差し替える
-  '/favicon.ico': '/local-site/icon.svg',
-  '/icon.svg': '/local-site/icon.svg',
-  '/icon.png': '/local-site/icon.svg',
-  '/apple-icon.png': '/local-site/icon.svg',
-};
-
-/** そのまま通すパスの接頭辞 */
-const PASS_PREFIXES = ['/local/', '/local-site/', '/data/local-gov/', '/og/local/'];
-
-/** Next.js の内部パス（静的アセット・開発時の HMR 等）。版に関係なく通す */
-export function isFrameworkPath(pathname: string): boolean {
-  return pathname.startsWith('/_next/') || pathname.startsWith('/__next');
-}
-
-/** 拡張子のある最後のセグメント（静的ファイル）か */
-function looksLikeFile(pathname: string): boolean {
-  const last = pathname.slice(pathname.lastIndexOf('/') + 1);
-  return /\.[A-Za-z0-9]+$/.test(last);
-}
-
 /**
- * 地方版のときの振り分け。
- * - `/`・`/local` → 自治体のサンキー図へリダイレクト
- * - `/local/**`・`/local-site/**`・地方版のデータ・地方版の OGP → そのまま
- * - 規約・プライバシー・サイトマップ・robots・アイコン → 地方版の中身へ書き換え
- * - `/api/**`・それ以外の静的ファイル（国のデータ・国版の OGP 等） → 404
- * - それ以外のページ（国版） → `/` へリダイレクト
+ * basePath（GitHub Pages のプロジェクトページのパス。例 /yosan-view-fukuoka-pref）。
+ * next/link・router は Next.js が自動で付けるが、fetch・メタデータの URL・meta refresh は自分で付ける。
+ * 先頭に / を付け、末尾の / は外す。未設定・空なら ''。
  */
-export function routeForLocalEdition(pathname: string, govId: string = localGovId()): LocalRoute {
-  // 末尾のスラッシュは外して扱う（`/` 自体は残す）
-  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : pathname;
-  if (isFrameworkPath(path)) return { kind: 'pass' };
-  if (path === '/' || path === '/local') return { kind: 'redirect', to: `/local/${govId}` };
-  const rewrite = REWRITES[path];
-  if (rewrite) return { kind: 'rewrite', to: rewrite };
-  if (PASS_PREFIXES.some(prefix => path.startsWith(prefix))) return { kind: 'pass' };
-  if (path === '/api' || path.startsWith('/api/')) return { kind: 'notFound' };
-  if (looksLikeFile(path)) return { kind: 'notFound' };
-  return { kind: 'redirect', to: '/' };
+export function basePath(value: string | undefined = process.env.NEXT_PUBLIC_BASE_PATH): string {
+  const trimmed = value?.trim().replace(/\/+$/, '') ?? '';
+  if (!trimmed) return '';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+/** basePath を前に付けたパス（`path` は / から始める） */
+export function withBasePath(path: string, base: string = basePath()): string {
+  return `${base}${path}`;
 }

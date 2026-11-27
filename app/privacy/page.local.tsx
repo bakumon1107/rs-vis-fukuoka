@@ -3,7 +3,7 @@ import { LegalList, LegalParagraph, LegalSectionTitle, LocalLegalPage } from '@/
 import { localGaMeasurementId, localPageMetadata, localSiteConfig } from '@/app/lib/local-gov/site';
 
 /**
- * 地方版のプライバシーポリシー（福岡県版では middleware が /privacy をここへ書き換える）。
+ * 地方版（静的サイト）のプライバシーポリシー `/privacy/`。地方版のビルドだけでルートになる（国版は同じフォルダの page.tsx）。
  * 福岡市版「みらい議会＠福岡市」のプライバシーポリシー（1〜8）と同じ文。
  * 「5. Cookie」の Google アナリティクスの段落は、地方版で GA を読み込むとき（測定 ID を明示したとき）だけ出す。
  */

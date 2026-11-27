@@ -7,7 +7,7 @@ import { LocalSiteHeader } from './LocalSiteHeader';
 const THEME_CSS = `html:root{${Object.entries(LOCAL_THEME_VARS).map(([k, v]) => `${k}:${v}`).join(';')}}`;
 
 /**
- * 地方版（NEXT_PUBLIC_SITE_EDITION=local）の外枠。ルートレイアウトが国版の AppHeaderProvider の代わりに置く。
+ * 地方版（静的サイト）の外枠。地方版のルートレイアウト（app/layout.local.tsx）が置く（国版の AppHeaderProvider は使わない）。
  * 配色の上書き・地方版のヘッダー（AI ボタンなし）・フッターを付ける。
  */
 export function LocalSiteShell({ children }: { children: ReactNode }) {

@@ -8,13 +8,15 @@ import { LOCAL_POLICY_LINKS, localNavItems, localSiteConfig } from '@/app/lib/lo
  */
 export function LocalSiteFooter() {
   const { upstream } = localSiteConfig;
+  const nav = localNavItems();
   return (
     <footer className="bg-mirai-gradient text-slate-900">
       <div className="mx-auto flex w-full max-w-[640px] flex-col items-center px-6 py-10 text-center">
         <nav aria-label="主要リンク" className="mb-5 w-full">
           <ul className="flex flex-col items-center gap-3 text-[14px] font-semibold text-slate-800 md:flex-row md:justify-center md:gap-5">
-            <li><Link href="/" className="hover:text-slate-900">TOP</Link></li>
-            {localNavItems().slice(1).map(item => (
+            {/* TOP はサンキー図（静的サイトの `/` は移動ページなので直接指す） */}
+            <li><Link href={nav[0].href} className="hover:text-slate-900">TOP</Link></li>
+            {nav.slice(1).map(item => (
               <li key={item.href}><Link href={item.href} className="hover:text-slate-900">{item.label}</Link></li>
             ))}
           </ul>

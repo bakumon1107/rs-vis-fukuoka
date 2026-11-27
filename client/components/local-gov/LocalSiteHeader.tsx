@@ -14,7 +14,8 @@ import { LOCAL_POLICY_LINKS, localNavItems, localSiteConfig } from '@/app/lib/lo
  * 本家の AppHeader の部品は import しない（本家のヘッダーが変わっても影響を受けないため）。AI ボタンは置かない。
  */
 export function LocalSiteHeader() {
-  const pathname = usePathname();
+  // 静的サイト（trailingSlash）では末尾に / が付くので外して比べる
+  const pathname = usePathname().replace(/(.)\/+$/, '$1');
   const items = localNavItems();
   // サンキー図（/local/<gov>）は完全一致、ほかは配下も含めて現在地にする
   const isCurrent = (href: string, index: number) =>
@@ -23,7 +24,8 @@ export function LocalSiteHeader() {
   return (
     <header data-pan-disabled="true" className="pointer-events-none absolute inset-x-0 top-0 z-40 px-3 py-3">
       <div className="pointer-events-auto flex h-12 items-center gap-x-3 rounded-2xl border border-mirai-border bg-card px-4 shadow-xs">
-        <Link href="/" className="flex h-12 shrink-0 items-center gap-2 transition-opacity hover:opacity-80" aria-label={`${localSiteConfig.siteName} トップ`}>
+        {/* 静的サイトの `/` は移動ページなので、サンキー図を直接指す（移動を 1 回減らす） */}
+        <Link href={items[0].href} className="flex h-12 shrink-0 items-center gap-2 transition-opacity hover:opacity-80" aria-label={`${localSiteConfig.siteName} トップ`}>
           <TextLogo />
         </Link>
 
