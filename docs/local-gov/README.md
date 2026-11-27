@@ -38,6 +38,19 @@ docs/local-gov/
 
 地方版の作業文書は本家の `docs/tasks/` ではなくここに置く（本家取り込み時の衝突回避と、文書の埋没を防ぐため）。
 
+## 地方版のサイトとして出す（版の切り替え）
+
+デプロイの環境変数 `NEXT_PUBLIC_SITE_EDITION=local`（と `NEXT_PUBLIC_LOCAL_GOV_ID=fukuoka-pref`）で、サイト全体を「予算ビュー＠福岡県」にする。
+未設定なら本家と同じ国版のまま（CI・本家の e2e はこちらで回る）。ビルド時に埋め込まれるので、変えたら再ビルドする。
+ローカルで地方版を見るときは `.env.local` に同じ値を書いて dev サーバーを起動し直す。
+
+- `middleware.ts` が国版のページを `/` へ、`/api/**` と国のデータ・画像を 404 にし、`/` を `/local/<自治体>` へ向ける（許可リストは `app/lib/local-gov/site-edition.ts`）
+- 名前・運営者・連絡先・配色は `app/lib/local-gov/site.ts`。外枠（ヘッダー・フッター）は `client/components/local-gov/LocalSiteShell.tsx`
+- 本家のファイルで変えたのは `app/layout.tsx` だけ。本家を取り込むときはここの衝突と、本家が `middleware.ts` を作っていないかを確かめる
+- GA は `NEXT_PUBLIC_GA_MEASUREMENT_ID` を明示したときだけ読み込む（未設定で本家のプロパティに送らない）
+
+設計: [tasks/20261127_1752_サイト全体から国版を外す設計.md](tasks/20261127_1752_サイト全体から国版を外す設計.md)
+
 ## ロードマップ
 
 詳細は [tasks/20261106_0111_地方版予算ビュー全体計画.md](tasks/20261106_0111_地方版予算ビュー全体計画.md)。
