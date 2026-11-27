@@ -57,7 +57,10 @@ export function LocalDetailPanel({
       <div>
         <p className="text-xs text-mirai-text-muted">
           {/* 全会計の見方では同じ名前の款（公債費・予備費など）が複数の会計にあるので、会計の名前も出す */}
-          {accountName} ／ {row.kan.name} ／ {row.kou.name}
+          {accountName}
+          {/* 公営企業会計の目は条（収益的収支・資本的収支）で款の番号が振り直されるので、条も出す */}
+          {row.enterprise_section && ` ／ ${row.enterprise_section === '収益的' ? '収益的収支（第3条）' : '資本的収支（第4条）'}`} ／{' '}
+          {row.kan.name} ／ {row.kou.name}
         </p>
         <h2 className="text-base font-bold">
           {row.moku.name}
@@ -176,10 +179,13 @@ export function LocalDetailPanel({
             <th className="py-0.5 text-left font-normal text-mirai-text-muted">本年度</th>
             <td className="text-right font-bold">{yen(row.amount)}<Mark v={row.amount} /></td>
           </tr>
-          <tr>
-            <th className="py-0.5 text-left font-normal text-mirai-text-muted">前年度</th>
-            <td className="text-right">{yen(row.previous)}<Mark v={row.previous} /></td>
-          </tr>
+          {/* 公営企業会計の予算実施計画には前年度の額がない（行を出すと「—」が並ぶだけ） */}
+          {!row.enterprise_section && (
+            <tr>
+              <th className="py-0.5 text-left font-normal text-mirai-text-muted">前年度</th>
+              <td className="text-right">{yen(row.previous)}<Mark v={row.previous} /></td>
+            </tr>
+          )}
           {diff !== null && (
             <tr>
               <th className="py-0.5 text-left font-normal text-mirai-text-muted">増減</th>

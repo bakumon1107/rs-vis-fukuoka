@@ -22,8 +22,16 @@ import {
  * - general: 一般会計の歳出。予算は 財源 → 款 → 項 → 目 → 事項、決算は 部局 → 款 → 項 → 目 → 節
  * - all: 全会計（総計。会計間の繰入れの重複を含む）。予算は 歳入の款 → 会計 → 款 → 項 → 目、決算は 会計 → 款 → 項 → 目 → 節
  *   （決算の歳入は図に描かない。R6 決算の設計 7章の2）
+ * - enterprise: 公営企業会計（当初予算だけ）。収入の項・補填財源 → 会計・条 → 支出の項 → 目。
+ *   条（収益的収支・資本的収支）ごとに入り = 出 になるよう、資本的収支の不足は補填財源の内訳（予算書の第4条）の箱から入れ、
+ *   収益的収支の差は「予算上の利益」の箱へ出す（不足なら「収益的収支の不足」の箱から入れる）。
+ *   設計: docs/local-gov/tasks/20261121_0100_公開前のサンキー図の足しと公営企業会計の設計.md 4.4
  */
-export type LocalGraphView = 'general' | 'all';
+export type LocalGraphView = 'general' | 'all' | 'enterprise';
+
+/** 公営企業会計の条（行の enterprise_section）と予算書の条の番号 */
+const SECTION_ART = { 収益的: 3, 資本的: 4 } as const;
+export type EnterpriseSection = keyof typeof SECTION_ART;
 
 /**
  * 絞り込み。指定したものに含まれる目だけで組み立てる（番号は款・項・目の番号）。
@@ -46,6 +54,8 @@ export interface LocalGraphFilter {
    * 節は部局ごとに分かれていないので、節の列は作らない
    */
   department?: string;
+  /** 公営企業会計の条（公営企業会計の見方だけ）。款の番号は条ごとに振り直されるので、款・項を選ぶときは条も指定する */
+  section?: EnterpriseSection;
 }
 
 export interface LocalGraphOptions {
@@ -65,7 +75,17 @@ export const FUNDING_KINDS = [
 
 export type FundingKey = (typeof FUNDING_KINDS)[number]['key'];
 
-const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
+/** 公営企業会計の見方の列（予算実施計画は当初予算だけなので、決算にも同じ列を置くが見方は出さない） */
+const ENTERPRISE_COLUMNS: LocalGraph['columns'] = [
+  // 見出しは短く（スマートフォンの幅で隣の列の見出しに重なる）。補填財源の箱は名前に「補填財源・」が付く
+  { key: 'erevenue', label: '収入' },
+  // 会計・条の箱は名前が長く、金額まで出すと支出の項の列に重なる（1024px 前後）。金額はツールチップで見る
+  { key: 'esection', label: '会計・条', hideAmount: true },
+  { key: 'ekou', label: '支出の項' },
+  { key: 'moku', label: '目' },
+];
+
+const COLUMNS: Record<LocalGraphView, LocalGraph['columns']> = {
   general: [
     { key: 'funding', label: '財源' },
     { key: 'kan', label: '款' },
@@ -80,10 +100,11 @@ const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
     { key: 'kou', label: '項' },
     { key: 'moku', label: '目' },
   ],
+  enterprise: ENTERPRISE_COLUMNS,
 };
 
 /** 決算の列（R6 決算の設計 4章・8章。歳入は描かない） */
-const SETTLEMENT_COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
+const SETTLEMENT_COLUMNS: Record<LocalGraphView, LocalGraph['columns']> = {
   general: [
     { key: 'department', label: '部局' },
     { key: 'kan', label: '款' },
@@ -98,6 +119,7 @@ const SETTLEMENT_COLUMNS: Record<LocalGraphView, { key: string; label: string }[
     { key: 'moku', label: '目' },
     { key: 'setsu', label: '節' },
   ],
+  enterprise: ENTERPRISE_COLUMNS,
 };
 
 /** 見方とデータの種類の列 */
@@ -159,6 +181,7 @@ function matches(row: MokuRow, f: LocalGraphFilter | undefined): boolean {
   if (f.kan !== undefined && row.kan.no !== f.kan) return false;
   if (f.kou !== undefined && row.kou.no !== f.kou) return false;
   if (f.moku !== undefined && row.moku.no !== f.moku) return false;
+  if (f.section !== undefined && row.enterprise_section !== f.section) return false;
   return true;
 }
 
@@ -232,6 +255,123 @@ function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
   return new Set([...accountsOf].filter(([, s]) => s.size > 1).map(([name]) => name));
 }
 
+/** 公営企業会計の短い名前（「病院事業会計」→「病院」）。会計・条の箱と差の箱のラベルに使う */
+export const enterpriseShortName = (name: string) => name.replace(/事業会計$/, '');
+
+/**
+ * 支出の項のラベルに添える会計の略称（「（流域・収益）」。添えるとラベルが長くなり隣の列に重なるので、短くする）。
+ * 「工業用水道」「工業用地造成」は頭の2文字が同じなので、決まった略称を使う。ほかは短い名前の頭の2文字
+ */
+const ENTERPRISE_ABBR: Record<string, string> = { 工業用水道: '工水', 工業用地造成: '用地' };
+export const enterpriseAbbr = (name: string) => {
+  const short = enterpriseShortName(name);
+  return ENTERPRISE_ABBR[short] ?? short.slice(0, 2);
+};
+/** 条の略称（収益的 → 収益、資本的 → 資本） */
+const sectionAbbr = (s: EnterpriseSection) => s.replace(/的$/, '');
+
+/** 公営企業会計の見方の箱の ID（graph-view.ts の選択の読み取りと同じ形） */
+export const enterpriseIds = {
+  section: (account: string, s: EnterpriseSection) => `esection:${account}:${SECTION_ART[s]}`,
+  kou: (r: MokuRow) => `ekou:${r.account}:${SECTION_ART[r.enterprise_section!]}:${r.kan.no}-${r.kou.no}`,
+  revenue: (name: string) => `erevenue:${name}`,
+  fill: (name: string) => `efill:${name}`,
+  shortfall: (account: string, s: EnterpriseSection) => `eshort:${account}:${SECTION_ART[s]}`,
+  surplus: (account: string, s: EnterpriseSection) => `esurplus:${account}:${SECTION_ART[s]}`,
+};
+
+/**
+ * 公営企業会計の見方（設計 4.4）。返り値は支出の合計（第3条 + 第4条）。
+ * - 収入は項の名前でまとめる（「企業債」など会計をまたいで同じ名前の項は1つの箱。全会計の見方の歳入の款と同じ考え方）
+ * - 会計・条の箱の入り = 出 にする箱（補填財源・収益的収支の差・不足）は、会計・条を丸ごと描くときだけ足す。
+ *   支出の項・目で絞ったときは収入を描かないので足さない（足すと、支出だけの箱に「不足」が出てしまう）
+ */
+function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], cols: Set<string>, filter: LocalGraphFilter | undefined): Yen {
+  const accountOf = new Map(file.accounts.map(a => [a.id, a]));
+  const whole = filter?.side === undefined && filter?.kan === undefined && filter?.kou === undefined && filter?.moku === undefined;
+  // 支出の項の名前が2つ以上の箱（会計・条・款・項）にあるとき（R8: 予備費 6・建設改良費 4 など）は、ラベルに会計・条を添える。
+  // ファイル全体で数える（絞り込んだグラフでも最初の画面と同じラベルにする。全会計の見方の duplicatedExpenseKanNames と同じ考え方）
+  const idsOfKou = new Map<string, Set<string>>();
+  const add = (k: string, id: string) => idsOfKou.set(k, (idsOfKou.get(k) ?? new Set<string>()).add(id));
+  for (const r of file.rows) {
+    if (accountOf.get(r.account)?.kind !== 'enterprise' || r.side !== 'expense' || !r.enterprise_section || amountOf(r) === 0) continue;
+    add(r.kou.name, enterpriseIds.kou(r));
+    add(`${r.kou.name}\u0000${r.account}:${r.enterprise_section}`, enterpriseIds.kou(r));
+  }
+  // 同じ会計・条の中にも同じ名前があれば、款・項の番号（「1-3」。番号は会計・条の中で一意）も添える
+  const kouLabel = (r: MokuRow, accName: string) => {
+    if ((idsOfKou.get(r.kou.name)?.size ?? 0) < 2) return r.kou.name;
+    const inSection = idsOfKou.get(`${r.kou.name}\u0000${r.account}:${r.enterprise_section}`)?.size ?? 0;
+    return `${r.kou.name}（${enterpriseAbbr(accName)}・${sectionAbbr(r.enterprise_section!)}${inSection > 1 ? `・${r.kan.no}-${r.kou.no}` : ''}）`;
+  };
+  // 会計・条ごとの収入・支出の合計（差の箱を決める）
+  const sums = new Map<string, { account: string; section: EnterpriseSection; revenue: Yen; expense: Yen }>();
+  let gross = 0;
+  for (const r of rows) {
+    const acc = accountOf.get(r.account);
+    if (acc?.kind !== 'enterprise' || !r.enterprise_section) continue;
+    const v = amountOf(r);
+    const secId = enterpriseIds.section(r.account, r.enterprise_section);
+    const s = sums.get(secId) ?? { account: r.account, section: r.enterprise_section, revenue: 0, expense: 0 };
+    s[r.side] += v;
+    sums.set(secId, s);
+    if (v === 0) continue;
+    // 「流域下水道 資本的」（「収支」は省く。真ん中の列のラベルが支出の項の列に重ならないよう短く）
+    const sec = b.node(secId, 'esection', `${enterpriseShortName(acc.name)} ${r.enterprise_section}`);
+    if (r.side === 'revenue') {
+      b.edge(b.node(enterpriseIds.revenue(r.kou.name), 'erevenue', r.kou.name, { flags: nameFlags(r.kou.name_src) }), sec, v);
+      continue;
+    }
+    gross += v;
+    if (!cols.has('ekou')) continue;
+    const kou = b.node(enterpriseIds.kou(r), 'ekou', kouLabel(r, acc.name), { flags: nameFlags(r.kou.name_src) });
+    b.edge(sec, kou, v);
+    if (cols.has('moku')) b.edge(kou, b.node(mokuId(r), 'moku', r.moku.name, { row: r.id, flags: nameFlags(r.moku.name_src) }), v);
+  }
+  if (!whole) return gross;
+  for (const [secId, s] of sums) {
+    const acc = accountOf.get(s.account)!;
+    const short = enterpriseShortName(acc.name);
+    let gap = s.expense - s.revenue; // 正なら不足（左から入れる）、負なら差（右へ出す）
+    // 資本的収支の不足は、予算書の第4条の補填財源の内訳から入れる（内訳の合計 = 不足額 は書き出しと validate で確かめている）
+    // 内訳の合計が不足額より多いデータ（validate を通っていない）では補填財源を描かず、「補填財源の記載なし」の不足の箱にする
+    // （多すぎる内訳を引くと、ありもしない「収入の残り」の箱ができる）。少なければ内訳を描き、残りを「記載なし」にする
+    // 負の内訳（validate で止めるデータ）も描かない（負の帯は描けない）
+    const cs = acc.enterprise?.capital_shortfall;
+    const filled = cs ? cs.items.reduce((t, it) => t + it.amount, 0) : 0;
+    let partial = false;
+    if (s.section === '資本的' && cs && gap > 0 && filled <= gap && cs.items.every(it => it.amount >= 0)) {
+      for (const it of cs.items) b.edge(b.node(enterpriseIds.fill(it.name), 'erevenue', `補填財源・${it.name}`), secId, it.amount);
+      partial = filled > 0;
+      gap -= filled;
+    }
+    if (gap > 0) {
+      const label =
+        s.section === '収益的'
+          ? `${short}・収益的収支の不足`
+          : partial
+            ? `${short}・資本的収支の不足（補填財源の内訳にない残り）`
+            : `${short}・資本的収支の不足（補填財源の記載なし）`;
+      b.edge(b.node(enterpriseIds.shortfall(s.account, s.section), 'erevenue', label), secId, gap);
+    } else if (gap < 0 && cols.has('ekou')) {
+      // 右端の列のラベルは 18 文字で切れるので、会計は略称（「流域・収益的収支の差（予算上の利益）」）
+      const abbr = enterpriseAbbr(acc.name);
+      const label = s.section === '収益的' ? `${abbr}・収益的収支の差（予算上の利益）` : `${abbr}・資本的収支の差（収入の残り）`;
+      const id = b.node(enterpriseIds.surplus(s.account, s.section), 'ekou', label);
+      b.edge(secId, id, -gap);
+      // 差の箱は、同じ会計・条の支出の項のすぐ下に置く（列の最後に置くと、帯が図を縦に横切る）
+      const keys = [...b.nodes.keys()].filter(k => k !== id);
+      const prefix = `ekou:${s.account}:${SECTION_ART[s.section]}:`;
+      const at = keys.findLastIndex(k => k.startsWith(prefix));
+      if (at >= 0) {
+        keys.splice(at + 1, 0, id);
+        b.nodes = new Map(keys.map(k => [k, b.nodes.get(k)!] as const));
+      }
+    }
+  }
+  return gross;
+}
+
 export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions): LocalGraph {
   // 補正のファイルは差分（増減）なので、そのまま描くと補正後の額に見える（減額は負の帯にもなる）。
   // 当初 + Σ補正（basis: latest）を組み立てる処理は補正の取り込みのときに作る（共通 JSON 形式の設計 5章）。それまでは受け付けない
@@ -244,7 +384,9 @@ export function buildLocalGraph(file: LocalBudgetFile, opts: LocalGraphOptions):
   const rows = file.rows.filter(r => matches(r, opts.filter));
   let gross = 0;
 
-  if (file.basis === 'settlement' && opts.view === 'general') {
+  if (opts.view === 'enterprise') {
+    gross = addEnterprise(b, file, rows, cols, opts.filter);
+  } else if (file.basis === 'settlement' && opts.view === 'general') {
     // 決算の一般会計: 部局 → 款 → 項 → 目 → 節。部局 → 款 は目ごとの部局の内訳（資料の数字）をそのまま流す（按分しない）
     const only = opts.filter?.department;
     for (const r of rows) {

@@ -42,7 +42,12 @@ function sumKnown(values: (Value | undefined)[]): number | null {
   return s;
 }
 
-export function expectedRowId(row: Pick<MokuRow, 'account' | 'side' | 'kan' | 'kou' | 'moku'>): string {
+export function expectedRowId(row: Pick<MokuRow, 'account' | 'side' | 'kan' | 'kou' | 'moku' | 'enterprise_section'>): string {
+  // 公営企業会計は款の番号が条（第3条 収益的・第4条 資本的）ごとに振り直されるので、条を ID に入れる
+  if (row.enterprise_section) {
+    const art = row.enterprise_section === '収益的' ? 3 : 4;
+    return `${row.account}/${row.side}/${art}-${row.kan.no}-${row.kou.no}-${row.moku.no}`;
+  }
   return `${row.account}/${row.side}/${row.kan.no}-${row.kou.no}-${row.moku.no}`;
 }
 
@@ -248,6 +253,49 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     }
   }
 
+  // 公営企業会計: 行には条（enterprise_section）がある。補填財源の内訳の合計 = 不足額 = 資本的支出 − 資本的収入
+  for (const a of file.accounts) {
+    const isEnterprise = a.kind === 'enterprise';
+    if (!isEnterprise && a.enterprise) err(`会計 ${a.id}: 公営企業会計でないのに enterprise がある`);
+    if (!isEnterprise) continue;
+    const own = file.rows.filter(r => r.account === a.id);
+    if (own.some(r => !r.enterprise_section)) err(`会計 ${a.id}: 条（enterprise_section）のない行がある`);
+    const capital = (side: 'revenue' | 'expense') =>
+      own.filter(r => r.enterprise_section === '資本的' && r.side === side).reduce((s, r) => s + (r.amount.v ?? 0), 0);
+    const gap = capital('expense') - capital('revenue');
+    const cs = a.enterprise?.capital_shortfall;
+    if (gap > 0 && !cs) err(`会計 ${a.id}: 資本的収支の不足 ${gap} の補填財源がない`);
+    if (cs) {
+      const nonNeg = (v: number) => Number.isSafeInteger(v) && v >= 0;
+      if (!nonNeg(cs.amount)) err(`会計 ${a.id}: 補填財源の不足額が 0 以上の整数でない（${cs.amount}）`);
+      const page = cs.source?.page;
+      if (!cs.source?.source || !(Number.isInteger(page) && page > 0)) err(`会計 ${a.id}: 補填財源の出典（資料とページ）がない`);
+      // JSON は型で守られないので、内訳がない・内訳の要素が崩れていても落ちずに失敗として返す
+      if (!Array.isArray(cs.items)) err(`会計 ${a.id}: 補填財源の内訳がない`);
+      const raw: unknown[] = Array.isArray(cs.items) ? cs.items : [];
+      const items = raw.filter((x, i): x is { name: string; amount: number } => {
+        const ok = typeof x === 'object' && x !== null;
+        if (!ok) err(`会計 ${a.id}: 補填財源の内訳 ${i} が形になっていない`);
+        return ok;
+      });
+      items.forEach((x, i) => {
+        if (typeof x.name !== 'string' || x.name.trim() === '') err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない（文字列でない）`);
+        if (!nonNeg(x.amount)) err(`会計 ${a.id}: 補填財源の内訳「${x.name}」の額が 0 以上の整数でない（${x.amount}）`);
+      });
+      const sum = items.reduce((s, x) => s + (nonNeg(x.amount) ? x.amount : 0), 0);
+      if (sum !== cs.amount || cs.amount !== gap) err(`会計 ${a.id}: 補填財源の内訳の合計 ${sum} / 不足額 ${cs.amount} / 資本的支出 − 収入 ${gap}`);
+    }
+  }
+  for (const r of file.rows) {
+    // 型は2つの値だけだが、JSON は型で守られない。ほかの値は ID の確かめで第4条に数えられて見逃されるので、ここで止める
+    if (r.enterprise_section !== undefined && r.enterprise_section !== '収益的' && r.enterprise_section !== '資本的') {
+      err(`${r.id}: 条（enterprise_section）が 収益的・資本的 のどちらでもない（${String(r.enterprise_section)}）`);
+    }
+    if (r.enterprise_section && !file.accounts.some(a => a.id === r.account && a.kind === 'enterprise')) {
+      err(`${r.id}: 公営企業会計でない会計の行に条（enterprise_section）がある`);
+    }
+  }
+
   if (file.checks.rows !== file.rows.length) err(`checks.rows ${file.checks.rows} ≠ 目の行数 ${file.rows.length}`);
   if (file.checks.all_ok > file.checks.rows) err(`checks.all_ok ${file.checks.all_ok} が rows を超える`);
 
@@ -280,6 +328,10 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
   const checkEvidence = (where: string, ev: string[] | undefined) => {
     for (const id of ev ?? []) if (!ids.has(id)) errors.push(`${where}: 名前の資料 ${id} が index の sources にない`);
   };
+  for (const a of file.accounts) {
+    const src = a.enterprise?.capital_shortfall?.source?.source;
+    if (src && !ids.has(src)) errors.push(`会計 ${a.id}: 補填財源の出典 ${src} が index の sources にない`);
+  }
   for (const row of file.rows) {
     for (const p of row.pages) if (!ids.has(p.source)) errors.push(`${row.id}: 出典 ${p.source} が index の sources にない`);
     for (const level of ['kan', 'kou', 'moku'] as const) checkEvidence(`${row.id} ${level}`, row[level].name_evidence);

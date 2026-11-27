@@ -38,6 +38,14 @@ export interface Account {
   id: string;
   kind: AccountKind;
   name: string;
+  /** 公営企業会計だけ（公開前のサンキー図の足しと公営企業会計の設計 4.3） */
+  enterprise?: {
+    /**
+     * 資本的収入が資本的支出に足りない額と、その補填財源の内訳（予算書の本体の第4条の文言。円）。
+     * amount = items の合計 = 資本的支出 − 資本的収入。足りなくない会計にはない
+     */
+    capital_shortfall?: { amount: Yen; items: { name: string; amount: Yen }[]; source: { source: string; page: number } };
+  };
 }
 
 export type Side = 'revenue' | 'expense';
@@ -348,7 +356,12 @@ export interface LocalGraph {
   year: number;
   basis: 'initial' | 'latest' | 'settlement';
   /** 列の一覧。見方ごとに app/lib/local-gov/graph.ts が決める（例: 財源 / 款 / 項 / 目 / 事項） */
-  columns: { key: string; label: string }[];
+  columns: {
+    key: string;
+    label: string;
+    /** 箱のラベルに金額を出さない（真ん中の列で名前が長く、隣の列に重なるとき。金額はツールチップで見る） */
+    hideAmount?: boolean;
+  }[];
   nodes: { id: string; col: string; name: string; value: Yen; row?: string; flags?: string[] }[];
   edges: { source: string; target: string; value: Yen }[];
   /** gross: 総計。net: 純計（会計間の繰入れの重複を除いた額）。今は省く（純計は画面が app/lib/local-gov/totals.ts の netTotal で計算する） */
