@@ -72,12 +72,15 @@ test('公営企業会計: 会計・条の箱は入り = 出（補填財源・収
   assert.deepEqual(g.columns.map(c => c.key), ['erevenue', 'esection', 'ekou', 'moku']);
   assert.ok(!g.nodes.some(n => n.name === '議会費'));
   const node = (id: string) => g.nodes.find(n => n.id === id);
-  assert.equal(node('esection:enterprise:byoin:3')?.name, '病院・収益的収支');
+  assert.equal(node('esection:enterprise:byoin:3')?.name, '病院 収益的');
+  // 会計・条の列は金額をラベルに出さない（名前が長く支出の項の列に重なる）
+  assert.equal(g.columns.find(c => c.key === 'esection')?.hideAmount, true);
   // 補填財源の内訳は1つずつ箱にする
   assert.equal(node('efill:留保資金')?.value, 15);
   assert.equal(node('efill:繰越利益剰余金処分額')?.value, 5);
   // 病院の収益的は利益 10（右へ）、用地の収益的は不足 5（左から）。資本的は補填財源でちょうど合うので差の箱はない
   assert.equal(node('esurplus:enterprise:byoin:3')?.value, 10);
+  assert.equal(node('esurplus:enterprise:byoin:3')?.name, '病院・収益的収支の差（予算上の利益）');
   assert.equal(node('eshort:enterprise:yochi:3')?.value, 5);
   // 差の箱は同じ会計・条の支出の項のすぐ下（列の最後ではない）
   const kouCol = g.nodes.filter(n => n.col === 'ekou').map(n => n.id);
@@ -138,15 +141,15 @@ test('公営企業会計: 支出の項の名前が複数の会計・条にあれ
     ent('enterprise:yochi', 'revenue', '収益的', '1-1-2', 1, '営業収益')] };
   const g = buildLocalGraph(dup, { view: 'enterprise' });
   const label = (id: string) => g.nodes.find(n => n.id === id)?.name;
-  assert.equal(label('ekou:enterprise:byoin:3:1-1'), '医業費用（病院・収益的）');
-  assert.equal(label('ekou:enterprise:yochi:3:1-2'), '医業費用（工業用地造成・収益的）');
+  assert.equal(label('ekou:enterprise:byoin:3:1-1'), '医業費用（病院・収益）');
+  assert.equal(label('ekou:enterprise:yochi:3:1-2'), '医業費用（用地・収益）'); // 工業用地造成は「用地」（工業用水道と頭が同じ）
   assert.equal(label('ekou:enterprise:yochi:3:1-1'), '営業費用'); // 1つだけの名前はそのまま
   // 同じ会計・条の中にも同じ名前の項があれば款-項の番号も添える（同じ款の中でも見分けられる）
   const sameSec: LocalBudgetFile = { ...FILE, rows: [...FILE.rows, ent('enterprise:byoin', 'expense', '収益的', '1-3-1', 3, '医業費用'),
     ent('enterprise:byoin', 'revenue', '収益的', '1-2-2', 3, '医業外収益')] };
   const gs = buildLocalGraph(sameSec, { view: 'enterprise' });
-  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-1')?.name, '医業費用（病院・収益的・1-1）');
-  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-3')?.name, '医業費用（病院・収益的・1-3）');
+  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-1')?.name, '医業費用（病院・収益・1-1）');
+  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-3')?.name, '医業費用（病院・収益・1-3）');
   // その2つの項の目に同じ名前があれば、目のラベルは項の名前と番号で見分ける
   const sameSecMoku: LocalBudgetFile = { ...sameSec, rows: sameSec.rows.map(r => r.id === 'enterprise:byoin/expense/3-1-3-1'
     ? { ...r, moku: { ...r.moku, name: '目3-1-1-1' } } : r) };

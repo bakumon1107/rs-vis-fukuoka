@@ -72,6 +72,7 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
   const [hovered, setHovered] = useState<string | null>(null);
 
   const colIndex = useMemo(() => new Map(graph.columns.map((c, i) => [c.key, i])), [graph.columns]);
+  const hideAmountCols = useMemo(() => new Set(graph.columns.filter(c => c.hideAmount).map(c => c.key)), [graph.columns]);
   // 左端の列のラベルは箱の左、それ以外は右に出す。左右の余白は、左端・右端の列のラベルの長さで決める
   // （全会計の見方の歳入の款のように名前が長い列で、ラベルが画面の端で切れないように）
   const margin = useMemo(() => {
@@ -219,7 +220,8 @@ export function LocalSankeyChart({ display, onSelect, narrow = false }: LocalSan
                   {shorten(n.name, size.labelMax)}
                   {ocrName && <tspan fill="#b45309">※</tspan>}
                   {/* 狭い幅では金額を出さない（3列のラベルが重なる。金額はツールチップと詳細パネルで見る） */}
-                  {size.showAmount && (
+                  {/* 列によっては広い幅でも出さない（公営企業会計の会計・条。名前が長く支出の項の列に重なる） */}
+                  {size.showAmount && !hideAmountCols.has(n.col) && (
                     <tspan fill={lit ? '#6b7280' : '#9ca3af'} fontWeight={400}>
                       {' '}
                       {formatBudgetFromYen(n.value)}

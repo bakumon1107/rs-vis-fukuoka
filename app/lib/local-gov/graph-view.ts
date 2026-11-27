@@ -214,7 +214,7 @@ function labelDuplicates(deep: LocalGraph['nodes'], all: LocalGraph['nodes'], ed
   // 公営企業会計の支出の項は、名前に「（会計・条）」「（会計・条・款-項）」が添えてあることがある。目のラベルに入れ子の括弧が
   // できないよう会計・条を外し、款-項の番号は残す（同じ会計・条の同じ名前の項の目を見分けるため。「給与費（医業費用・1-3）」）
   const parentLabel = (n: LocalGraph['nodes'][number]) =>
-    n.col === 'ekou' ? n.name.replace(/（[^（）・]*・(?:収益的|資本的)(?:・([^（）]*))?）$/, (_, no?: string) => (no ? `・${no}` : '')) : n.name;
+    n.col === 'ekou' ? n.name.replace(/（[^（）・]*・(?:収益|資本)(?:・([^（）]*))?）$/, (_, no?: string) => (no ? `・${no}` : '')) : n.name;
   const nameOf = new Map(all.map(n => [n.id, parentLabel(n)]));
   const parentOf = new Map(edges.map(e => [e.target, e.source]));
   return deep.map(n => {

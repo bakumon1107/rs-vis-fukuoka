@@ -76,15 +76,16 @@ export const FUNDING_KINDS = [
 export type FundingKey = (typeof FUNDING_KINDS)[number]['key'];
 
 /** 公営企業会計の見方の列（予算実施計画は当初予算だけなので、決算にも同じ列を置くが見方は出さない） */
-const ENTERPRISE_COLUMNS = [
+const ENTERPRISE_COLUMNS: LocalGraph['columns'] = [
   // 見出しは短く（スマートフォンの幅で隣の列の見出しに重なる）。補填財源の箱は名前に「補填財源・」が付く
   { key: 'erevenue', label: '収入' },
-  { key: 'esection', label: '会計・条' },
+  // 会計・条の箱は名前が長く、金額まで出すと支出の項の列に重なる（1024px 前後）。金額はツールチップで見る
+  { key: 'esection', label: '会計・条', hideAmount: true },
   { key: 'ekou', label: '支出の項' },
   { key: 'moku', label: '目' },
 ];
 
-const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
+const COLUMNS: Record<LocalGraphView, LocalGraph['columns']> = {
   general: [
     { key: 'funding', label: '財源' },
     { key: 'kan', label: '款' },
@@ -103,7 +104,7 @@ const COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
 };
 
 /** 決算の列（R6 決算の設計 4章・8章。歳入は描かない） */
-const SETTLEMENT_COLUMNS: Record<LocalGraphView, { key: string; label: string }[]> = {
+const SETTLEMENT_COLUMNS: Record<LocalGraphView, LocalGraph['columns']> = {
   general: [
     { key: 'department', label: '部局' },
     { key: 'kan', label: '款' },
@@ -257,6 +258,18 @@ function duplicatedExpenseKanNames(file: LocalBudgetFile): Set<string> {
 /** 公営企業会計の短い名前（「病院事業会計」→「病院」）。会計・条の箱と差の箱のラベルに使う */
 export const enterpriseShortName = (name: string) => name.replace(/事業会計$/, '');
 
+/**
+ * 支出の項のラベルに添える会計の略称（「（流域・収益）」。添えるとラベルが長くなり隣の列に重なるので、短くする）。
+ * 「工業用水道」「工業用地造成」は頭の2文字が同じなので、決まった略称を使う。ほかは短い名前の頭の2文字
+ */
+const ENTERPRISE_ABBR: Record<string, string> = { 工業用水道: '工水', 工業用地造成: '用地' };
+export const enterpriseAbbr = (name: string) => {
+  const short = enterpriseShortName(name);
+  return ENTERPRISE_ABBR[short] ?? short.slice(0, 2);
+};
+/** 条の略称（収益的 → 収益、資本的 → 資本） */
+const sectionAbbr = (s: EnterpriseSection) => s.replace(/的$/, '');
+
 /** 公営企業会計の見方の箱の ID（graph-view.ts の選択の読み取りと同じ形） */
 export const enterpriseIds = {
   section: (account: string, s: EnterpriseSection) => `esection:${account}:${SECTION_ART[s]}`,
@@ -289,7 +302,7 @@ function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], 
   const kouLabel = (r: MokuRow, accName: string) => {
     if ((idsOfKou.get(r.kou.name)?.size ?? 0) < 2) return r.kou.name;
     const inSection = idsOfKou.get(`${r.kou.name}\u0000${r.account}:${r.enterprise_section}`)?.size ?? 0;
-    return `${r.kou.name}（${enterpriseShortName(accName)}・${r.enterprise_section}${inSection > 1 ? `・${r.kan.no}-${r.kou.no}` : ''}）`;
+    return `${r.kou.name}（${enterpriseAbbr(accName)}・${sectionAbbr(r.enterprise_section!)}${inSection > 1 ? `・${r.kan.no}-${r.kou.no}` : ''}）`;
   };
   // 会計・条ごとの収入・支出の合計（差の箱を決める）
   const sums = new Map<string, { account: string; section: EnterpriseSection; revenue: Yen; expense: Yen }>();
@@ -303,7 +316,8 @@ function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], 
     s[r.side] += v;
     sums.set(secId, s);
     if (v === 0) continue;
-    const sec = b.node(secId, 'esection', `${enterpriseShortName(acc.name)}・${r.enterprise_section}収支`);
+    // 「流域下水道 資本的」（「収支」は省く。真ん中の列のラベルが支出の項の列に重ならないよう短く）
+    const sec = b.node(secId, 'esection', `${enterpriseShortName(acc.name)} ${r.enterprise_section}`);
     if (r.side === 'revenue') {
       b.edge(b.node(enterpriseIds.revenue(r.kou.name), 'erevenue', r.kou.name, { flags: nameFlags(r.kou.name_src) }), sec, v);
       continue;
@@ -340,7 +354,9 @@ function addEnterprise(b: GraphBuilder, file: LocalBudgetFile, rows: MokuRow[], 
             : `${short}・資本的収支の不足（補填財源の記載なし）`;
       b.edge(b.node(enterpriseIds.shortfall(s.account, s.section), 'erevenue', label), secId, gap);
     } else if (gap < 0 && cols.has('ekou')) {
-      const label = s.section === '収益的' ? `${short}・収益的収支の差（予算上の利益）` : `${short}・資本的収支の差（収入の残り）`;
+      // 右端の列のラベルは 18 文字で切れるので、会計は略称（「流域・収益的収支の差（予算上の利益）」）
+      const abbr = enterpriseAbbr(acc.name);
+      const label = s.section === '収益的' ? `${abbr}・収益的収支の差（予算上の利益）` : `${abbr}・資本的収支の差（収入の残り）`;
       const id = b.node(enterpriseIds.surplus(s.account, s.section), 'ekou', label);
       b.edge(secId, id, -gap);
       // 差の箱は、同じ会計・条の支出の項のすぐ下に置く（列の最後に置くと、帯が図を縦に横切る）
