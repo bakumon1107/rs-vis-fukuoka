@@ -80,6 +80,118 @@
    "id": "special:jutaku-kanri",
    "kind": "special",
    "name": "住宅管理特別会計"
+  },
+  {
+   "id": "enterprise:byoin",
+   "kind": "enterprise",
+   "name": "病院事業会計",
+   "enterprise": {
+    "capital_shortfall": {
+     "amount": 427973000,
+     "items": [
+      {
+       "name": "過年度分損益勘定留保資金",
+       "amount": 427973000
+      }
+     ],
+     "source": {
+      "source": "r8-gian",
+      "page": 86
+     }
+    }
+   }
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido",
+   "kind": "enterprise",
+   "name": "流域下水道事業会計",
+   "enterprise": {
+    "capital_shortfall": {
+     "amount": 1801100000,
+     "items": [
+      {
+       "name": "当年度分消費税及び地方消費税資本的収支調整額",
+       "amount": 18245000
+      },
+      {
+       "name": "過年度分損益勘定留保資金",
+       "amount": 259908000
+      },
+      {
+       "name": "当年度分損益勘定留保資金",
+       "amount": 1522947000
+      }
+     ],
+     "source": {
+      "source": "r8-gian",
+      "page": 90
+     }
+    }
+   }
+  },
+  {
+   "id": "enterprise:denki",
+   "kind": "enterprise",
+   "name": "電気事業会計",
+   "enterprise": {
+    "capital_shortfall": {
+     "amount": 286005000,
+     "items": [
+      {
+       "name": "過年度分損益勘定留保資金",
+       "amount": 286005000
+      }
+     ],
+     "source": {
+      "source": "r8-gian",
+      "page": 96
+     }
+    }
+   }
+  },
+  {
+   "id": "enterprise:kogyo-yosui",
+   "kind": "enterprise",
+   "name": "工業用水道事業会計",
+   "enterprise": {
+    "capital_shortfall": {
+     "amount": 662003000,
+     "items": [
+      {
+       "name": "過年度分損益勘定留保資金",
+       "amount": 455353000
+      },
+      {
+       "name": "繰越利益剰余金処分額",
+       "amount": 206650000
+      }
+     ],
+     "source": {
+      "source": "r8-gian",
+      "page": 100
+     }
+    }
+   }
+  },
+  {
+   "id": "enterprise:kogyo-yochi",
+   "kind": "enterprise",
+   "name": "工業用地造成事業会計",
+   "enterprise": {
+    "capital_shortfall": {
+     "amount": 942126000,
+     "items": [
+      {
+       "name": "過年度分損益勘定留保資金",
+       "amount": 942126000
+      }
+     ],
+     "source": {
+      "source": "r8-gian",
+      "page": 104
+     }
+    }
+   }
   }
  ],
  "rows": [
@@ -91279,11 +91391,2305 @@
      "page": 119
     }
    ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-1-1",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "入院収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1977570000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-1-2",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "外来収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 377018000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-1-3",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "その他医業収益",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 20840000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-2-1",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "一般会計負担金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 297825000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-2-2",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "長期前受金戻入",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 93937000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-2-3",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "その他医業外収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1461000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 134
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/3-1-3-1",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "特別利益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "過年度損益修正益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 597000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 135
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-1-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "給与費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 20285000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 135
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-1-2",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "経費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 2448532000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 135
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-1-3",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "減価償却費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 206610000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 135
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-1-4",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "医業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 4,
+    "name": "資産減耗費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 2182000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 135
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-2-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "支払利息及び企業債取扱諸費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 29777000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 136
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-2-2",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "消費税",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1631000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 136
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-2-3",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "医業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "雑損失",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 50475000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 136
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-3-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "特別損失",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "過年度損益修正損",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 3477000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 136
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/3-1-4-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "病院事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 4,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 136
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/4-1-1-1",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "企業債",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "企業債",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 287000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 137
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/revenue/4-1-2-1",
+   "account": "enterprise:byoin",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "負担金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "一般会計負担金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 292581000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 137
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/4-1-1-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 287028000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 138
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/4-1-1-2",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 2,
+    "name": "資産購入費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 268202000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 138
+    }
+   ]
+  },
+  {
+   "id": "enterprise:byoin/expense/4-1-2-1",
+   "account": "enterprise:byoin",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "企業債償還金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "企業債償還金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 452324000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 138
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/3-1-1-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "流域下水道管理費負担金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 10054652000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 164
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/3-1-1-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "その他営業収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 864800000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 164
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/3-1-2-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "他会計補助金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1783652000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 164
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/3-1-2-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "長期前受金戻入",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 7246794000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 164
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-1-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "管渠・ポンプ場・処理場費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 10488465000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-1-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "業務費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 45353000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-1-3",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "減価償却費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 8727964000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-1-4",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 4,
+    "name": "資産減耗費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 250761000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-2-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "支払利息及び企業債取扱諸費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 349504000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/3-1-2-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "流域下水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "消費税及び地方消費税",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 48712000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 165
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/4-1-1-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "企業債",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "建設改良債",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 4559400000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 166
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/4-1-2-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "他会計補助金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "他会計補助金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 452772000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 166
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/4-1-3-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "国庫補助金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "国庫補助金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 5777517000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 166
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/4-1-4-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 4,
+    "name": "負担金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "流域下水道建設費負担金",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 2296674000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 166
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/revenue/4-1-4-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 4,
+    "name": "負担金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "その他負担金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 34087000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 166
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/4-1-1-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "流域下水道建設費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 10184517000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 167
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/4-1-1-2",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 2,
+    "name": "固定資産購入費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 40671000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 167
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/4-1-2-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "企業債償還金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "建設改良債償還金",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 4678362000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 167
+    }
+   ]
+  },
+  {
+   "id": "enterprise:ryuiki-gesuido/expense/4-1-3-1",
+   "account": "enterprise:ryuiki-gesuido",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 18000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 167
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-1-1",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "電力料",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 599234000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-1-2",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "営業雑収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 86500000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-1-3",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 3,
+    "name": "受託運転益",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 3083000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-2-1",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "財務収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "受取利息",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 10976000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-3-1",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "事業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "長期前受金戻入",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 270000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/revenue/3-1-3-2",
+   "account": "enterprise:denki",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "事業外収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "雑収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 255000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 202
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/3-1-1-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "水力発電費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 546994000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 203
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/3-1-1-2",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "一般管理費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 64375000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 203
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/3-1-2-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "財務費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "支払利息",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 10000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 203
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/3-1-3-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "事業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "消費税",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 20952000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 203
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/3-1-4-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "電気事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 4,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 5000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 203
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/4-1-1-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "設備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 181005000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 204
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/4-1-2-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "投資",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "投資有価証券購入",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 100000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 204
+    }
+   ]
+  },
+  {
+   "id": "enterprise:denki/expense/4-1-3-1",
+   "account": "enterprise:denki",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 5000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 204
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/3-1-1-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "給水収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 2067255000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 236
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/3-1-1-2",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "営業雑収益",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 20507000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 236
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/3-1-2-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外収益",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "受取利息",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 28260000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 236
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/3-1-2-2",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外収益",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 2,
+    "name": "長期前受金戻入",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 284108000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 236
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/3-1-2-3",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外収益",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 3,
+    "name": "雑収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 37852000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 236
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/3-1-1-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "業務費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 2081273000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 237
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/3-1-1-2",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "一般管理費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 199076000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 237
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/3-1-2-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "支払利息",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 6157000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 237
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/3-1-2-2",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "営業外費用",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 2,
+    "name": "消費税",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 89693000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 237
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/3-1-3-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "工業用水道事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 20000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 237
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/revenue/4-1-1-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "負担金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "負担金",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 1000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 238
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/4-1-1-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "建設改良費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "設備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 505017000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 238
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/4-1-2-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "企業債償還金",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "償還元金",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 147986000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 238
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yosui/expense/4-1-3-1",
+   "account": "enterprise:kogyo-yosui",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 3,
+    "name": "予備費",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "予備費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 10000000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 238
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/revenue/3-1-1-1",
+   "account": "enterprise:kogyo-yochi",
+   "side": "revenue",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "造成事業収益",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業収益",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "営業雑収益",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 21291000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 270
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/expense/3-1-1-1",
+   "account": "enterprise:kogyo-yochi",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "造成事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 1,
+    "name": "維持管理費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 13285000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 270
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/expense/3-1-1-2",
+   "account": "enterprise:kogyo-yochi",
+   "side": "expense",
+   "enterprise_section": "収益的",
+   "kan": {
+    "no": 1,
+    "name": "造成事業費",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "営業費用",
+    "name_src": "correction"
+   },
+   "moku": {
+    "no": 2,
+    "name": "一般管理費",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 16865000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 270
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/revenue/4-1-1-1",
+   "account": "enterprise:kogyo-yochi",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "工業用地造成事業収入",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "未成土地収入",
+    "name_src": "correction"
+   },
+   "amount": {
+    "v": 764962000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 271
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/revenue/4-1-2-1",
+   "account": "enterprise:kogyo-yochi",
+   "side": "revenue",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的収入",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 2,
+    "name": "企業債",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "企業債",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 3374400000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 271
+    }
+   ]
+  },
+  {
+   "id": "enterprise:kogyo-yochi/expense/4-1-1-1",
+   "account": "enterprise:kogyo-yochi",
+   "side": "expense",
+   "enterprise_section": "資本的",
+   "kan": {
+    "no": 1,
+    "name": "資本的支出",
+    "name_src": "readings"
+   },
+   "kou": {
+    "no": 1,
+    "name": "造成事業費",
+    "name_src": "readings"
+   },
+   "moku": {
+    "no": 1,
+    "name": "工業用地造成事業費",
+    "name_src": "readings"
+   },
+   "amount": {
+    "v": 5081488000,
+    "src": "text"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 271
+    }
+   ]
   }
  ],
  "checks": {
-  "rows": 495,
-  "all_ok": 495,
+  "rows": 569,
+  "all_ok": 569,
   "rules": {
    "A_説明欄": 278,
    "B_財源": 278,
@@ -91294,7 +93700,8 @@
    "項_予算書": "一般会計 106/106・特別会計 83/83",
    "款_計上額調": "一般会計 29/29",
    "会計_計上額調": "特別会計 28/28",
-   "計の行": "一般会計 74/74・特別会計 23/23"
+   "計の行": "一般会計 74/74・特別会計 23/23",
+   "公営企業会計_予算書": "目 74 件。項ごとの目の合計が予算書の本体の項の額と一致 46/46（実施計画には説明欄・財源・前年度・節がないので、それらの検算はない）"
   },
   "readings": {
    "agree_2plus": 0.9976,

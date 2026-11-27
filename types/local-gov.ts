@@ -38,6 +38,14 @@ export interface Account {
   id: string;
   kind: AccountKind;
   name: string;
+  /** 公営企業会計だけ（公開前のサンキー図の足しと公営企業会計の設計 4.3） */
+  enterprise?: {
+    /**
+     * 資本的収入が資本的支出に足りない額と、その補填財源の内訳（予算書の本体の第4条の文言。円）。
+     * amount = items の合計 = 資本的支出 − 資本的収入。足りなくない会計にはない
+     */
+    capital_shortfall?: { amount: Yen; items: { name: string; amount: Yen }[]; source: { source: string; page: number } };
+  };
 }
 
 export type Side = 'revenue' | 'expense';

@@ -510,7 +510,7 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
     if (into.has(n.id) && out.has(n.id)) assert.equal(out.get(n.id), into.get(n.id), n.id);
     if (n.col === 'account') accounts++;
   }
-  // 公営企業会計は描かない（設計書 3.2）。R8 にはないが、書き出した後もこのテストがそのまま使えるように除いて数える
+  // 公営企業会計は全会計の見方に描かない（設計書 3.2）。R8 当初には5会計あるので、除いて数える
   const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
   assert.equal(accounts, file.accounts.length - enterprise.size);
   // 歳入の款・会計・款・項・目の列の合計はどれも全会計の総計（歳入 = 歳出）
@@ -531,7 +531,8 @@ test('実データ（福岡県 R8）: 全会計は入りと出の両方がある
   // 右端の目の箱は正規化データの目の本年度と比べる（列の合計が合っていても、目が別の款・会計の下に入る誤りに気づけるように）
   const rowOf = new Map(file.rows.map(r => [r.id, r]));
   const mokuNodes = g.nodes.filter(n => n.col === 'moku');
-  assert.equal(mokuNodes.length, file.rows.filter(r => r.side === 'expense' && (r.amount.v ?? 0) > 0).length);
+  // 公営企業会計の目は全会計の見方に描かないので数えない
+  assert.equal(mokuNodes.length, file.rows.filter(r => r.side === 'expense' && (r.amount.v ?? 0) > 0 && !enterprise.has(r.account)).length);
   for (const n of mokuNodes) {
     const r = rowOf.get(n.row ?? '');
     assert.equal(n.value, r?.amount.v, n.id);

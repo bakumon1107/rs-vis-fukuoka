@@ -81,6 +81,14 @@ def main():
             if mt and cur["総額"] is None:
                 cur["総額"] = int(mt.group(1).replace(",", ""))
             if cur["会計"].endswith("事業会計"):
+                # 第4条の文言の補填財源: 「資本的収入額が資本的支出額に対し不足する額 X千円は A a千円、B b千円及び C c千円で補填する」
+                # （公開前のサンキー図の足しと公営企業会計の設計 4.3。内訳の合計 = 不足額 = 支出 − 収入 は下で確かめる）
+                mf = re.search(r"不足する額\s*([\d,]+)千円は(.+?)で補填する", text, re.S)
+                if mf and "補填" not in cur:
+                    body = re.sub(r"\s", "", mf.group(2))
+                    parts = re.findall(r"(?:^|、|及び)(.+?)([\d,]+)千円", body)
+                    cur["補填"] = {"不足額": int(mf.group(1).replace(",", "")),
+                                   "内訳": [{"name": n, "金額": int(a.replace(",", ""))} for n, a in parts], "pdf_page": pno}
                 # 公営企業会計: 第3条（収益的収入及び支出）・第4条（資本的収入及び支出）の条文に
                 # 「収入／支出」の見出しと「第N款 名前 X千円」「第N項 名前 X千円」が並ぶ（第5条以降は企業債など）
                 for line in text.splitlines():
@@ -189,9 +197,18 @@ def main():
                         s = sum(x["金額"] for x in kan["項"])
                         if s != kan["金額"]:
                             fail(f"{k['会計']} 第{art}条 {side} {kan['name']}: 項の合計 {s:,} / 款 {kan['金額']:,}")
+            # 補填財源: 内訳の合計 = 不足額 = 第4条の支出 − 収入
+            hf = k.get("補填")
+            if 4 in arts:
+                gap = sum(x["金額"] for x in arts[4]["支出"]) - sum(x["金額"] for x in arts[4]["収入"])
+                if gap > 0 and not hf:
+                    fail(f"{k['会計']}: 第4条の不足額 {gap:,} の補填財源の文言が読めない")
+                elif hf and (sum(x["金額"] for x in hf["内訳"]) != hf["不足額"] or hf["不足額"] != gap):
+                    fail(f"{k['会計']}: 補填財源の内訳の合計 {sum(x['金額'] for x in hf['内訳']):,} / 不足額 {hf['不足額']:,} / 支出 − 収入 {gap:,}")
             print(f"{k['会計']}: 公営企業会計 " + " / ".join(
                 f"第{art}条 収入 {sum(x['金額'] for x in a['収入']):,}・支出 {sum(x['金額'] for x in a['支出']):,}"
-                for art, a in sorted(arts.items())) + " 千円", file=sys.stderr)
+                for art, a in sorted(arts.items())) + " 千円"
+                + (f" / 補填財源 {hf['不足額']:,} 千円（内訳 {len(hf['内訳'])}）" if hf else ""), file=sys.stderr)
             continue
         for side in ("歳入", "歳出"):
             for kan in k[side]:

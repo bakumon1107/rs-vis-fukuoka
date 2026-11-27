@@ -113,6 +113,57 @@ test('基金（funds）: 決算のファイルだけ。区分の検算・合計�
     .some(e => e.includes('今ある基金の推移の合計より小さい')));
 });
 
+test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 不足額 = 資本的支出 − 収入', () => {
+  const ent = (id: string, side: 'revenue' | 'expense', section: '収益的' | '資本的', amount: number): MokuRow => {
+    const [kan, kou, moku] = id.split('-').slice(1).map(Number);
+    return { id: `enterprise:byoin/${side}/${id}`, account: 'enterprise:byoin', side, enterprise_section: section,
+      kan: { no: kan, name: '款', name_src: 'readings' }, kou: { no: kou, name: '項', name_src: 'readings' },
+      moku: { no: moku, name: '目', name_src: 'readings' }, amount: v(amount, 'text'),
+      pages: [{ source: 'r8-setsumeisho-toku', page: 137 }] } as MokuRow;
+  };
+  const rows = [ent('3-1-1-1', 'revenue', '収益的', 100), ent('3-1-1-1', 'expense', '収益的', 90),
+    ent('4-1-1-1', 'revenue', '資本的', 30), ent('4-1-1-1', 'expense', '資本的', 50)];
+  const acc = (amount: number, items = [{ name: '過年度分損益勘定留保資金', amount }]) => ({
+    id: 'enterprise:byoin', kind: 'enterprise' as const, name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount, items, source: { source: 'r8-gian', page: 86 } } },
+  });
+  const errs = (a: ReturnType<typeof acc> | { id: string; kind: 'enterprise'; name: string }, rs = rows) => validateBudgetFile(file(rs, {
+    accounts: [{ id: 'general', kind: 'general', name: '一般会計' }, a],
+    checks: { rows: rs.length, all_ok: rs.length, rules: {} },
+  })).errors;
+  assert.deepEqual(errs(acc(20)), []);
+  assert.equal(expectedRowId(rows[2]), 'enterprise:byoin/revenue/4-1-1-1');
+  assert.ok(errs(acc(19)).some(e => e.includes('補填財源の内訳の合計')));
+  assert.ok(errs(acc(20, [{ name: 'a', amount: 10 }])).some(e => e.includes('補填財源の内訳の合計')));
+  assert.ok(errs({ id: 'enterprise:byoin', kind: 'enterprise', name: '病院事業会計' }).some(e => e.includes('補填財源がない')));
+  // 条のない行・一般会計の行に条
+  const noSection = { ...rows[0], enterprise_section: undefined, id: 'enterprise:byoin/revenue/1-1-1' } as MokuRow;
+  assert.ok(errs(acc(20), [...rows, noSection]).some(e => e.includes('条（enterprise_section）のない行')));
+  // 条の値が2つのどちらでもない（ID の確かめでは第4条に数えられて通ってしまう）
+  const typo = { ...rows[3], enterprise_section: '資本' } as unknown as MokuRow;
+  assert.ok(errs(acc(20), [rows[0], rows[1], rows[2], typo]).some(e => e.includes('収益的・資本的 のどちらでもない')));
+  // 補填財源の額は 0 以上の整数・内訳には名前
+  assert.ok(errs(acc(20, [{ name: '', amount: 25 }, { name: 'b', amount: -5 }]))
+    .some(e => e.includes('名前がない')));
+  assert.ok(errs(acc(20, [{ name: 'a', amount: 25 }, { name: 'b', amount: -5 }]))
+    .some(e => e.includes('0 以上の整数でない')));
+  // 内訳・出典のない形の崩れた JSON でも落ちずに失敗を返す
+  const broken = { id: 'enterprise:byoin', kind: 'enterprise' as const, name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount: 20 } } } as unknown as ReturnType<typeof acc>;
+  const brokenErrs = errs(broken);
+  assert.ok(brokenErrs.some(e => e.includes('補填財源の内訳がない')) && brokenErrs.some(e => e.includes('補填財源の出典')));
+  // 出典にはページが要る（ない・0）
+  for (const source of [{ source: 'r8-gian' }, { source: 'r8-gian', page: 0 }, { source: 'r8-gian', page: 1.5 },
+    { source: 'r8-gian', page: -1 }, { page: 86 }]) {
+    const noPage = { ...acc(20), enterprise: { capital_shortfall: { ...acc(20).enterprise.capital_shortfall, source } } } as ReturnType<typeof acc>;
+    assert.ok(errs(noPage).some(e => e.includes('出典（資料とページ）がない')), JSON.stringify(source));
+  }
+  // 名前は空でない文字列（数値は通さない）
+  assert.ok(errs(acc(20, [{ name: 123 as unknown as string, amount: 20 }])).some(e => e.includes('名前がない')));
+  const nullItem = acc(20, [null as unknown as { name: string; amount: number }]);
+  assert.ok(errs(nullItem).some(e => e.includes('形になっていない')));
+});
+
 test('ID は会計/歳入歳出/款-項-目', () => {
   assert.equal(expectedRowId(row()), 'general/expense/2-1-1');
   const r = validateBudgetFile(file([row({ id: 'general/expense/2-1-9' })]));
@@ -288,6 +339,11 @@ test('index との突き合わせ: 資料の一覧にない出典・名前の資
   const errs = validateAgainstIndex(file([bad]), index, name);
   assert.ok(errs.some(e => e.includes('出典 r8-other')));
   assert.ok(errs.some(e => e.includes('名前の資料 r6-unknown')));
+  // 公営企業会計の補填財源の出典も資料の一覧にあること
+  const withShortfall = file([row()]);
+  withShortfall.accounts.push({ id: 'enterprise:byoin', kind: 'enterprise', name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount: 0, items: [], source: { source: 'r8-gian-x', page: 1 } } } });
+  assert.ok(validateAgainstIndex(withShortfall, index, name).some(e => e.includes('補填財源の出典 r8-gian-x')));
   assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index, name).some(e => e.includes('gov_id')));
   // 推定の値がある・全検算が一致しないのに verified
   assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index, name).some(e => e.includes('推定の値')));
