@@ -181,9 +181,14 @@ def build_round(r: dict, gian_sk: dict, parsed: list[dict], initial: dict, fails
     apply_name_corrections(r["id"], rows, json.load(open(NAME_CORRECTIONS, encoding="utf-8"))["修正"], fails)
     # 会計間の繰入れ・繰出金が補正で動くと、画面の純計（当初の繰入れの印で数える）が合わなくなる。R8 の補正にはないので、
     # 出てきたら止めて、補正のファイルにも印と検算（受け手の繰入れ = 出し手の節「繰出金」）を足す（公開前のサンキー図の足しの設計 2章）
+    # 補正額が読めて 0 円なら動いていない。読めない額（None）は動いたかもしれないので止める
+    def nonzero(v):
+        return v is None or v != 0
+
     for row in rows:
-        moved = (row["side"] == "revenue" and re.search(r"(一般会計|特別会計)繰入金", row["moku"]["name"])) or \
-            any(s.get("name") == "繰出金" and (s["amount"]["v"] or 0) != 0 for s in row.get("setsu", []))
+        moved = (row["side"] == "revenue" and re.search(r"(一般会計|特別会計)繰入金", row["moku"]["name"])
+                 and nonzero(row["amount"]["v"])) or \
+            any(s.get("name") == "繰出金" and nonzero(s["amount"]["v"]) for s in row.get("setsu", []))
         if moved:
             # 「一部合わない」で書き出すと、補正後の見方の純計が増えた繰入れを引かない額のまま出るので、書き出しを止める
             raise SystemExit(f"{r['id']} {row['id']}: 補正で会計間の繰入れ・繰出金が動いた（純計の印と検算を補正にも足す）")
