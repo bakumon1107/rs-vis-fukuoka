@@ -125,7 +125,7 @@ test('公営企業会計: 選択（会計・条、支出の項・目は目まで
   // 収入・補填財源の箱は、その箱から出る帯だけ（どの支出かは資料にない）
   assert.equal(composeDisplay(FILE, 'enterprise', 'erevenue:企業債').note, NOTE_ENTERPRISE_EXPENSE_UNKNOWN);
   assert.equal(composeDisplay(FILE, 'enterprise', 'efill:留保資金').note, NOTE_ENTERPRISE_EXPENSE_UNKNOWN);
-  // 収益的収支の不足はこのサイトの計算した差なので断り書きなし。差（利益）の箱は出る帯がないので、入る帯を重ねる
+  // 収益的収支の不足も、どの支出の項に入ったかは分からないので同じ断り書き。差（利益）の箱は出る帯がないので、入る帯を重ねる
   assert.equal(composeDisplay(FILE, 'enterprise', 'eshort:enterprise:yochi:3').note, NOTE_ENTERPRISE_EXPENSE_UNKNOWN);
   const sur = composeDisplay(FILE, 'enterprise', 'esurplus:enterprise:byoin:3');
   assert.equal(sur.highlight.get(edgeKey('esection:enterprise:byoin:3', 'esurplus:enterprise:byoin:3')), 10);
@@ -141,12 +141,18 @@ test('公営企業会計: 支出の項の名前が複数の会計・条にあれ
   assert.equal(label('ekou:enterprise:byoin:3:1-1'), '医業費用（病院・収益的）');
   assert.equal(label('ekou:enterprise:yochi:3:1-2'), '医業費用（工業用地造成・収益的）');
   assert.equal(label('ekou:enterprise:yochi:3:1-1'), '営業費用'); // 1つだけの名前はそのまま
-  // 同じ会計・条の中で別の款に同じ名前の項があれば款の名前も添える
-  const sameSec: LocalBudgetFile = { ...FILE, rows: [...FILE.rows, ent('enterprise:byoin', 'expense', '収益的', '2-1-1', 3, '医業費用'),
+  // 同じ会計・条の中にも同じ名前の項があれば款-項の番号も添える（同じ款の中でも見分けられる）
+  const sameSec: LocalBudgetFile = { ...FILE, rows: [...FILE.rows, ent('enterprise:byoin', 'expense', '収益的', '1-3-1', 3, '医業費用'),
     ent('enterprise:byoin', 'revenue', '収益的', '1-2-2', 3, '医業外収益')] };
   const gs = buildLocalGraph(sameSec, { view: 'enterprise' });
-  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-1')?.name, '医業費用（病院・収益的・款1）');
-  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:2-1')?.name, '医業費用（病院・収益的・款2）');
+  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-1')?.name, '医業費用（病院・収益的・1-1）');
+  assert.equal(gs.nodes.find(n => n.id === 'ekou:enterprise:byoin:3:1-3')?.name, '医業費用（病院・収益的・1-3）');
+  // その2つの項の目に同じ名前があれば、目のラベルは項の名前と番号で見分ける
+  const sameSecMoku: LocalBudgetFile = { ...sameSec, rows: sameSec.rows.map(r => r.id === 'enterprise:byoin/expense/3-1-3-1'
+    ? { ...r, moku: { ...r.moku, name: '目3-1-1-1' } } : r) };
+  const ds = composeDisplay(sameSecMoku, 'enterprise', 'esection:enterprise:byoin:3');
+  const mokuNames = ds.graph.nodes.filter(n => n.col === 'moku').map(n => n.name);
+  assert.ok(mokuNames.includes('目3-1-1-1（医業費用・1-1）') && mokuNames.includes('目3-1-1-1（医業費用・1-3）'), JSON.stringify(mokuNames));
   // 目のラベルに添える上の項の名前は、添えた（会計・条）を外す（入れ子の括弧にしない）
   const sameMoku: LocalBudgetFile = { ...dup, rows: dup.rows.map(r => r.id === 'enterprise:byoin/expense/3-1-1-2'
     ? { ...r, moku: { ...r.moku, name: '目3-1-1-1' } } : r).concat(ent('enterprise:byoin', 'expense', '収益的', '1-2-1', 4, '医業外費用'),
@@ -168,6 +174,13 @@ test('公営企業会計: 支出の項の名前が複数の会計・条にあれ
   const gl = buildLocalGraph(less, { view: 'enterprise' });
   assert.equal(gl.nodes.find(n => n.id === 'efill:留保資金')?.value, 15);
   assert.equal(gl.nodes.find(n => n.id === 'eshort:enterprise:byoin:4')?.value, 5);
+  assert.equal(gl.nodes.find(n => n.id === 'eshort:enterprise:byoin:4')?.name, '病院・資本的収支の不足（補填財源の内訳にない残り）');
+  // 負の内訳は描かない（負の帯は描けない）
+  const neg: LocalBudgetFile = { ...FILE, accounts: FILE.accounts.map(a => a.id === 'enterprise:byoin'
+    ? { ...a, enterprise: { capital_shortfall: { amount: 20, items: [{ name: '留保資金', amount: 30 }, { name: 'x', amount: -15 }],
+      source: { source: 'g', page: 1 } } } } : a) };
+  const gn = buildLocalGraph(neg, { view: 'enterprise' });
+  assert.ok(!gn.nodes.some(n => n.id.startsWith('efill:')) && gn.edges.every(e => e.value > 0));
 });
 
 test('公営企業会計の支出の合計（見出し）。公営企業会計がなければ null', () => {
