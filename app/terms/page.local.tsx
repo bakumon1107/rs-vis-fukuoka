@@ -7,10 +7,8 @@ import { LOCAL_PAGE_PATHS, localPageMetadata, localSiteConfig } from '@/app/lib/
  * 福岡市版「みらい議会＠福岡市」の利用規約（第1〜6条）をもとに、AI 機能の条項を外し、
  * 第2条に AGPL-3.0 と県の公開資料についてのただし書き、第3条に原資料の確認のお願いを足した。
  */
-export const metadata: Metadata = {
-  ...localPageMetadata('利用規約', LOCAL_PAGE_PATHS.terms()),
-  description: `${localSiteConfig.siteName}の利用規約`,
-};
+export const metadata: Metadata = localPageMetadata(
+  '利用規約', LOCAL_PAGE_PATHS.terms(), undefined, `${localSiteConfig.siteName}の利用規約`);
 
 export default function TermsPage() {
   const { siteName, operator, repositoryUrl, prefName } = localSiteConfig;

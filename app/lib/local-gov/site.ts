@@ -101,8 +101,15 @@ export const LOCAL_PAGE_PATHS = {
  *   リポジトリの改名で旧 URL から転送されても、canonical で新しい URL を示せる
  * - 国版のビルド（/local/* は試作のまま）: noindex にし、ルートレイアウトの canonical（国版のトップ）を継承させない
  */
-export function localPageMetadata(pageName: string, path: string, local: boolean = isLocalEdition()): Metadata {
-  const { siteName, siteDescription } = localSiteConfig;
+export function localPageMetadata(
+  pageName: string,
+  path: string,
+  local: boolean = isLocalEdition(),
+  /** 画面ごとの説明（規約など）。省略時はサイトの説明。description・OGP・twitter のすべてに使う */
+  description: string = localSiteConfig.siteDescription,
+): Metadata {
+  const { siteName } = localSiteConfig;
+  const siteDescription = description;
   const title = `${pageName}｜${siteName}`;
   const url = `${SITE_URL.replace(/\/$/, '')}${path}`;
   return {

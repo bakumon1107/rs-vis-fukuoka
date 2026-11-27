@@ -1,12 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { basePath, DEFAULT_LOCAL_GOV_ID, isLocalEdition, localGovId, siteEdition, withBasePath } from '../app/lib/local-gov/site-edition';
+import {
+  basePath, DEFAULT_LOCAL_GOV_ID, GOV_ID_PATTERN, isLocalEdition, localGovId, siteEdition, withBasePath,
+} from '../app/lib/local-gov/site-edition';
 import { LOCAL_PAGE_PATHS, localGaMeasurementId, localPageMetadata } from '../app/lib/local-gov/site';
 import { SITE_URL } from '../app/lib/site-url';
+import { withLocalStaticExport } from '../next.config.local';
+import * as allowlist from '../scripts/local-gov/pages-allowlist.mjs';
+
+test('公開物の組み立て（pages-allowlist.mjs）の自治体 ID の決め方は、ビルド（site-edition.ts）と同じ', () => {
+  // .mjs は TypeScript を読めないので写しを持っている。食い違うと、書き出しと組み立てが別の自治体を見る
+  assert.equal(allowlist.GOV_ID_PATTERN.source, GOV_ID_PATTERN.source);
+  assert.equal(allowlist.DEFAULT_LOCAL_GOV_ID, DEFAULT_LOCAL_GOV_ID);
+});
 
 test('画面のメタデータ: 地方版は canonical・og:url をこの画面の絶対 URL、国版のビルドでは noindex で canonical なし', () => {
   const local = localPageMetadata('基金', LOCAL_PAGE_PATHS.funds(), true);
-  const url = `${SITE_URL.replace(/\/$/, '')}/local/fukuoka-pref/funds/`;
+  const url = `${SITE_URL.replace(/\/$/, '')}/local/${localGovId()}/funds/`;
   assert.equal(local.alternates?.canonical, url);
   assert.equal((local.openGraph as { url?: string }).url, url);
   assert.equal(local.robots, undefined);
@@ -15,8 +25,12 @@ test('画面のメタデータ: 地方版は canonical・og:url をこの画面�
   assert.equal(national.alternates?.canonical, null);
   assert.deepEqual(national.robots, { index: false, follow: false });
   assert.equal((national.openGraph as { url?: string }).url, undefined);
+  // 画面ごとの説明は description・OGP・twitter のすべてに入る
+  const terms = localPageMetadata('利用規約', LOCAL_PAGE_PATHS.terms(), true, '規約の説明');
+  assert.equal(terms.description, '規約の説明');
+  assert.equal((terms.openGraph as { description?: string }).description, '規約の説明');
+  assert.equal((terms.twitter as { description?: string }).description, '規約の説明');
 });
-import { withLocalStaticExport } from '../next.config.local';
 
 test('版の判定: local のときだけ地方版。未設定・その他は国版', () => {
   assert.equal(siteEdition('local'), 'local');

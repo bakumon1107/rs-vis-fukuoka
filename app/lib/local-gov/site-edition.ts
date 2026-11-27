@@ -11,7 +11,8 @@ export type SiteEdition = 'national' | 'local';
 /** 既定の自治体（`NEXT_PUBLIC_LOCAL_GOV_ID` が未設定・不正なとき） */
 export const DEFAULT_LOCAL_GOV_ID = 'fukuoka-pref';
 
-const GOV_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** 自治体 ID の形。scripts/local-gov/pages-allowlist.mjs に写しがある（同じことをテストで確かめる） */
+export const GOV_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function siteEdition(value: string | undefined = process.env.NEXT_PUBLIC_SITE_EDITION): SiteEdition {
   return value?.trim() === 'local' ? 'local' : 'national';

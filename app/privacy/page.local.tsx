@@ -7,10 +7,8 @@ import { LOCAL_PAGE_PATHS, localGaMeasurementId, localPageMetadata, localSiteCon
  * 福岡市版「みらい議会＠福岡市」のプライバシーポリシー（1〜8）と同じ文。
  * 「5. Cookie」の Google アナリティクスの段落は、地方版で GA を読み込むとき（測定 ID を明示したとき）だけ出す。
  */
-export const metadata: Metadata = {
-  ...localPageMetadata('プライバシーポリシー', LOCAL_PAGE_PATHS.privacy()),
-  description: `${localSiteConfig.siteName}のプライバシーポリシー`,
-};
+export const metadata: Metadata = localPageMetadata(
+  'プライバシーポリシー', LOCAL_PAGE_PATHS.privacy(), undefined, `${localSiteConfig.siteName}のプライバシーポリシー`);
 
 export default function PrivacyPage() {
   const { siteName, operator } = localSiteConfig;

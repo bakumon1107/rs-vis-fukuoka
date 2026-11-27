@@ -31,8 +31,10 @@ if (destName !== 'out' && !destName.startsWith('.next-')) {
   process.exit(1);
 }
 // 書き出しと同じフォルダ・どちらかがもう一方の中にあると、作り直しで書き出しを消してしまう
-const srcAbs = path.resolve(src);
-const destAbs = path.resolve(dest);
+// シンボリックリンク（out → .next-local など）も実体で比べる。まだない公開物のフォルダは親の実体からたどる
+const real = (p) => (fs.existsSync(p) ? fs.realpathSync(p) : path.join(fs.realpathSync(path.dirname(path.resolve(p))), path.basename(p)));
+const srcAbs = real(src);
+const destAbs = real(dest);
 const inside = (a, b) => a === b || a.startsWith(b + path.sep);
 if (inside(destAbs, srcAbs) || inside(srcAbs, destAbs)) {
   console.error(`公開物のフォルダは書き出しのフォルダと別にしてください: 書き出し ${src} / 公開物 ${dest}`);

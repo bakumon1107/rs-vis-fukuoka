@@ -17,10 +17,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # configure-pages が Pages の設定（base_path・base_url）を読むのに pages の権限が要る（GitHub の Pages の雛形と同じ）
+    # configure-pages が Pages の設定（base_path・base_url）を読むのに pages の読み取り権限が要る。
+    # PR のコードを動かすジョブなので書き込みは渡さない（書き込みは deploy ジョブだけ）
     permissions:
       contents: read
-      pages: write
+      pages: read
+    # 自治体 ID は書き出しと公開物の組み立てで同じ値を使う（片方だけ変えると、組み立てが別の自治体を探して止まる）
+    env:
+      NEXT_PUBLIC_LOCAL_GOV_ID: fukuoka-pref
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,14 +43,11 @@ jobs:
         run: npx next build || (echo "::warning::build failed, retrying (next/font fetch is flaky)" && sleep 20 && npx next build) || (sleep 60 && npx next build)
         env:
           NEXT_PUBLIC_SITE_EDITION: local
-          NEXT_PUBLIC_LOCAL_GOV_ID: fukuoka-pref
           NEXT_PUBLIC_BASE_PATH: ${{ github.event_name == 'pull_request' && '/yosan-view-fukuoka-pref' || steps.pages.outputs.base_path }}
           NEXT_PUBLIC_SITE_URL: ${{ github.event_name == 'pull_request' && 'https://bakumon1107.github.io/yosan-view-fukuoka-pref' || steps.pages.outputs.base_url }}
           NEXT_TELEMETRY_DISABLED: '1'
       - name: Assemble the published files
         run: node scripts/local-gov/assemble-pages.mjs .next-local out
-        env:
-          NEXT_PUBLIC_LOCAL_GOV_ID: fukuoka-pref
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:

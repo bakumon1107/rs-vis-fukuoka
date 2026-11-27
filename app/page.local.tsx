@@ -19,9 +19,12 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-[60vh] bg-background text-mirai-text">
-      {/* JavaScript があれば ClientRedirect がすぐ移す。meta refresh は JavaScript なしのため 1 秒おく
-          （0 秒だとクライアントの移動と競合して、二重に読み込む・移動の途中で読み直すことがある） */}
-      <meta httpEquiv="refresh" content={`1; url=${withBasePath(target)}`} />
+      {/* JavaScript があれば ClientRedirect がすぐ移す。meta refresh は JavaScript なしのときだけ（noscript の中）。
+          外に置くと、ClientRedirect の移動（同じ文書のままのソフトな移動）の後に meta refresh のタイマーが残り、
+          移った先のサンキー図を読み直してしまう */}
+      <noscript>
+        <meta httpEquiv="refresh" content={`0; url=${withBasePath(target)}`} />
+      </noscript>
       <ClientRedirect href={target} />
       <LocalHeaderSpacer />
       <main className="px-4 py-8 text-center">
