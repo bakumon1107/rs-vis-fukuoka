@@ -36,9 +36,13 @@ def _yosansho():
 
 FIXES = [{"会計": "病院事業会計", "page": 134, "段": "目", "読み": "その他区業収益", "名前": "その他医業収益"},
          {"会計": "病院事業会計", "page": 138, "段": "項", "読み": "建至几叔改良費", "名前": "建設改良費"}]
-# 新 OCR の読み（簡体字の「费」・空白を含む）。目の「入院収益」「経費」「企業債」「建設改良費」は含まれる
-PAGES = {p: kn.norm(t) for p, t in {134: "入 院 収 益  医業収益 病院事業収益", 135: "経 费  医業費用 病院事業费",
-                                    137: "企業債 資本的収入", 138: "建 設 改 良 费 資本的支出"}.items()}
+# 新 OCR の行（番号・金額・簡体字の「费」・空白を含む）。目の「入院収益」「経費」「企業債」「建設改良費」がある。
+# 「建設改良費」は「建 設 改」「良 费」の2行に分かれている
+PAGES = {p: kn.ocr_lines(t) for p, t in {
+    134: "1病院事業収益   120\n1 医業収益   120\n入 院 収 益   100",
+    135: "1病院事業费 110\n1 医業費用 110\n1 経 费   110",
+    137: "1資本的収入 30\n1 企業債 30\n1 企業債 30",
+    138: "1資本的支出 50\n1 建 設 改\n良 费 50"}.items()}
 
 
 def test_names_from_readings_yosansho_and_fixes():
@@ -58,14 +62,45 @@ def test_unconfirmed_name_and_unused_fix_fail():
     k["会計"][0]["収益的収入及び支出"]["支出"][0]["項"][0]["目"][0]["name"] = "経嚢"  # 新 OCR にも予算書の本体にもない
     _, fails, _ = kn.decide(k, _yosansho(), FIXES + [{"会計": "病院事業会計", "page": 999, "段": "目", "読み": "x", "名前": "y"}], PAGES)
     assert any("経嚢" in f for f in fails) and any("使われていない" in f for f in fails)
+    # 行の一部だけの名前（字の欠けた「経」）は一致にしない
+    k = _kigyo()
+    k["会計"][0]["収益的収入及び支出"]["支出"][0]["項"][0]["目"][0]["name"] = "医業"
+    assert any("「医業」" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
+    # 抽出の失敗は引き継ぐ
+    k = {**_kigyo(), "fails": ["目の合計が項と合わない"]}
+    assert any("実施計画の抽出: 目の合計" in f for f in kn.decide(k, _yosansho(), FIXES, PAGES)[1])
+
+
+def test_kan_matched_by_number_not_position():
+    # 実施計画に第1款がなく第2款だけあるとき、予算書の本体の第1款の名前と比べない
+    k = _kigyo()
+    kan = k["会計"][0]["資本的収入及び支出"]["収入"][0]
+    kan["no"], kan["name"] = 2, "資本的収入"
+    y = _yosansho()
+    y["会計"][0]["条"]["4"]["収入"].append({"no": 2, "name": "別の款", "金額": 0, "項": []})
+    named, fails, _ = kn.decide(k, y, FIXES, {**PAGES, 137: kn.ocr_lines("1 企業債 30")})
+    assert any("款「資本的収入」" in f for f in fails)
+
+
+def test_load_ocr_stops_on_duplicate_page(tmp_path):
+    for d in ("a", "b"):
+        (tmp_path / d).mkdir()
+        (tmp_path / d / "done.json").write_text("{}")
+        (tmp_path / d / "p0134.txt").write_text("入院収益", encoding="utf-8")
+    try:
+        kn.load_ocr([str(tmp_path / "a"), str(tmp_path / "b")])
+        assert False, "止まるはず"
+    except SystemExit as e:
+        assert "p134" in str(e)
 
 
 def test_export_rows_accounts_and_checks(tmp_path):
     named, _, _ = kn.decide(_kigyo(), _yosansho(), FIXES, PAGES)
     (tmp_path / "kigyo-named.json").write_text(json.dumps({**named, "fails": []}, ensure_ascii=False), encoding="utf-8")
     (tmp_path / "yosansho.json").write_text(json.dumps(_yosansho(), ensure_ascii=False), encoding="utf-8")
-    accounts, rows, lines, fails = ek.build(str(tmp_path))
+    accounts, rows, lines, fails, external = ek.build(str(tmp_path))
     assert fails == []
+    assert "一致 4/4" in external["公営企業会計_予算書"]
     assert accounts[0]["id"] == "enterprise:byoin"
     assert accounts[0]["enterprise"]["capital_shortfall"]["amount"] == 20_000
     ids = [r["id"] for r in rows]
@@ -79,6 +114,22 @@ def test_export_rows_accounts_and_checks(tmp_path):
     y["会計"][0]["条"]["3"]["支出"][0]["金額"] = 999
     (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
     assert any("第3条 支出" in f for f in ek.build(str(tmp_path))[3])
+    # 款の合計は合うが、目が別の項に付いている（項ごとの合計が予算書の本体と合わない）
+    y = _yosansho()
+    y["会計"][0]["条"]["3"]["収入"][0]["項"] = [{"no": 1, "name": "医業収益", "金額": 100}, {"no": 2, "name": "医業外収益", "金額": 20}]
+    (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
+    assert any("項ごとの目の合計" in f for f in ek.build(str(tmp_path))[3])
+    # 予算書の本体にある事業会計が実施計画にない
+    y = _yosansho()
+    y["会計"].append({"会計": "電気事業会計", "条": {}})
+    (tmp_path / "yosansho.json").write_text(json.dumps(y, ensure_ascii=False), encoding="utf-8")
+    assert any("電気事業会計" in f and "取れていない" in f for f in ek.build(str(tmp_path))[3])
+    # 目の金額が読めていない
+    (tmp_path / "yosansho.json").write_text(json.dumps(_yosansho(), ensure_ascii=False), encoding="utf-8")
+    broken = json.loads(json.dumps(named))
+    broken["会計"][0]["収益的収入及び支出"]["収入"][0]["項"][0]["目"][0]["金額"] = None
+    (tmp_path / "kigyo-named.json").write_text(json.dumps({**broken, "fails": []}, ensure_ascii=False), encoding="utf-8")
+    assert any("金額が読めていない" in f for f in ek.build(str(tmp_path))[3])
     # 名前の決め方が失敗していれば・名前のステップの出力がなければ止める
     (tmp_path / "kigyo-named.json").write_text(json.dumps({**named, "fails": ["x"]}, ensure_ascii=False), encoding="utf-8")
     assert ek.build(str(tmp_path))[3]

@@ -266,11 +266,21 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     const cs = a.enterprise?.capital_shortfall;
     if (gap > 0 && !cs) err(`会計 ${a.id}: 資本的収支の不足 ${gap} の補填財源がない`);
     if (cs) {
+      const nonNeg = (v: number) => Number.isSafeInteger(v) && v >= 0;
+      if (!nonNeg(cs.amount)) err(`会計 ${a.id}: 補填財源の不足額が 0 以上の整数でない（${cs.amount}）`);
+      cs.items.forEach((x, i) => {
+        if (!x.name) err(`会計 ${a.id}: 補填財源の内訳 ${i} の名前がない`);
+        if (!nonNeg(x.amount)) err(`会計 ${a.id}: 補填財源の内訳「${x.name}」の額が 0 以上の整数でない（${x.amount}）`);
+      });
       const sum = cs.items.reduce((s, x) => s + x.amount, 0);
       if (sum !== cs.amount || cs.amount !== gap) err(`会計 ${a.id}: 補填財源の内訳の合計 ${sum} / 不足額 ${cs.amount} / 資本的支出 − 収入 ${gap}`);
     }
   }
   for (const r of file.rows) {
+    // 型は2つの値だけだが、JSON は型で守られない。ほかの値は ID の確かめで第4条に数えられて見逃されるので、ここで止める
+    if (r.enterprise_section !== undefined && r.enterprise_section !== '収益的' && r.enterprise_section !== '資本的') {
+      err(`${r.id}: 条（enterprise_section）が 収益的・資本的 のどちらでもない（${String(r.enterprise_section)}）`);
+    }
     if (r.enterprise_section && !file.accounts.some(a => a.id === r.account && a.kind === 'enterprise')) {
       err(`${r.id}: 公営企業会計でない会計の行に条（enterprise_section）がある`);
     }
@@ -308,6 +318,10 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
   const checkEvidence = (where: string, ev: string[] | undefined) => {
     for (const id of ev ?? []) if (!ids.has(id)) errors.push(`${where}: 名前の資料 ${id} が index の sources にない`);
   };
+  for (const a of file.accounts) {
+    const src = a.enterprise?.capital_shortfall?.source.source;
+    if (src && !ids.has(src)) errors.push(`会計 ${a.id}: 補填財源の出典 ${src} が index の sources にない`);
+  }
   for (const row of file.rows) {
     for (const p of row.pages) if (!ids.has(p.source)) errors.push(`${row.id}: 出典 ${p.source} が index の sources にない`);
     for (const level of ['kan', 'kou', 'moku'] as const) checkEvidence(`${row.id} ${level}`, row[level].name_evidence);

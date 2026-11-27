@@ -726,13 +726,15 @@ def main():
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
     # 公営企業会計（予算実施計画。公開前のサンキー図の足しの設計 4.3）。一般会計・特別会計の検算（上の外部の検算）の後に足す
-    kigyo_accounts, kigyo_rows, kigyo_lines, kigyo_fails = export_kigyo.build(a.work)
+    kigyo_accounts, kigyo_rows, kigyo_lines, kigyo_fails, kigyo_external = export_kigyo.build(a.work)
     if kigyo_fails:
         sys.exit("公営企業会計の書き出しで止まった:\n" + "\n".join(kigyo_fails))
     accounts += kigyo_accounts
     rows += kigyo_rows
-    # 公営企業会計の目は、会計・条・収入支出ごとの合計が予算書の本体と一致したもの（export_kigyo の確かめ）なので、検算済みに数える
+    # 公営企業会計の目は、項ごとの目の合計が予算書の本体と一致したもの（export_kigyo の確かめ）なので、検算済みに数える。
+    # 一般会計・特別会計の検算（rules）はしていないので、検算の結果（external）に別の行で書く
     stats["ok"] += len(kigyo_rows)
+    external = {**external, **kigyo_external}
     # 会計間の繰入れ（純計のため。公開前のサンキー図の足しの設計 2章）: 受け手の歳入の印（transfer）の合計 = 出し手の歳出の節「繰出金」の合計。
     # 合わなければ印の付け漏れ・付けすぎなので止める（画面の純計 = 総計 − 印の付いた繰入れ）
     # 公営企業会計は全会計の見方・純計の範囲の外（画面の netTotal と同じ範囲で数える）

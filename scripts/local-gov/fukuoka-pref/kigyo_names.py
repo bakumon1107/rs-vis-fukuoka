@@ -5,12 +5,13 @@
 （「建設改良費」→「建云比又几改良費」など）。名前を次の順で決める:
 
 1. 修正表（ocr/corrections/r8-kigyo-names.json。原本の画像で確かめた名前）にあれば、その名前（出典 correction）
-2. 文字層の名前が、同じページの新 OCR（ocr/ocr_lines.py）の読みに含まれるか、款・項なら予算書の本体（extract_yosansho.py の
-   条文の款・項。発行元の本物の文字）と同じなら、そのまま（出典 readings）
+2. 文字層の名前が、同じページの新 OCR（ocr/ocr_lines.py）の行（続く3行までをつないだもの）と同じか、款・項なら予算書の本体
+   （extract_yosansho.py の条文の款・項を番号で対応させたもの。発行元の本物の文字）と同じなら、そのまま（出典 readings）
 3. どちらでもなければ止める（画像で確かめて修正表に足す）
 
-注意: 2 の「含まれる」は、名前の途中で切れた・字の欠けた文字層の名前も一致に見える（「償還元金」の行に「償還金」が含まれる）。
+比べる形（norm）は空白・数字・中黒・点を除くので、「償還元金」と「償還金」は別だが、中黒の有無の違いは見逃す。
 R8 は17ページすべての名前を画像で見比べ、そうしたものも修正表に入れた。別の年度を取り込むときも、ページが少ないので全部を画像で見る。
+抽出（extract_kigyo_jisshi.py）の失敗（kigyo.json の fails）はそのまま失敗に引き継ぐ。
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/kigyo_names.py <kigyo.json> <yosansho.json> <OCR の行のディレクトリ>... > kigyo-named.json
@@ -25,7 +26,7 @@ import sys
 import unicodedata
 
 # 新 OCR が簡体字で読む字を日本の字に寄せる（比べるときだけ。名前そのものは文字層か修正表から取る）
-GLYPHS = str.maketrans({"资": "資", "减": "減", "损": "損", "债": "債", "產": "産", "营": "営", "设": "設", "费": "費", "单": "単"})
+GLYPHS = str.maketrans({"资": "資", "减": "減", "损": "損", "债": "債", "产": "産", "產": "産", "营": "営", "设": "設", "费": "費", "单": "単"})
 SECTIONS = {"収益的収入及び支出": 3, "資本的収入及び支出": 4}
 
 
@@ -35,20 +36,30 @@ def norm(s: str) -> str:
     return re.sub(r"[\s\d,()（）．.・]", "", s)
 
 
-def load_ocr(dirs: list[str]) -> dict[int, str]:
-    """OCR の行のディレクトリ（done.json のあるもの）→ {PDF のページ: 比べる形にしたページの文字}"""
-    pages = {}
+def ocr_lines(text: str) -> set[str]:
+    """OCR のページの文字 → 比べる形にした行の集まり（行は「番号 名前 金額」なので、比べる形にすると名前だけが残る）。
+    行に分かれた名前（「支払利息及び／企業債取扱諸費」「流域下水道管理費／負担／金」）のため、続く3行までをつないだものも入れる"""
+    lines = [n for n in (norm(line) for line in text.splitlines()) if n]
+    return {"".join(lines[i:i + k]) for k in (1, 2, 3) for i in range(len(lines) - k + 1)}
+
+
+def load_ocr(dirs: list[str]) -> dict[int, set[str]]:
+    """OCR の行のディレクトリ（done.json のあるもの）→ {PDF のページ: 比べる形にした行の集まり}。同じページが2つのディレクトリにあれば止める"""
+    pages: dict[int, set[str]] = {}
     for d in dirs:
         if not os.path.exists(os.path.join(d, "done.json")):
             raise SystemExit(f"{d} に done.json がない（OCR が終わっていない）")
-        for f in glob.glob(os.path.join(d, "p*.txt")):
-            pages[int(os.path.basename(f)[1:5])] = norm(open(f, encoding="utf-8").read())
+        for f in sorted(glob.glob(os.path.join(d, "p*.txt"))):
+            page = int(os.path.basename(f)[1:5])
+            if page in pages:
+                raise SystemExit(f"p{page} の OCR が2つのディレクトリにある（{d}）。ページの範囲が重ならないように OCR し直す")
+            pages[page] = ocr_lines(open(f, encoding="utf-8").read())
     return pages
 
 
 def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, str]) -> tuple[dict, list[str], dict]:
     """名前を決める。返り値: (名前を付けた kigyo, 失敗, 出典の数)"""
-    fails: list[str] = []
+    fails: list[str] = [f"実施計画の抽出: {f}" for f in kigyo.get("fails", [])]
     counts = {"readings": 0, "correction": 0}
     fix_at = {(f["会計"], f["page"], f["段"], f["読み"]): f for f in fixes}
     used: set = set()
@@ -61,7 +72,7 @@ def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, str]
             used.add(key)
             node["name"], node["name_src"], node["name_read"] = fix_at[key]["名前"], "correction", read
             counts["correction"] += 1
-        elif norm(read) and (norm(read) in pages.get(node["pdf_page"], "") or (yo_name is not None and norm(read) == norm(yo_name))):
+        elif norm(read) and (norm(read) in pages.get(node["pdf_page"], set()) or (yo_name is not None and norm(read) == norm(yo_name))):
             node["name_src"] = "readings"
             counts["readings"] += 1
         else:
@@ -71,12 +82,13 @@ def decide(kigyo: dict, yosansho: dict, fixes: list[dict], pages: dict[int, str]
         acc = a["会計"]
         for sec, art in SECTIONS.items():
             for side in ("収入", "支出"):
-                yo_kans = yo.get(acc, {}).get(str(art), yo.get(acc, {}).get(art, {})).get(side, [])
-                for i, kan in enumerate(a.get(sec, {}).get(side, [])):
-                    yo_kan = yo_kans[i] if i < len(yo_kans) else None
+                yo_kans = {k["no"]: k for k in yo.get(acc, {}).get(str(art), yo.get(acc, {}).get(art, {})).get(side, [])}
+                for kan in a.get(sec, {}).get(side, []):
+                    yo_kan = yo_kans.get(kan["no"])  # 番号で対応させる（並びの位置では、款が欠けたとき隣の款と比べてしまう）
                     name_of(acc, "款", kan, yo_kan["name"] if yo_kan else None)
-                    for j, kou in enumerate(kan.get("項", [])):
-                        yo_kou = yo_kan["項"][j] if yo_kan and j < len(yo_kan["項"]) else None
+                    yo_kous = {k["no"]: k for k in (yo_kan or {}).get("項", [])}
+                    for kou in kan.get("項", []):
+                        yo_kou = yo_kous.get(kou["no"])
                         name_of(acc, "項", kou, yo_kou["name"] if yo_kou else None)
                         for m in kou.get("目", []):
                             name_of(acc, "目", m, None)

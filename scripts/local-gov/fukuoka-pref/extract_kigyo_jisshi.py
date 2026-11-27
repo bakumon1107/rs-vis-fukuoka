@@ -45,11 +45,10 @@ def main():
     pdf_path, yo_path = sys.argv[1], sys.argv[2]
     yo = {k["会計"]: k for k in json.load(open(yo_path, encoding="utf-8"))["会計"] if k["会計"].endswith("事業会計")}
     out: list[dict] = []
-    fails = 0
+    fails: list[str] = []  # kigyo.json にも書く（後のステップが失敗した抽出を使わないよう）
 
     def fail(msg):
-        nonlocal fails
-        fails += 1
+        fails.append(msg)
         print("FAIL " + msg, file=sys.stderr)
 
     with pdfplumber.open(pdf_path) as pdf:
@@ -159,8 +158,10 @@ def main():
         n_moku = sum(len(kou["目"]) for sec in ("収益的収入及び支出", "資本的収入及び支出") for side in ("収入", "支出")
                      for kan in k[sec][side] for kou in kan["項"])
         print(f"{k['会計']}: 目 {n_moku} 件（p{k['pdf_page']}〜）", file=sys.stderr)
-    print(f"会計 {len(out)} 件、FAIL={fails}", file=sys.stderr)
-    json.dump({"unit": "千円", "会計": out}, sys.stdout, ensure_ascii=False, indent=1)
+    for missing in sorted(set(yo) - {k["会計"] for k in out}):
+        fail(f"{missing}: 予算書の本体にあるが、実施計画の見出しが見つからない")
+    print(f"会計 {len(out)} 件、FAIL={len(fails)}", file=sys.stderr)
+    json.dump({"unit": "千円", "会計": out, "fails": fails}, sys.stdout, ensure_ascii=False, indent=1)
     sys.exit(1 if fails else 0)
 
 

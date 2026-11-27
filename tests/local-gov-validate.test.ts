@@ -139,6 +139,14 @@ test('公営企業会計: ID に条が入る。補填財源の内訳の合計 = 
   // 条のない行・一般会計の行に条
   const noSection = { ...rows[0], enterprise_section: undefined, id: 'enterprise:byoin/revenue/1-1-1' } as MokuRow;
   assert.ok(errs(acc(20), [...rows, noSection]).some(e => e.includes('条（enterprise_section）のない行')));
+  // 条の値が2つのどちらでもない（ID の確かめでは第4条に数えられて通ってしまう）
+  const typo = { ...rows[3], enterprise_section: '資本' } as unknown as MokuRow;
+  assert.ok(errs(acc(20), [rows[0], rows[1], rows[2], typo]).some(e => e.includes('収益的・資本的 のどちらでもない')));
+  // 補填財源の額は 0 以上の整数・内訳には名前
+  assert.ok(errs(acc(20, [{ name: '', amount: 25 }, { name: 'b', amount: -5 }]))
+    .some(e => e.includes('名前がない')));
+  assert.ok(errs(acc(20, [{ name: 'a', amount: 25 }, { name: 'b', amount: -5 }]))
+    .some(e => e.includes('0 以上の整数でない')));
 });
 
 test('ID は会計/歳入歳出/款-項-目', () => {
@@ -316,6 +324,11 @@ test('index との突き合わせ: 資料の一覧にない出典・名前の資
   const errs = validateAgainstIndex(file([bad]), index, name);
   assert.ok(errs.some(e => e.includes('出典 r8-other')));
   assert.ok(errs.some(e => e.includes('名前の資料 r6-unknown')));
+  // 公営企業会計の補填財源の出典も資料の一覧にあること
+  const withShortfall = file([row()]);
+  withShortfall.accounts.push({ id: 'enterprise:byoin', kind: 'enterprise', name: '病院事業会計',
+    enterprise: { capital_shortfall: { amount: 0, items: [], source: { source: 'r8-gian-x', page: 1 } } } });
+  assert.ok(validateAgainstIndex(withShortfall, index, name).some(e => e.includes('補填財源の出典 r8-gian-x')));
   assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index, name).some(e => e.includes('gov_id')));
   // 推定の値がある・全検算が一致しないのに verified
   assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index, name).some(e => e.includes('推定の値')));
