@@ -7,7 +7,7 @@
  * 配置計算と帯の形は国版（app/lib/mof-sankey-layout.ts）を使う。列はグラフの列の順で固定（columnOf）し、上詰めにする。
  * 選んでいるときは、全体の帯を灰色で敷き、選んだものに含まれる分（display.highlight の値）を元の色で重ねる。
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { computeMOFSankeyLayout, mofRibbonPath, type MOFLayoutLink } from '@/app/lib/mof-sankey-layout';
 import { edgeKey, type LocalGraphDisplay } from '@/app/lib/local-gov/graph-view';
 import { orderEdges } from '@/app/lib/local-gov/graph';
@@ -29,6 +29,13 @@ const MAX_SIDE_MARGIN = 320;
 
 function shorten(s: string, max: number) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+/** 文字列の幅の見積もり（px）。半角（数字・記号）は字の大きさの 0.6 倍、ほかは1字分 */
+function textPx(s: string, fontSize: number) {
+  let w = 0;
+  for (const ch of s) w += ch.charCodeAt(0) < 0x100 ? fontSize * 0.6 : fontSize;
+  return w;
 }
 
 /** 図の幅は枠の幅に合わせる（minWidth より狭くはしない。スマートフォンでは3列だけを描くので小さくてよい） */
@@ -136,15 +143,18 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
 
   const colIndex = useMemo(() => new Map(graph.columns.map((c, i) => [c.key, i])), [graph.columns]);
   const hideAmountCols = useMemo(() => new Set(graph.columns.filter(c => c.hideAmount).map(c => c.key)), [graph.columns]);
+  // 増減の印を実際に出す箱か（1万円未満は出さない）
+  const shows = useCallback(
+    (id: string) => {
+      const d = deltas?.get(id);
+      return !!d && (d.added || shortDelta(d.delta) !== '');
+    },
+    [deltas]
+  );
+  const presentCols = useMemo(() => graph.columns.filter(c => graph.nodes.some(n => n.col === c.key)), [graph]);
   // 左端の列のラベルは箱の左、それ以外は右に出す。左右の余白は、左端・右端の列のラベルの長さで決める
   // （全会計の見方の歳入の款のように名前が長い列で、ラベルが画面の端で切れないように）
   const margin = useMemo(() => {
-    const presentCols = graph.columns.filter(c => graph.nodes.some(n => n.col === c.key));
-    // 増減の印を実際に出す箱（1万円未満は出さない）がある列だけ、余白を足す
-    const shows = (id: string) => {
-      const d = deltas?.get(id);
-      return !!d && (d.added || shortDelta(d.delta) !== '');
-    };
     // 描く条件（金額を出す列だけ）と同じにする
     const withDelta = (col: string | undefined, px: number) =>
       deltas && col && !hideAmountCols.has(col) && graph.nodes.some(n => n.col === col && shows(n.id)) ? px : 0;
@@ -160,10 +170,13 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
       left: Math.min(size.maxSide, labelPx(presentCols[0]?.key)),
       right: Math.min(size.maxSide, labelPx(presentCols.at(-1)?.key)),
     };
-  }, [graph, size, deltas, hideAmountCols]);
-  // 箱1つの最低の高さ。スマートフォンの縦で増減を出すとき（補正後の見方）は、真ん中の列のラベルが3行（約 34px）になるので広げる
-  // （小さい箱が隣り合うと、名前と隣の箱の増減の行が重なる）
-  const slot = size.twoLine && deltas && deltas.size > 0 ? THREE_LINE_SLOT : size.slot;
+  }, [graph, size, deltas, hideAmountCols, shows, presentCols]);
+  // 箱1つの最低の高さ。スマートフォンの縦で、真ん中の列に増減の印を出す箱があるとき（補正後の見方）は、そのラベルが3行（約 34px）に
+  // なるので広げる（小さい箱が隣り合うと、名前と隣の箱の増減の行が重なる）。真ん中の列のない図（かんたんの2列）は広げない
+  const middleCols = new Set(presentCols.slice(1, -1).map(c => c.key));
+  const threeLine =
+    size.twoLine && !!deltas && graph.nodes.some(n => middleCols.has(n.col) && !hideAmountCols.has(n.col) && shows(n.id));
+  const slot = threeLine ? THREE_LINE_SLOT : size.slot;
   const layout = useMemo(
     () =>
       computeMOFSankeyLayout<GraphNode>(
@@ -194,6 +207,8 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
   // （残ると全部の帯が薄いままになる）
   const hoveredShown = hovered !== null && layout.nodes.some(n => n.id === hovered) ? hovered : null;
   const lastColumn = Math.max(0, ...layout.nodes.map(n => n.column));
+  // 列ごとの箱の左端（真ん中の列のラベルを、次の列の箱までに収めるため）
+  const columnX = new Map(layout.nodes.map(n => [n.column, n.x]));
 
   return (
     <div ref={ref} className="w-full">
@@ -311,9 +326,21 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                       </tspan>
                     );
                   })();
+                  // 1行のラベルの真ん中の列: 名前・金額・増減が次の列の箱までに収まるよう、名前を縮める（スマートフォンの横で、
+                  // 全会計の会計の名前（10字）と金額・増減を並べると右の列の箱に重なる）。最低4字は残す
+                  let nameMax = size.labelMax;
+                  const nextX = columnX.get(node.column + 1);
+                  if (!size.twoLine && !labelLeft && nextX !== undefined) {
+                    const room = nextX - tx - 4;
+                    const d = deltas?.get(n.id);
+                    const tail =
+                      (showAmount ? textPx(` ${formatBudgetFromYen(n.value)}`, size.fontSize) : 0) +
+                      (showAmount && d && shows(n.id) ? textPx(` ${d.added ? '新' : shortDelta(d.delta)}`, size.fontSize - 1) : 0);
+                    while (nameMax > 4 && textPx(shorten(n.name, nameMax), size.fontSize) + tail > room) nameMax--;
+                  }
                   const name = (
                     <>
-                      {shorten(n.name, size.labelMax)}
+                      {shorten(n.name, nameMax)}
                       {ocrName && <tspan fill="#b45309">※</tspan>}
                     </>
                   );

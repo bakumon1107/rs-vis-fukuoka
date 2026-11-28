@@ -94,6 +94,7 @@ function LocalGovContent() {
   const compact = isNarrow || landscapePhone;
   // かんたんを既定にする画面: 縦のスマートフォンと、指で操作する横の画面（パソコンの高さの低いウィンドウは、3列にはするが
   // 最初の図はくわしくのまま）
+  // （これらの判定は初回の描画では false だが、図はデータを読み終えてから描くので、くわしく → かんたんとちらつくことはない）
   const touch = useMediaQuery('(pointer: coarse)');
   const simpleFirst = isNarrow || (landscapePhone && touch);
   // かんたん／くわしく（URL の mode。なければ、スマートフォンで何も選んでいないときはかんたん。同 2.3）。
@@ -135,15 +136,16 @@ function LocalGovContent() {
       }
       if (next.mode !== undefined) {
         q.set('mode', next.mode);
-      } else if (!q.has('mode') && simpleOk) {
+      } else if (!q.has('mode') && simpleOk && (next.view ?? view) !== 'enterprise') {
         // URL に mode がなく、今の見え方が変えた後の既定と違うときは、今の見え方を残す
-        // （スマートフォンで、くわしくの図で選びを外したときに、かんたんへ戻らないように）
+        // （スマートフォンで、くわしくの図で選びを外したときに、かんたんへ戻らないように）。
+        // 公営企業会計の見方（かんたんがない）から出るとき・へ入るときは残さない（行き帰りの向きで結果が変わらないように）
         const nextDefault: ChartMode = simpleFirst && !q.get('sel') ? 'simple' : 'detail';
         if (nextDefault !== mode) q.set('mode', mode);
       }
       router.replace(`?${q.toString()}`, { scroll: false });
     },
-    [router, searchParams, basis, simpleFirst, simpleOk, mode]
+    [router, searchParams, basis, simpleFirst, simpleOk, view, mode]
   );
 
   // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
