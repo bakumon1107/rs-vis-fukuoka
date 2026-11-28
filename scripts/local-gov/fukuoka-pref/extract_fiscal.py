@@ -123,9 +123,17 @@ def reserve_parts(parsed: dict) -> tuple[list[tuple[int, int]], list[str]]:
 
     zero = (0, 0)
     out = []
+    # 年度ごとに資料にあるはずの内訳の行（読み落としを 0 として扱わないため）。
+    # 減債基金の公債管理特別会計分は H29〜、交付税精算分は減債基金が R3〜・財政調整基金が R4〜（通常分の行も同じ年度から）
+    year = parsed["year"]
+    required = {"財政調整基金": ["通常分", "交付税精算分"] if year >= 2022 else [],
+                "減債基金": ["公債管理特別会計分"] + (["通常分", "交付税精算分"] if year >= 2021 else [])}
     for fund in ("財政調整基金", "減債基金"):
         total = rows[fund]
         s = {k.split("/")[1]: v for k, v in rows.items() if k.startswith(fund + "/")}
+        missing = [k for k in required[fund] if k not in s]
+        if missing:
+            fails.append(f"{era} {fund}: 内訳の行が読めない: {missing}")
         kouhu, kousai = s.get("交付税精算分", zero), s.get("公債管理特別会計分", zero)
         # 一般会計分（公債管理特別会計分を除いた分）。行がなければ基金の行から求める
         general = s.get("一般会計分", sub(total, kousai))
@@ -384,6 +392,8 @@ def main():
         fails.append("基金積立状況（--kikin）がない")
     if not a.shihyo:
         fails.append("主要財政指標一覧（--shihyo）がない")
+    if not a.jokyo:
+        fails.append("財政状況資料集（--jokyo。福岡県の値の突き合わせ）がない")
     # 「財政改革プランの目標達成状況」は表紙の次（印刷のページ番号 1 = PDF の 2 ページ目）。最初の数ページから探す
     g = None
     for gpage in range(1, 6):
@@ -401,6 +411,8 @@ def main():
     jokyo = [(y, parse_jokyo(read_xlsx(p))) for y, p in pairs(a.jokyo)]
     series, f2, sn = indicator_series(shihyo, jokyo)
     fails += f2
+    if a.jokyo and sn["checked"] == 0:
+        fails.append("財政状況資料集との突き合わせが 0 件（主要財政指標一覧と年度が重ならない）")
 
     out = {
         "reserve": {

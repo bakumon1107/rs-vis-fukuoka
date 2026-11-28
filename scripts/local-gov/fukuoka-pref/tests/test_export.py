@@ -275,7 +275,8 @@ def test_previous_only_kan_skips_unread_previous_and_enterprise():
 
 
 def _fiscal(**over):
-    ind = lambda k: {"key": k, "threshold": 25.0 if k in ex.FISCAL_THRESHOLD_KEYS else None,  # noqa: E731
+    ind = lambda k: {"key": k, "label": k, "unit": ex.FISCAL_UNIT_GOOD[k][0], "good": ex.FISCAL_UNIT_GOOD[k][1],  # noqa: E731
+                     "threshold": 25.0 if k in ex.FISCAL_THRESHOLD_KEYS else None,
                      "values": [{"year": 2024, "value": 1.0, "median": 1.0, "rank": 1, "of": 47, "source": "r6-shihyo"}]}
     base = {"fails": [],
             "reserve": {"parts": ["a", "b"], "history": [{"year": 2024, "total": 3, "parts": [1, 2], "source": "r7-kikin"},
@@ -319,6 +320,13 @@ def test_fiscal_problem_accepts_a_complete_output_and_names_each_problem():
     bad = _fiscal()
     bad["indicators"][0]["threshold"] = 1.0
     assert "threshold" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    next(i for i in bad["indicators"] if i["key"] == "debt_service")["threshold"] = float("nan")
+    assert "threshold が数でない" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["unit"] = "%"
+    assert "unit" in ex.fiscal_problem(bad, ids)
+    assert "一覧でない" in ex.fiscal_problem(_fiscal(fails=1), ids)
     bad = _fiscal()
     bad["indicators"][0]["values"][0]["source"] = None
     bad["indicators"][1]["values"][0]["source"] = "r9-x"

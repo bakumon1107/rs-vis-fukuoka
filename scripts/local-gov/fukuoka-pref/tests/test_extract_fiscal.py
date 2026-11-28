@@ -66,6 +66,13 @@ def test_reserve_parts_fails_when_a_tier_does_not_add_up():
     assert any("減債基金" in f and "前年度末" in f for f in fails)
 
 
+def test_reserve_parts_fails_when_a_required_row_is_missing():
+    # R4〜 の財政調整基金には通常分・交付税精算分等の行があるはず。読み落としを 0 として基金の全額を通常分にしない
+    lines = [ln for ln in R7.splitlines() if "38,722,356" not in ln and "28,751,280" not in ln]
+    _, fails = fx.reserve_parts(fx.parse_kikin("\n".join(lines)))
+    assert any("財政調整基金" in f and "読めない" in f for f in fails)
+
+
 def test_reserve_history_checks_the_chain_between_years():
     r6 = R7.replace("令和７年度", "令和６年度")
     hist, fails, n = fx.reserve_history([("R6", r6, "r6-kikin"), ("R7", R7, "r7-kikin")])

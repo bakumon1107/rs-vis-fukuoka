@@ -472,6 +472,11 @@ export function validateFiscalFile(file: LocalFiscalFile, index?: LocalGovIndex)
   for (const ind of file.indicators ?? []) {
     const where = `indicators ${ind.key}`;
     if (FISCAL_THRESHOLD_KEYS.has(ind.key) !== (ind.threshold !== null)) errors.push(`${where}: threshold は実質公債費比率・将来負担比率だけ`);
+    if (ind.threshold !== null && !Number.isFinite(ind.threshold)) errors.push(`${where}: threshold が数でない`);
+    // 画面は単位で桁と % を、向きで良し悪しを決める（財政力指数だけ単位なし・高い方が良い）
+    const [unit, good] = ind.key === 'fiscal_capacity' ? ['', 'high'] : ['%', 'low'];
+    if (ind.unit !== unit || ind.good !== good) errors.push(`${where}: unit は '${unit}'・good は ${good}`);
+    if (typeof ind.label !== 'string' || !ind.label) errors.push(`${where}: label がない`);
     const years = new Set<number>();
     for (const v of ind.values) {
       if (years.has(v.year)) errors.push(`${where} ${v.year}: 年度が重複`);

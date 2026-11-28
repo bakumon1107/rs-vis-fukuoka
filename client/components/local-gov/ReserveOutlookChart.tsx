@@ -132,7 +132,8 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
               onMouseLeave={() => setActive(null)}
               onFocus={() => setActive(i)}
               onBlur={() => setActive(null)}
-              onClick={() => setActive(active === i ? null : i)}
+              // 押したら出す（指したときに出た内訳を、押して消さない）。消すのは指を離す・フォーカスを外すとき
+              onClick={() => setActive(i)}
               className="cursor-pointer outline-none"
             />
           ))}

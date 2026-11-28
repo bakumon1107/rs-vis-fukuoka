@@ -686,6 +686,9 @@ def sha256(path):
 # 食い違うと画面の検証が公開データを拒む。tests/local-gov-fiscal.test.ts が書き出した実データで確かめる）
 FISCAL_KEYS = ("fiscal_capacity", "current_balance", "debt_service", "future_burden")
 FISCAL_THRESHOLD_KEYS = {"debt_service", "future_burden"}
+# 指標ごとの単位と良い方の向き（extract_fiscal.py の INDICATORS と同じ）
+FISCAL_UNIT_GOOD = {"fiscal_capacity": ("", "high"), "current_balance": ("%", "low"),
+                    "debt_service": ("%", "low"), "future_burden": ("%", "low")}
 
 
 def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
@@ -695,6 +698,8 @@ def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
         return "fiscal.json の中身が抽出の出力の形でない"
     if "fails" not in fiscal:
         return "fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）"
+    if not isinstance(fiscal["fails"], list):
+        return "fiscal.json の fails が一覧でない（形が崩れている）"
     if fiscal["fails"]:
         return "抽出の確かめが通っていない:\n" + "\n".join(map(str, fiscal["fails"]))
     res, inds = fiscal.get("reserve"), fiscal.get("indicators")
@@ -727,6 +732,12 @@ def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
         for ind in inds:
             if (ind["key"] in FISCAL_THRESHOLD_KEYS) != (ind["threshold"] is not None):
                 return f"指標 {ind['key']}: threshold は実質公債費比率・将来負担比率だけ"
+            if ind["threshold"] is not None and not num(ind["threshold"]):
+                return f"指標 {ind['key']}: threshold が数でない"
+            # 画面は単位で桁と % を、向きで良し悪しを決める（財政力指数だけ単位なし・高い方が良い）
+            unit, good = FISCAL_UNIT_GOOD[ind["key"]]
+            if ind["unit"] != unit or ind["good"] != good or not isinstance(ind["label"], str) or not ind["label"]:
+                return f"指標 {ind['key']}: label・unit（{unit!r}）・good（{good}）がおかしい"
             if not ind["values"]:
                 return f"指標 {ind['key']} の値がない"
             vy = [v["year"] for v in ind["values"]]
@@ -739,7 +750,9 @@ def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
                     return f"指標 {ind['key']} {v['year']} の順位が 1〜団体の数でない"
         used = {h["source"] for h in hist} | {out["source"], tgt["source"]} | {v["source"] for ind in inds for v in ind["values"]}
         unknown = sorted(used - source_ids, key=str)
-    except (KeyError, TypeError, IndexError, AttributeError) as e:
+        # 書き出しと同じ厳しさ（NaN・Infinity を許さない）で JSON にできるか。書き込みの途中で止まって前のファイルを壊さないように
+        json.dumps({"reserve": res, "indicators": inds}, allow_nan=False)
+    except (KeyError, TypeError, IndexError, AttributeError, ValueError) as e:
         return f"fiscal.json の形が崩れている（{type(e).__name__}: {e}）"
     if unknown:
         return f"sources.json にない資料: {unknown}"

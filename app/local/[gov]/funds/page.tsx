@@ -202,16 +202,30 @@ function LocalFundsContent() {
                     index={fiscal.index}
                     label={id => `${eraLabel(fiscal.file.reserve.history.find(h => h.source === id)!.year)}`}
                   />
-                  {fiscal.file.reserve.outlook && (
-                    <>
-                      。見込み・目標:{' '}
-                      <SourceLinks
-                        ids={[fiscal.file.reserve.outlook.source]}
-                        index={fiscal.index}
-                        label={() => `当初予算の概要（PDF の ${fiscal.file.reserve.outlook!.page} ページ目）`}
-                      />
-                    </>
-                  )}
+                  {(() => {
+                    // 見込みと目標の出典（別の資料のこともある。同じ資料は1つにまとめる）
+                    const refs = [fiscal.file.reserve.outlook, fiscal.file.reserve.target].filter(
+                      (r): r is NonNullable<typeof r> => r !== null
+                    );
+                    const ids = [...new Set(refs.map(r => r.source))];
+                    if (ids.length === 0) return null;
+                    return (
+                      <>
+                        。見込み・目標:{' '}
+                        <SourceLinks
+                          ids={ids}
+                          index={fiscal.index}
+                          label={id => {
+                            const src = fiscal.index.sources.find(s => s.id === id);
+                            const pages = [...new Set(refs.filter(r => r.source === id).map(r => r.page))].join('・');
+                            // 当初予算の概要は資料の一覧の題に用途の断りが付いているので、短い名前にする
+                            const name = id.endsWith('-gaiyou') ? '当初予算の概要' : src?.title ?? id;
+                            return `${name}（PDF の ${pages} ページ目）`;
+                          }}
+                        />
+                      </>
+                    );
+                  })()}
                 </li>
                 <li>
                   主要財政指標一覧（総務省）:{' '}

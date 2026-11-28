@@ -107,6 +107,10 @@ test('財政の指標のファイルの検証: 正しいものは誤りなし。
   src.reserve.history[0] = { ...src.reserve.history[0], source: 'r9-unknown' };
   assert.ok(errs(src).some(e => e.includes('出典 r9-unknown')));
   assert.ok(validateFiscalFile(fiscal({ gov_id: 'other' }), index).some(e => e.includes('gov_id')));
+  assert.ok(errs(fiscal({ indicators: [ind('fiscal_capacity', { unit: '%' }), ind('current_balance'), ind('debt_service'), ind('future_burden')] }))
+    .some(e => e.includes('unit')));
+  assert.ok(errs(fiscal({ indicators: [ind('fiscal_capacity'), ind('current_balance'), ind('debt_service', { threshold: NaN }), ind('future_burden')] }))
+    .some(e => e.includes('threshold が数でない')));
 });
 
 // 書き出した実データ（index.json の fiscal が指すファイル）を検証する。まだなければ飛ばす
