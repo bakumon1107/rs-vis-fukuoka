@@ -681,17 +681,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--pdf-dir", required=True)
+    # 表計算の資料（sources.json の ext が xlsx。財政の指標の主要財政指標一覧・財政状況資料集）の置き場所
+    ap.add_argument("--xlsx-dir")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
     vote = load_vote()
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
     for s in source_list:
-        p = os.path.join(a.pdf_dir, f"{s['file']}.pdf")
+        ext = s.get("ext", "pdf")
+        if ext == "xlsx" and not a.xlsx_dir:
+            sys.exit(f"表計算の資料（{s['file']}.xlsx）があるので --xlsx-dir が要る")
+        p = os.path.join(a.xlsx_dir if ext == "xlsx" else a.pdf_dir, f"{s['file']}.{ext}")
         got = sha256(p)
         if got != s["sha256"]:
             # 手元の原本が一覧と違う（県が資料を差し替えた・取り違えた）。そのまま書き出すと出典の記録と中身が食い違う
-            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.pdf（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
+            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.{ext}（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
                      f"資料が差し替わっていないか確かめ、sources.json を更新してから書き出す")
     # 名前の全文検索に使うテキスト資料（説明書・議案は読み取りの側なので入れない。入れると自分自身を見つける）
     corpus = name_evidence.Corpus.from_pdfs({s["id"]: os.path.join(a.pdf_dir, f"{s['file']}.pdf")
@@ -843,6 +848,29 @@ def main():
             f.write("\n")
         hosei_lines += lines
 
+    # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。なければ書かない（index にも載せない）
+    fiscal_file, fiscal_line = None, None
+    if os.path.exists(w("fiscal.json")):
+        fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
+        if "fails" not in fiscal:
+            sys.exit("財政の指標: fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）")
+        if fiscal["fails"]:
+            sys.exit("財政の指標: 抽出の確かめが通っていない:\n" + "\n".join(fiscal["fails"]))
+        res = fiscal["reserve"]
+        used = {h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
+               {v["source"] for ind in fiscal["indicators"] for v in ind["values"]}
+        unknown = sorted(used - {s["id"] for s in source_list})
+        if unknown:
+            sys.exit(f"財政の指標: sources.json にない資料: {unknown}")
+        fiscal_file = "fiscal-indicators.json"
+        with open(os.path.join(a.out, fiscal_file), "w", encoding="utf-8") as f:
+            json.dump({"schema_version": 1, "gov_id": GOV_ID, "reserve": res, "indicators": fiscal["indicators"]},
+                      f, ensure_ascii=False, indent=1)
+            f.write("\n")
+        ys = sorted({v["year"] for ind in fiscal["indicators"] for v in ind["values"]})
+        fiscal_line = (f"財政の指標のファイル: 三基金 {len(res['history'])} 年分・見込み {res['outlook']['total']:,} 円・"
+                       f"指標 {len(fiscal['indicators'])} 種 × {len(ys)} 年")
+
     sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
@@ -854,8 +882,11 @@ def main():
                       "file": settlement_file, "status": "verified" if settlement_ok else "partial"}]
                     + [{"year": export_hosei.YEAR, "label": export_hosei.YEAR_LABEL, "basis": "supplementary",
                         "file": name, "status": "verified" if ok else "partial"} for name, _, ok, _ in hosei_files],
+        **({"fiscal": fiscal_file} if fiscal_file else {}),
         "sources": sources,
     }
+    if fiscal_line:
+        print(fiscal_line, file=sys.stderr)
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
         f.write("\n")

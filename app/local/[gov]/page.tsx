@@ -360,7 +360,7 @@ function LocalGovContent() {
           </span>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
           <Link href={`/local/${gov}/funds`} className="text-sm text-primary-accent underline">
-            基金
+            基金と財政の指標
           </Link>
         </div>
 

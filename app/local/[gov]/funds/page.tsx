@@ -13,7 +13,11 @@ import { useParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { useLocalBudget } from '@/client/hooks/useLocalBudget';
-import { FundsTrendChart } from '@/client/components/local-gov/FundsTrendChart';
+import { useLocalFiscal } from '@/client/hooks/useLocalFiscal';
+import { ReserveOutlookChart } from '@/client/components/local-gov/ReserveOutlookChart';
+import { FiscalIndicators } from '@/client/components/local-gov/FiscalIndicators';
+import { FundsTrendChart, eraLabel } from '@/client/components/local-gov/FundsTrendChart';
+import type { LocalGovIndex } from '@/types/local-gov';
 import { FundsTable } from '@/client/components/local-gov/FundsTable';
 import { fundFlows, fundRows } from '@/app/lib/local-gov/funds';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -33,10 +37,35 @@ function nextYearLabel(year: number): string {
   return y === 1989 ? '平成元年度' : `平成${y - 1988}年度`;
 }
 
+/** 資料の一覧（index.sources）の id を、資料へのリンクにして「・」でつなぐ。一覧にない id は文字だけ */
+function SourceLinks({ ids, index, label }: { ids: string[]; index: LocalGovIndex; label: (id: string) => string }) {
+  return (
+    <>
+      {ids.map((id, i) => {
+        const src = index.sources.find(x => x.id === id);
+        return (
+          <span key={id}>
+            {i > 0 && '・'}
+            {src ? (
+              <a href={src.url} className="text-primary-accent underline" target="_blank" rel="noreferrer" title={src.title}>
+                {label(id)}
+              </a>
+            ) : (
+              label(id)
+            )}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function LocalFundsContent() {
   const { gov } = useParams<{ gov: string }>();
   const settlement = useLocalBudget(gov, undefined, 'settlement');
   const initial = useLocalBudget(gov, undefined, 'initial');
+  // 三基金の推移と見込み・財政の指標（ファイルのない自治体・読み込めないときは区画を出さない）
+  const fiscal = useLocalFiscal(gov);
   const funds = settlement.status === 'ready' ? settlement.file.funds ?? null : null;
   const flows = useMemo(() => (initial.status === 'ready' ? fundFlows(initial.file) : null), [initial]);
   const rows = useMemo(() => (funds ? fundRows(funds, flows) : []), [funds, flows]);
@@ -70,7 +99,7 @@ function LocalFundsContent() {
       <LocalHeaderSpacer />
       <main className="mx-auto max-w-4xl space-y-6 px-4 pb-16 pt-4 text-mirai-text">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <h1 className="text-xl font-bold">{index.gov.name} 基金</h1>
+          <h1 className="text-xl font-bold">{index.gov.name} 基金と財政の指標</h1>
           <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">試作</span>
           <Link href={`/local/${gov}`} className="text-sm text-primary-accent underline">
             予算・決算の流れ（サンキー図）へ
@@ -88,6 +117,20 @@ function LocalFundsContent() {
           {initial.status === 'ready' && funds.as_of.year + 1 < initial.file.year &&
             `${nextYearLabel(funds.as_of.year)}末の残高は、${nextYearLabel(funds.as_of.year)}決算の調書が公表されたら（例年12月ごろ）更新します。`}
         </p>
+
+        {fiscal.status === 'ready' && (
+          <section className="space-y-2">
+            <h2 className="text-base font-bold">いざというときの蓄え（{fiscal.file.reserve.label}）</h2>
+            <p className="text-xs text-mirai-text-muted">
+              県が財政改革プランで目標を置いている、年度間の財源の調整に使える基金の合計（{fiscal.file.reserve.parts.join('＋')}）。
+              交付税の精算に備える分と、県債の満期一括償還に備える分は含みません（下の推移のグラフの全額とは違います）。
+              残高は各年度の基金積立状況（出納整理期間の分を含む）
+              {fiscal.file.reserve.outlook &&
+                `。見込みは${fiscal.file.reserve.outlook.as_of}の県の見込みで、補正予算や決算で変わります（このサイトでは推計していません）`}
+            </p>
+            <ReserveOutlookChart file={fiscal.file} />
+          </section>
+        )}
 
         <section className="space-y-2">
           <h2 className="text-base font-bold">年度末の現在高の推移（決算）</h2>
@@ -108,6 +151,17 @@ function LocalFundsContent() {
           </p>
           <FundsTable rows={rows} asOfLabel={funds.as_of.label} budgetLabel={budgetLabel} gov={gov} plan={plan} />
         </section>
+
+        {fiscal.status === 'ready' && (
+          <section className="space-y-2">
+            <h2 className="text-base font-bold">財政の指標（決算）</h2>
+            <p className="text-xs text-mirai-text-muted">
+              総務省「地方公共団体の主要財政指標一覧」の値。比べる線は47都道府県の中央値です（平均だと東京都など飛び抜けた団体に引っぱられるため）。
+              順位は良い方から数えています。最新の年度の決算の値は、総務省の一覧が出たら足します
+            </p>
+            <FiscalIndicators file={fiscal.file} />
+          </section>
+        )}
 
         <section className="space-y-1 text-xs text-mirai-text-muted">
           <h2 className="text-sm font-bold text-mirai-text">資料と注意</h2>
@@ -135,6 +189,37 @@ function LocalFundsContent() {
                 );
               })}
             </li>
+            {fiscal.status === 'ready' && (
+              <>
+                <li>
+                  基金積立状況（三基金）:{' '}
+                  <SourceLinks
+                    ids={fiscal.file.reserve.history.map(h => h.source)}
+                    index={fiscal.index}
+                    label={id => `${eraLabel(fiscal.file.reserve.history.find(h => h.source === id)!.year)}`}
+                  />
+                  {fiscal.file.reserve.outlook && (
+                    <>
+                      。見込み・目標:{' '}
+                      <SourceLinks
+                        ids={[fiscal.file.reserve.outlook.source]}
+                        index={fiscal.index}
+                        label={() => `当初予算の概要 p.${fiscal.file.reserve.outlook!.page}`}
+                      />
+                    </>
+                  )}
+                </li>
+                <li>
+                  主要財政指標一覧（総務省）:{' '}
+                  <SourceLinks
+                    ids={[...new Set(fiscal.file.indicators.flatMap(i => i.values.map(v => v.source)))]}
+                    index={fiscal.index}
+                    label={id => `${eraLabel(fiscal.file.indicators[0].values.find(v => v.source === id)?.year ?? 0)}`}
+                  />
+                  。福岡県の値は、総務省の財政状況資料集（総括表）の値と突き合わせて確かめています
+                </li>
+              </>
+            )}
           </ul>
         </section>
       </main>

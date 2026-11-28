@@ -52,7 +52,8 @@ export const LOCAL_THEME_COLOR = '#a495d6';
 export function localNavItems(gov: string = localGovId()) {
   return [
     { href: `/local/${gov}`, label: 'サンキー図' },
-    { href: `/local/${gov}/funds`, label: '基金' },
+    // 基金のタブに三基金の見込みと財政の指標を足した（2026-11-28 ユーザー決定「基金と財政の指標」）
+    { href: `/local/${gov}/funds`, label: '基金と財政の指標' },
     { href: `/local/${gov}/about`, label: 'データについて' },
   ] as const;
 }

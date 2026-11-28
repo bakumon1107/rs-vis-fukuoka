@@ -13,6 +13,7 @@ import {
   SETSU_NO_SOURCES,
   VALUE_SOURCES,
   type LocalBudgetFile,
+  type LocalFiscalFile,
   type LocalGovIndex,
   type MokuRow,
   type NameWithSource,
@@ -419,6 +420,65 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
   for (const k of file.previous_only_kan ?? []) {
     for (const p of k.pages) {
       if (!ids.has(p.source)) errors.push(`previous_only_kan ${k.account} ${k.kan.name}: 出典 ${p.source} が index の sources にない`);
+    }
+  }
+  return errors;
+}
+
+const FISCAL_KEYS = ['fiscal_capacity', 'current_balance', 'debt_service', 'future_burden'] as const;
+/** 早期健全化基準のある指標（設計 3.3） */
+const FISCAL_THRESHOLD_KEYS = new Set(['debt_service', 'future_burden']);
+
+/**
+ * 三基金の推移と見込み・財政の指標のファイル（LocalFiscalFile）の検証。index を渡すと出典の資料の id も確かめる。
+ * 設計: docs/local-gov/tasks/20261128_1646_基金と財政の指標のタブの設計.md 3.3
+ */
+export function validateFiscalFile(file: LocalFiscalFile, index?: LocalGovIndex): string[] {
+  const errors: string[] = [];
+  const isYen = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+  if (file.schema_version !== LOCAL_GOV_SCHEMA_VERSION) errors.push(`schema_version ${file.schema_version}`);
+  if (index && file.gov_id !== index.gov.id) errors.push(`gov_id ${file.gov_id} が index の ${index.gov.id} と違う`);
+  const ids = index ? new Set(index.sources.map(s => s.id)) : null;
+  const src = (where: string, id: string) => {
+    if (ids && !ids.has(id)) errors.push(`${where}: 出典 ${id} が index の sources にない`);
+  };
+  const r = file.reserve;
+  if (!Array.isArray(r?.history) || r.history.length === 0) {
+    errors.push('reserve.history が空');
+  } else {
+    r.history.forEach((h, i) => {
+      const where = `reserve.history ${h.year}`;
+      if (i > 0 && h.year !== r.history[i - 1].year + 1) errors.push(`${where}: 年度が続いていない（前は ${r.history[i - 1].year}）`);
+      if (!isYen(h.total)) errors.push(`${where}: total が円の整数でない`);
+      if (!Array.isArray(h.parts) || h.parts.length !== r.parts.length) errors.push(`${where}: parts の数が内訳の名前（${r.parts.length}）と違う`);
+      else if (!h.parts.every(isYen) || h.parts.reduce((s, x) => s + x, 0) !== h.total) errors.push(`${where}: parts の合計 ≠ total`);
+      src(where, h.source);
+    });
+    const last = r.history[r.history.length - 1].year;
+    if (r.outlook) {
+      if (r.outlook.year !== last + 1) errors.push(`reserve.outlook: 年度 ${r.outlook.year} が最後の実績（${last}）の次でない`);
+      if (!isYen(r.outlook.total)) errors.push('reserve.outlook: total が円の整数でない');
+      src('reserve.outlook', r.outlook.source);
+    }
+    if (r.target) {
+      if (!isYen(r.target.min) || !isYen(r.target.max) || r.target.min > r.target.max) errors.push('reserve.target: min ≦ max の円の整数でない');
+      src('reserve.target', r.target.source);
+    }
+  }
+  const keys = (file.indicators ?? []).map(x => x.key);
+  if (keys.length !== FISCAL_KEYS.length || !FISCAL_KEYS.every(k => keys.includes(k))) {
+    errors.push(`indicators の種類がそろわない: ${keys.join(',')}`);
+  }
+  for (const ind of file.indicators ?? []) {
+    const where = `indicators ${ind.key}`;
+    if (FISCAL_THRESHOLD_KEYS.has(ind.key) !== (ind.threshold !== null)) errors.push(`${where}: threshold は実質公債費比率・将来負担比率だけ`);
+    const years = new Set<number>();
+    for (const v of ind.values) {
+      if (years.has(v.year)) errors.push(`${where} ${v.year}: 年度が重複`);
+      years.add(v.year);
+      if (![v.value, v.median].every(Number.isFinite)) errors.push(`${where} ${v.year}: 値・中央値が数でない`);
+      if (!Number.isInteger(v.rank) || !Number.isInteger(v.of) || v.rank < 1 || v.rank > v.of) errors.push(`${where} ${v.year}: 順位が 1〜団体の数でない`);
+      src(`${where} ${v.year}`, v.source);
     }
   }
   return errors;
