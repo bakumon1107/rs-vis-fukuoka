@@ -20,7 +20,7 @@ import { useIsLandscapePhone, useIsNarrow, useMediaQuery } from '@/client/hooks/
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { SimpleRanking } from '@/client/components/local-gov/SimpleRanking';
 import { BoxBreakdown } from '@/client/components/local-gov/BoxBreakdown';
-import { boxBreakdown, breakdownDeltas, previousBoxValues } from '@/app/lib/local-gov/breakdown';
+import { boxBreakdown, breakdownDeltas, previousBoxValues, previousRevenueGap } from '@/app/lib/local-gov/breakdown';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
@@ -201,6 +201,17 @@ function LocalGovContent() {
     detailRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     detailRef.current?.focus({ preventScroll: true });
   }, []);
+  // 内訳の表で目を押すと表が目の詳細に替わり、押したボタンが消える。フォーカスを詳細（狭い幅は下からのシートの中身）へ移す
+  // （内訳から内訳へ替わるときは BoxBreakdown が見出しへ移す）
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const focusRowDetail = useRef(false);
+  useEffect(() => {
+    if (!focusRowDetail.current || !row) return;
+    focusRowDetail.current = false;
+    (detailRef.current ?? sheetRef.current)?.focus({ preventScroll: true });
+  }, [row]);
+  // 前年度の歳入の足りない額（総括表にだけ載る前年度の款の分。歳入の款の前年度比に断り書きを出す）
+  const revenueGap = useMemo(() => (previous && state.status === 'ready' ? previousRevenueGap(state.file) : 0), [previous, state]);
   // 全会計の純計（会計間の繰入れを除く。設計: 公開前のサンキー図の足し 2章）。繰入れの印のないファイル（決算）は null
   const net = useMemo(() => (state.status === 'ready' && view === 'all' ? netTotal(state.file) : null), [state, view]);
   // 公営企業会計の見方の見出し（第3条・第4条の支出の合計）
@@ -285,7 +296,17 @@ function LocalGovContent() {
   const accountName = row ? file.accounts.find(a => a.id === row.account)?.name ?? row.account : '';
   // 選んだ箱の内訳の表（図の下・下からのシートの両方で使う）。行を押すとその箱を選ぶ
   const breakdownView = breakdown && (
-    <BoxBreakdown breakdown={breakdown} deltas={breakdownDelta} previous={previous} onSelect={id => setQuery({ sel: id })} />
+    <BoxBreakdown
+      breakdown={breakdown}
+      deltas={breakdownDelta}
+      parentDelta={deltas?.get(breakdown.parent.id)}
+      previous={previous}
+      revenueGap={revenueGap}
+      onSelect={id => {
+        focusRowDetail.current = true;
+        setQuery({ sel: id });
+      }}
+    />
   );
 
   return (
@@ -532,7 +553,7 @@ function LocalGovContent() {
           <section
             ref={detailRef}
             tabIndex={-1}
-            aria-label={row ? '選んだ目の詳細' : fund ? '一般財源の中身' : '選んだ箱の内訳'}
+            aria-label={row ? '選んだ目の詳細' : fund ? '一般財源の中身と内訳' : '選んだ箱の内訳'}
             className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent"
           >
             {row ? (
@@ -565,14 +586,16 @@ function LocalGovContent() {
           isResizing={panel.isResizing}
           onResetWidth={panel.resetWidth}
         >
-          {row ? (
-            <LocalDetailPanel row={row} index={index} accountName={accountName} />
-          ) : (
-            <>
-              {fund && <GeneralFundPanel fund={fund} aboutHref={aboutHref('#funding')} />}
-              {breakdownView}
-            </>
-          )}
+          <div ref={sheetRef} tabIndex={-1} className="focus:outline-none">
+            {row ? (
+              <LocalDetailPanel row={row} index={index} accountName={accountName} />
+            ) : (
+              <>
+                {fund && <GeneralFundPanel fund={fund} aboutHref={aboutHref('#funding')} />}
+                {breakdownView}
+              </>
+            )}
+          </div>
         </SidePanelChrome>
       )}
     </div>

@@ -24,7 +24,7 @@ export interface RankedItem {
 /** 前年度の額の断り書き（一覧・内訳の表の上に出す） */
 export const PREVIOUS_NOTE = '前年度は、説明書の「前年度予算額」（前の年度の当初予算）。';
 
-const deltaColor = (v: number) => (v > 0 ? 'text-emerald-700' : v < 0 ? 'text-red-700' : 'text-mirai-text-muted');
+export const deltaColor = (v: number) => (v > 0 ? 'text-emerald-700' : v < 0 ? 'text-red-700' : 'text-mirai-text-muted');
 
 /** 前年度の額と増減（「前年度 845.7億円 → +16.6億（+2.0%）」の形。前年度が 0 なら「前年度は計上なし」） */
 export function PreviousLine({ value, previous }: { value: Yen; previous: Yen }) {

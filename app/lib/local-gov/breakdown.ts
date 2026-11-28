@@ -83,16 +83,36 @@ export function previousBoxValues(file: LocalBudgetFile): Map<string, Yen> {
   const out = new Map<string, Yen>();
   // 公営企業会計の行は全会計の見方の歳入の款・会計に入らない（graph.ts と同じ）ので足さない
   const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  // 前年度の額が読めなかった目（null）を含む箱は、足りない額で前年度比を出さないよう外す
+  const incomplete = new Set<string>();
   for (const r of file.rows) {
     if (enterprise.has(r.account)) continue;
     const p = r.previous?.v;
-    if (p === null || p === undefined) continue;
     for (const id of rowBoxIds(r)) {
       if (id.startsWith('account:') && r.side !== 'expense') continue;
-      out.set(id, (out.get(id) ?? 0) + p);
+      if (p === null || p === undefined) incomplete.add(id);
+      else out.set(id, (out.get(id) ?? 0) + p);
     }
   }
+  for (const id of incomplete) out.delete(id);
   return out;
+}
+
+/**
+ * 前年度の歳入の足りない額（会計ごとの 歳出の前年度 − 歳入の前年度 の合計）。前年度にだけあった款は総括表にしか載らず
+ * 行がないので、その分だけ歳入の款の前年度が小さくなる（R8: 県営埠頭施設の財産収入 2,530千円）。0 なら抜けはない
+ */
+export function previousRevenueGap(file: LocalBudgetFile): Yen {
+  const sums = new Map<string, { revenue: Yen; expense: Yen }>();
+  for (const a of file.accounts) if (a.kind !== 'enterprise') sums.set(a.id, { revenue: 0, expense: 0 });
+  for (const r of file.rows) {
+    const s = sums.get(r.account);
+    const p = r.previous?.v;
+    if (s && p !== null && p !== undefined) s[r.side] += p;
+  }
+  let gap = 0;
+  for (const s of sums.values()) if (s.revenue > 0 && s.expense > s.revenue) gap += s.expense - s.revenue;
+  return gap;
 }
 
 /** 前年度からの増減の割合（「+5.1%」「△2.3%」）。前年度が 0 なら null */

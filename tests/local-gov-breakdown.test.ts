@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { boxBreakdown, breakdownDeltas, previousBoxValues, previousRatio } from '../app/lib/local-gov/breakdown';
+import { boxBreakdown, breakdownDeltas, previousBoxValues, previousRatio, previousRevenueGap } from '../app/lib/local-gov/breakdown';
 import { composeLatest } from '../app/lib/local-gov/supplement';
 import { initialBoxIds, initialBoxValues } from '../app/lib/local-gov/supplement-diff';
 import type { LocalBudgetFile } from '../types/local-gov';
@@ -89,8 +89,16 @@ test('実データ R8: 箱の前年度の額 = その箱に入る目の前年度
     assert.ok(exp > 0, `${acc.id} の前年度がない`);
     assert.equal(rev + (missingRevenue[acc.id] ?? 0), exp, `${acc.id} の前年度の歳入と歳出`);
   }
+  // 足りない額は previousRevenueGap で分かる（画面の断り書き）
+  assert.equal(previousRevenueGap(initial), 2_530_000);
   // 前年度の額のないデータ（決算）は空
   assert.equal(previousBoxValues(read('settlement-2024.json')).size, 0);
+  // 前年度の読めない目（null）を含む箱は外す（足りない額で前年度比を出さない）。ほかの箱は残る
+  const kou21 = initial.rows.find(r => r.account === 'general' && r.side === 'expense' && r.kan.no === 2 && r.kou.no === 1)!;
+  const broken: LocalBudgetFile = { ...initial, rows: initial.rows.map(r => (r === kou21 ? { ...r, previous: { ...r.previous!, v: null } } : r)) };
+  const pb = previousBoxValues(broken);
+  for (const id of ['kan:general:expense:2', 'kou:general:expense:2-1', 'account:general', `moku:${kou21.id}`]) assert.equal(pb.has(id), false, id);
+  assert.equal(pb.get('kan:general:expense:3'), prev.get('kan:general:expense:3'));
 });
 
 test('実データ R8: 内訳の行の補正の増減は、箱の全部が入る行だけ', { skip: !has }, () => {
