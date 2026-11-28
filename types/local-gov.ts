@@ -312,6 +312,16 @@ export interface LocalFunds {
   checks: { signs_fixed: number; names_fixed: number };
 }
 
+/** 前年度にだけあった款（LocalBudgetFile.previous_only_kan） */
+export interface PreviousOnlyKan {
+  account: string;
+  side: Side;
+  /** 番号は持たない（本年度の番号がない） */
+  kan: { name: string };
+  previous: Value;
+  pages: { source: string; page: number }[];
+}
+
 export interface LocalBudgetFile {
   schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
   gov_id: string;
@@ -324,6 +334,12 @@ export interface LocalBudgetFile {
   rows: MokuRow[];
   /** 決算の歳入（会計 × 款）。決算の行は歳出の目だけなので、歳入はここに持つ */
   revenue_by_kan?: RevenueByKan[];
+  /**
+   * 前年度にだけあった款（当初予算）。本年度は空欄で、款の番号も明細のページもなく、総括表にだけ載るので行にしない
+   * （項・目をこしらえない）。前年度の額にだけ使う（R8: 県営埠頭施設整備運営事業特別会計の財産収入 2,530千円）。
+   * 設計: docs/local-gov/tasks/20261128_1339_前年度にだけあった款をデータに足す設計.md
+   */
+  previous_only_kan?: PreviousOnlyKan[];
   checks: CheckSummary;
   /**
    * 一般会計の歳出の財源内訳の「一般財源」の中身（当初予算。組み替えを調べた年度だけ。一般財源の中身の設計）。

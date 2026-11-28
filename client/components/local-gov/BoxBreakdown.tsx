@@ -10,7 +10,7 @@ import type { Breakdown } from '@/app/lib/local-gov/breakdown';
 import { DELTA_COLUMNS, shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import type { Yen } from '@/types/local-gov';
-import { PREVIOUS_NOTE, PreviousLine, RankedList, deltaColor } from './RankedList';
+import { PREVIOUS_NOTE, PreviousLine, RankedList, deltaColor, previousOnlyNote } from './RankedList';
 
 interface Props {
   breakdown: Breakdown;
@@ -20,12 +20,12 @@ interface Props {
   parentDelta?: BoxDelta;
   /** 箱ごとの前年度の額（当初予算の見方だけ） */
   previous?: Map<string, Yen>;
-  /** 前年度の歳入の足りない額（previousRevenueGap。総括表にだけ載る前年度の款の分） */
-  revenueGap?: Yen;
+  /** 選んだ箱の前年度に入っている、前年度にだけあった款（previousOnlyKanIn。本年度の行がないので表の行には出ない） */
+  previousOnly?: { account: string; kan: string; previous: Yen }[];
   onSelect: (id: string) => void;
 }
 
-export function BoxBreakdown({ breakdown: b, deltas, parentDelta, previous, revenueGap = 0, onSelect }: Props) {
+export function BoxBreakdown({ breakdown: b, deltas, parentDelta, previous, previousOnly = [], onSelect }: Props) {
   // 行を押して次の箱の内訳に替わったら、見出しにフォーカスを移す（キーボード・読み上げで使う人が場所を見失わないように）
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingFocus = useRef(false);
@@ -52,7 +52,8 @@ export function BoxBreakdown({ breakdown: b, deltas, parentDelta, previous, reve
   const hidden = [prevHidden && '前年度比', deltaHidden && '当初からの増減'].filter(Boolean).join('・');
   // 財源の箱は前年度の額がない（目ごとの財源内訳は本年度だけ）
   const fundingNoPrevious = !!previous && b.parent.id.startsWith('funding:');
-  const gapNote = parentPrevious !== undefined && b.parent.id.startsWith('revenue:') && revenueGap > 0;
+  // 前年度にだけあった款は本年度の行がないので、表の行の前年度を足しても計の前年度にならない。その分を書く
+  const onlyNote = parentPrevious !== undefined ? previousOnlyNote(previousOnly) : '';
   const pd = parentDelta && (parentDelta.added ? '新' : shortDelta(parentDelta.delta));
   return (
     <div className="p-3">
@@ -72,8 +73,7 @@ export function BoxBreakdown({ breakdown: b, deltas, parentDelta, previous, reve
         名前を押すと、その{b.childLabel}を選びます。{(someShown || parentPrevious !== undefined) && PREVIOUS_NOTE}
         {fundingNoPrevious && '財源ごとの前年度の額は資料にないため、計には前年度比を出していません。'}
         {hidden && `${b.parent.name}から一部だけが入る行は、その分の額なので${hidden}を付けていません。`}
-        {gapNote &&
-          `前年度にだけあった歳入の款のうち総括表にだけ載る分（計 ${formatBudgetFromYen(revenueGap)}）は、歳入の前年度に入っていません。`}
+        {onlyNote}
       </p>
       <RankedList
         items={items}

@@ -93687,6 +93687,26 @@
    ]
   }
  ],
+ "previous_only_kan": [
+  {
+   "account": "special:kenei-futo-shisetsu",
+   "side": "revenue",
+   "kan": {
+    "name": "財産収入"
+   },
+   "previous": {
+    "v": 2530000,
+    "src": "correction",
+    "note": "画像で確認（2026-11-28。県営埠頭施設整備運営事業特別会計の総括・歳入。番号なし・本年度 空欄・前年度 2,530・比較 △2,530。歳入合計の前年度 12,920,291 はこの行を含めて合う。新旧の OCR とも 2,530）"
+   },
+   "pages": [
+    {
+     "source": "r8-setsumeisho-toku",
+     "page": 93
+    }
+   ]
+  }
+ ],
  "checks": {
   "rows": 569,
   "all_ok": 569,
