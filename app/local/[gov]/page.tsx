@@ -19,6 +19,8 @@ import type { Basis } from '@/types/local-gov';
 import { useIsLandscapePhone, useIsNarrow, useMediaQuery } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { SimpleRanking } from '@/client/components/local-gov/SimpleRanking';
+import { BoxBreakdown } from '@/client/components/local-gov/BoxBreakdown';
+import { boxBreakdown, breakdownDeltas, previousBoxValues } from '@/app/lib/local-gov/breakdown';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
@@ -173,7 +175,22 @@ function LocalGovContent() {
   // 補正後は一般財源の額が変わるので composeLatest が general_fund を外し、表は出ない）
   const fund =
     state.status === 'ready' && !simple && view === 'general' && selectedId === 'funding:general' ? state.file.general_fund ?? null : null;
-  const hasDetail = !!row || !!fund;
+  // 目以外の箱（財源・款・項・歳入の款・会計など）を選んだときは、その箱から右へ出る内訳の表を出す
+  // （設計: 選んだ箱の内訳の表と前年度比 2.1。一般財源は中身の表の下に足す）
+  const breakdown = useMemo(
+    () =>
+      state.status === 'ready' && display?.selected && !display.row
+        ? boxBreakdown(state.file, view, display.selected.id, display.selected.col)
+        : null,
+    [state, view, display]
+  );
+  // 箱ごとの前年度の額（同 2.2）。当初予算（補正を足していない）だけ。補正後・決算は前年度の額がない
+  const previous = useMemo(() => {
+    if (state.status !== 'ready' || state.file.basis !== 'initial' || state.file.composed) return undefined;
+    const m = previousBoxValues(state.file);
+    return m.size > 0 ? m : undefined;
+  }, [state]);
+  const hasDetail = !!row || !!fund || !!breakdown;
   // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
   // 「選択中」の行のボタンを押したときだけ詳細まで動かす
   const detailRef = useRef<HTMLElement>(null);
@@ -199,6 +216,10 @@ function LocalGovContent() {
   const deltas = useMemo(
     () => (initialValues && initialIds && shown ? boxDeltas(shown.graph, initialValues, initialIds) : undefined),
     [initialValues, initialIds, shown]
+  );
+  const breakdownDelta = useMemo(
+    () => (initialValues && initialIds && breakdown ? breakdownDeltas(breakdown, initialValues, initialIds) : undefined),
+    [initialValues, initialIds, breakdown]
   );
   // 当初の総計は見方ごとに一度だけ求める（選ぶたびに当初の図を組み立て直さない）
   const initialTotal = useMemo(
@@ -262,6 +283,10 @@ function LocalGovContent() {
     `&back=${encodeURIComponent(searchParams.toString())}${hash}`;
   // 詳細に出す会計の名前（図の下・下からのシートの両方で使う）
   const accountName = row ? file.accounts.find(a => a.id === row.account)?.name ?? row.account : '';
+  // 選んだ箱の内訳の表（図の下・下からのシートの両方で使う）。行を押すとその箱を選ぶ
+  const breakdownView = breakdown && (
+    <BoxBreakdown breakdown={breakdown} deltas={breakdownDelta} previous={previous} onSelect={id => setQuery({ sel: id })} />
+  );
 
   return (
     <div className="min-h-screen bg-mirai-surface">
@@ -492,7 +517,7 @@ function LocalGovContent() {
 
         {simple && shown && (
           <div className="mt-3">
-            <SimpleRanking graph={shown.graph} deltas={deltas} onSelect={id => setQuery({ mode: 'detail', sel: id })} />
+            <SimpleRanking graph={shown.graph} deltas={deltas} previous={previous} onSelect={id => setQuery({ mode: 'detail', sel: id })} />
           </div>
         )}
 
@@ -507,14 +532,15 @@ function LocalGovContent() {
           <section
             ref={detailRef}
             tabIndex={-1}
-            aria-label={row ? '選んだ目の詳細' : '一般財源の中身'}
+            aria-label={row ? '選んだ目の詳細' : fund ? '一般財源の中身' : '選んだ箱の内訳'}
             className="mt-3 scroll-mt-24 rounded-2xl bg-card shadow-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-accent"
           >
             {row ? (
               <LocalDetailPanel row={row} index={index} accountName={accountName} layout="below" />
             ) : (
               <div className="max-w-2xl">
-                <GeneralFundPanel fund={fund!} aboutHref={aboutHref('#funding')} />
+                {fund && <GeneralFundPanel fund={fund} aboutHref={aboutHref('#funding')} />}
+                {breakdownView}
               </div>
             )}
           </section>
@@ -542,7 +568,10 @@ function LocalGovContent() {
           {row ? (
             <LocalDetailPanel row={row} index={index} accountName={accountName} />
           ) : (
-            <GeneralFundPanel fund={fund!} aboutHref={aboutHref('#funding')} />
+            <>
+              {fund && <GeneralFundPanel fund={fund} aboutHref={aboutHref('#funding')} />}
+              {breakdownView}
+            </>
           )}
         </SidePanelChrome>
       )}
