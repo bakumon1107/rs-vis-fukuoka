@@ -378,7 +378,43 @@ export interface LocalGovIndex {
   };
   /** ファイルがあるデータだけ（latest = 当初 + Σ補正 は画面で組み立てるので書かない。共通 JSON 形式の設計 3.1・5章） */
   datasets: { year: number; label: string; basis: Basis; file: string; status: 'verified' | 'partial' }[];
+  /** 三基金の推移と見込み・財政の指標のファイル（LocalFiscalFile。ないときは画面の区画を出さない） */
+  fiscal?: string;
   sources: SourceDocument[];
+}
+
+/**
+ * 三基金（財源調整分）の推移と見込み・財政の指標（fiscal-indicators.json）。
+ * 設計: docs/local-gov/tasks/20261128_1646_基金と財政の指標のタブの設計.md 3章。金額は円
+ */
+export interface LocalFiscalFile {
+  schema_version: typeof LOCAL_GOV_SCHEMA_VERSION;
+  gov_id: string;
+  reserve: {
+    /** 「財政調整基金等三基金（財源調整分）」 */
+    label: string;
+    /** 内訳の名前（history の parts の並び） */
+    parts: string[];
+    /** 年度末残高の実績（基金積立状況。出納整理期間の分を含む） */
+    history: { year: number; total: Yen; parts: Yen[]; source: string; page: number }[];
+    /** 県の公式の見込み（当初予算の概要。補正・決算で変わる） */
+    outlook: { year: number; total: Yen; as_of: string; source: string; page: number } | null;
+    /** 財政改革プランの目標（下限〜上限） */
+    target: { year: number; min: Yen; max: Yen; plan: string; source: string; page: number } | null;
+  };
+  indicators: FiscalIndicator[];
+}
+
+export interface FiscalIndicator {
+  key: 'fiscal_capacity' | 'current_balance' | 'debt_service' | 'future_burden';
+  label: string;
+  unit: '' | '%';
+  /** 良い方の向き（順位を数える向き）。財政力指数は高い方、ほかは低い方 */
+  good: 'high' | 'low';
+  /** 早期健全化基準（実質公債費比率 25・将来負担比率 400。ほかは null） */
+  threshold: number | null;
+  /** median: 47都道府県の中央値。rank: 良い方から数えた順位。of: 値のある団体の数 */
+  values: { year: number; value: number; median: number; rank: number; of: number; source: string }[];
 }
 
 /** 画面用のグラフ。正規化データから画面で組み立てる（app/lib/local-gov/graph.ts。ファイルにはしない） */

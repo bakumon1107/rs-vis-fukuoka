@@ -37,7 +37,13 @@ EXPECTED = os.path.join(HERE, "expected", "regression.json")
 FUNDS_INPUTS = [("H23", "{pdf:800079_62749591}"), ("~H24", "{ocr:funds-h24}"), ("H25", "{pdf:800079_62749605}"),
                 ("H27", "{ocr:funds-h27}"), ("H28", "{ocr:funds-h28}"), ("H29", "{ocr:funds-h29}"), ("H30", "{pdf:60772}"),
                 ("R2", "{pdf:151877}"), ("~R3", "{ocr:funds-r3}"), ("R4", "{ocr:funds-r4}"), ("R5", "{pdf:238290}"), ("R6", "{pdf:272596}")]
-# 引数の {pdf:X} は <dir>/pdf/X.pdf、{ocr:X} は <dir>/ocr/X、{out:X} は前のステップの出力ファイル
+# 財政の指標（extract_fiscal.py）の入力: 年度 → 基金積立状況（PDF）・主要財政指標一覧（xlsx）・財政状況資料集（xlsx。突き合わせ）
+FISCAL_KIKIN = [("H29", "834889_63010171"), ("H30", "834889_63010174"), ("R1", "834889_63010175"), ("R2", "834889_63010177"),
+                ("R3", "173546"), ("R4", "201527"), ("R5", "229347"), ("R6", "265097"), ("R7", "834889_63010204")]
+FISCAL_SHIHYO = [("H28", "000522527"), ("H29", "000588540"), ("H30", "000659496"), ("R1", "000722367"), ("R2", "000781155"),
+                 ("R3", "000849997"), ("R4", "000917807"), ("R5", "000983093"), ("R6", "001044528")]
+FISCAL_JOKYO = [("R6", "001063415"), ("R3", "000873224"), ("R1", "000740551")]
+# 引数の {pdf:X} は <dir>/pdf/X.pdf、{xlsx:X} は <dir>/xlsx/X.xlsx、{ocr:X} は <dir>/ocr/X、{out:X} は前のステップの出力ファイル
 STEPS = [
     ("決算 款項目別明細表", "extract_kessan_kmk.py", ["{pdf:272595}"], "kessan-kmk.json", [r"^件数", r"^合計行", r"FAIL="]),
     ("決算 部局別", "extract_kessan_bukyoku.py", ["{pdf:272595}", "{out:kessan-kmk.json}"], "kessan-bukyoku.json",
@@ -124,11 +130,17 @@ STEPS = [
     ("補正 R8-09-3（議案）", "extract_hosei.py",
      ["--id", "R8-09-3", "--kind", "定例", "--gian-scan", "{pdf:298929}", "--prev", "{out:hosei-R8-08-2.json}"],
      "hosei-R8-09-3.json", [r"^R8-09-3:", r"FAIL="]),
+    # 三基金（財源調整分）の推移と見込み・財政の指標（基金積立状況・当初予算の概要・主要財政指標一覧。財政状況資料集で突き合わせ）
+    ("財政の指標（三基金・主要財政指標一覧）", "extract_fiscal.py",
+     [*[x for y, f in FISCAL_KIKIN for x in ("--kikin", f"{y}={{pdf:{f}}}")], "--gaiyou", "{pdf:277131}",
+      *[x for y, f in FISCAL_SHIHYO for x in ("--shihyo", f"{y}={{xlsx:{f}}}")],
+      *[x for y, f in FISCAL_JOKYO for x in ("--jokyo", f"{y}={{xlsx:{f}}}")]],
+     "fiscal.json", [r"^三基金", r"^見込み", r"^財政の指標", r"団体中", r"^FAIL"]),
     # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
     ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
-     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--out", "{tmp:export}"], None,
+     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--xlsx-dir", "{xlsxdir}", "--allow-missing-fiscal", "--out", "{tmp:export}"], None,
      [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^一般財源の中身", r"^歳入の款 → 財源", r"^前年度にだけあった款", r"^補正 R8",
-      r"^FAIL 補正", r"^会計間の繰入れ", r"^公営企業会計 \d"]),
+      r"^FAIL 補正", r"^会計間の繰入れ", r"^公営企業会計 \d", r"^財政の指標のファイル"]),
     # 補正の回の鎖（書き出した当初予算から回の順に補正額を足し、各回の補正前の額と款・項で照合）
     ("補正 回の鎖", "check_hosei_chain.py",
      ["{tmp:export}/budget-2026-initial.json", "{out:hosei-R8-06-1.json}", "{out:hosei-R8-08-2.json}",
@@ -152,8 +164,10 @@ def _export_deps():
     # 基金の抽出の出力（funds.json）は入れない: 基金のステップが飛ばされても（OCR の結果のない環境）、書き出しの回帰は流す。
     # funds.json がなければ export_funds.build が基金を書かず、期待値の要約（「基金 N 件」の行）の差で気づける
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
-        pdfs = [s["file"] for s in json.load(f)["sources"]]
-    return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{p}}}" for p in pdfs]
+        srcs = json.load(f)["sources"]
+    # 表計算の資料（ext が xlsx。財政の指標だけが使う）は入れない: xlsx のない環境でも書き出しの回帰を流す
+    # （財政の指標のステップが飛ばされれば fiscal.json がなく、書き出しは xlsx を確かめない。要約の「財政の指標のファイル」の行の差で気づける）
+    return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{s['file']}}}" for s in srcs if s.get("ext", "pdf") == "pdf"]
 
 
 # ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
@@ -161,6 +175,9 @@ def _export_deps():
 # （ないまま解釈すると空の読み取りを終了コード 0 で出す）。補正の照合は書き出しの出力（{tmp:export}）を読むので、
 # 書き出しが飛ばされたら飛ばす（NDLOCR-Lite の結果がない環境など）
 STEP_DEPS = {"共通 JSON 形式の書き出し": _export_deps(),
+             # 引数が「年度=パス」の形でパスの頭が原本の置き場所にならないので、入力の有無はここで確かめる
+             "財政の指標（三基金・主要財政指標一覧）": [f"{{pdf:{f}}}" for _, f in FISCAL_KIKIN] +
+                                             [f"{{xlsx:{f}}}" for _, f in FISCAL_SHIHYO + FISCAL_JOKYO],
              "基金（財産に関する調書）": [src for _, src in FUNDS_INPUTS],
              **{f"補正 {rid}（目の明細）": [f"{{tmp:tl-{rid}}}"] for rid in ("R8-06-1", "R8-08-2", "R8-09-4")},
              "補正 R8-09-3（目の明細）": ["{tmp:neg-09-3}"],
@@ -173,13 +190,15 @@ def resolve(arg, data, outdir, tmpdir):
         kind, name = m.group(1), m.group(2)
         if kind == "pdf":
             return os.path.join(data, "pdf", name + ".pdf")
+        if kind == "xlsx":
+            return os.path.join(data, "xlsx", name + ".xlsx")
         if kind == "ocr":
             return os.path.join(data, "ocr", name)
         if kind == "out":
             return os.path.join(outdir, name)
         return os.path.join(tmpdir, name)
-    arg = arg.replace("{outdir}", outdir).replace("{pdfdir}", os.path.join(data, "pdf"))
-    return re.sub(r"\{(pdf|ocr|out|tmp):([^}]+)\}", rep, arg)
+    arg = arg.replace("{outdir}", outdir).replace("{pdfdir}", os.path.join(data, "pdf")).replace("{xlsxdir}", os.path.join(data, "xlsx"))
+    return re.sub(r"\{(pdf|xlsx|ocr|out|tmp):([^}]+)\}", rep, arg)
 
 
 def run_all(data, keep=None):
@@ -200,7 +219,9 @@ def run_all(data, keep=None):
             # 引数に出てこない入力（書き出しが読む前のステップの出力・資料の PDF）は STEP_DEPS で足して確かめる
             deps = [resolve(a, data, outdir, tmpdir) for a in STEP_DEPS.get(name, [])]
             # 引数は原本・前のステップの出力だけを確かめる（{tmp:...} の引数は出力先のこともある）。STEP_DEPS に並べた入力は全部確かめる
-            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            # 表計算の資料の置き場所（--xlsx-dir）はなくてよい（財政の指標を書き出さないときは書き出しが使わない）
+            xlsx_dir = os.path.join(data, "xlsx")
+            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and a != xlsx_dir and not os.path.exists(a)]
             missing += [a for a in deps if not os.path.exists(a)]
             if missing:
                 results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}

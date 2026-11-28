@@ -272,3 +272,62 @@ def test_previous_only_kan_skips_unread_previous_and_enterprise():
             _prev_row("enterprise:x", "expense", "営業費用", 5)]
     _, fails, checked = ex.previous_only_kan(rows, ACCOUNTS, [])
     assert fails == [] and checked == 0
+
+
+def _fiscal(**over):
+    ind = lambda k: {"key": k, "label": k, "unit": ex.FISCAL_UNIT_GOOD[k][0], "good": ex.FISCAL_UNIT_GOOD[k][1],  # noqa: E731
+                     "threshold": 25.0 if k in ex.FISCAL_THRESHOLD_KEYS else None,
+                     "values": [{"year": 2024, "value": 1.0, "median": 1.0, "rank": 1, "of": 47, "source": "r6-shihyo"}]}
+    base = {"fails": [],
+            "reserve": {"parts": ["a", "b"], "history": [{"year": 2024, "total": 3, "parts": [1, 2], "source": "r7-kikin"},
+                                    {"year": 2025, "total": 4, "parts": [2, 2], "source": "r7-kikin"}],
+                        "outlook": {"year": 2026, "total": 5, "source": "r8-gaiyou"},
+                        "target": {"min": 1, "max": 2, "source": "r8-gaiyou"}},
+            "indicators": [ind(k) for k in ex.FISCAL_KEYS]}
+    return {**base, **over}
+
+
+def test_fiscal_problem_accepts_a_complete_output_and_names_each_problem():
+    ids = {"r7-kikin", "r8-gaiyou", "r6-shihyo"}
+    assert ex.fiscal_problem(_fiscal(), ids) is None
+    assert "形でない" in ex.fiscal_problem([], ids)
+    assert "形でない" in ex.fiscal_problem(None, ids)
+    assert "fails がない" in ex.fiscal_problem({}, ids)
+    assert "確かめが通っていない" in ex.fiscal_problem(_fiscal(fails=["x"]), ids)
+    assert "reserve" in ex.fiscal_problem({"fails": []}, ids)
+    assert "指標の種類" in ex.fiscal_problem(_fiscal(indicators=[]), ids)
+    assert "sources.json にない" in ex.fiscal_problem(_fiscal(), {"r7-kikin"})
+    # 形の崩れは落ちずに理由を返す
+    bad = _fiscal()
+    bad["reserve"] = {**bad["reserve"], "outlook": "n/a"}
+    assert "形が崩れている" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["reserve"] = {**bad["reserve"], "outlook": {"year": 2027, "total": 5, "source": "r8-gaiyou"}}
+    assert "見込み" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["reserve"]["history"][1] = {"year": 2025, "total": 5, "parts": [2, 2], "source": "r7-kikin"}
+    assert "内訳" in ex.fiscal_problem(bad, ids)
+    # NaN・順位の範囲・年度の重複・基準の値・出典の型の混ざり
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["median"] = float("nan")
+    assert "数でない" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["rank"] = 48
+    assert "順位" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"].append(dict(bad["indicators"][0]["values"][0]))
+    assert "重複" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["threshold"] = 1.0
+    assert "threshold" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    next(i for i in bad["indicators"] if i["key"] == "debt_service")["threshold"] = float("nan")
+    assert "threshold が数でない" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["unit"] = "%"
+    assert "unit" in ex.fiscal_problem(bad, ids)
+    assert "一覧でない" in ex.fiscal_problem(_fiscal(fails=1), ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["source"] = None
+    bad["indicators"][1]["values"][0]["source"] = "r9-x"
+    assert "sources.json にない" in ex.fiscal_problem(bad, ids)

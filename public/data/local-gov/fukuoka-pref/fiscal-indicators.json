@@ -1,0 +1,454 @@
+{
+ "schema_version": 1,
+ "gov_id": "fukuoka-pref",
+ "reserve": {
+  "label": "財政調整基金等三基金（財源調整分）",
+  "parts": [
+   "財政調整基金（通常分）",
+   "減債基金（通常分）",
+   "公共施設整備基金"
+  ],
+  "history": [
+   {
+    "year": 2017,
+    "total": 41267167000,
+    "parts": [
+     11154244000,
+     21344815000,
+     8768108000
+    ],
+    "source": "h29-kikin",
+    "page": 2
+   },
+   {
+    "year": 2018,
+    "total": 40070219000,
+    "parts": [
+     12827232000,
+     22039037000,
+     5203950000
+    ],
+    "source": "h30-kikin",
+    "page": 2
+   },
+   {
+    "year": 2019,
+    "total": 35707787000,
+    "parts": [
+     8445182000,
+     22054892000,
+     5207713000
+    ],
+    "source": "r1-kikin",
+    "page": 2
+   },
+   {
+    "year": 2020,
+    "total": 31547908000,
+    "parts": [
+     7693641000,
+     21243016000,
+     2611251000
+    ],
+    "source": "r2-kikin",
+    "page": 2
+   },
+   {
+    "year": 2021,
+    "total": 58845327000,
+    "parts": [
+     34978655000,
+     21253874000,
+     2612798000
+    ],
+    "source": "r3-kikin",
+    "page": 2
+   },
+   {
+    "year": 2022,
+    "total": 73779389000,
+    "parts": [
+     39403011000,
+     21272236000,
+     13104142000
+    ],
+    "source": "r4-kikin",
+    "page": 2
+   },
+   {
+    "year": 2023,
+    "total": 68431949000,
+    "parts": [
+     34035360000,
+     21289611000,
+     13106978000
+    ],
+    "source": "r5-kikin",
+    "page": 2
+   },
+   {
+    "year": 2024,
+    "total": 73201176000,
+    "parts": [
+     38722356000,
+     21357444000,
+     13121376000
+    ],
+    "source": "r6-kikin",
+    "page": 2
+   },
+   {
+    "year": 2025,
+    "total": 75351962000,
+    "parts": [
+     40492626000,
+     21641501000,
+     13217835000
+    ],
+    "source": "r7-kikin",
+    "page": 2
+   }
+  ],
+  "outlook": {
+   "year": 2026,
+   "total": 71400000000,
+   "as_of": "R8当初予算の時点",
+   "source": "r8-gaiyou",
+   "page": 2
+  },
+  "target": {
+   "year": 2026,
+   "min": 40000000000,
+   "max": 50000000000,
+   "plan": "福岡県財政改革プラン2022",
+   "source": "r8-gaiyou",
+   "page": 2
+  }
+ },
+ "indicators": [
+  {
+   "key": "fiscal_capacity",
+   "label": "財政力指数",
+   "unit": "",
+   "good": "high",
+   "threshold": null,
+   "values": [
+    {
+     "year": 2016,
+     "value": 0.63402,
+     "median": 0.46651,
+     "rank": 10,
+     "of": 47,
+     "source": "h28-shihyo"
+    },
+    {
+     "year": 2017,
+     "value": 0.64281,
+     "median": 0.47764,
+     "rank": 11,
+     "of": 47,
+     "source": "h29-shihyo"
+    },
+    {
+     "year": 2018,
+     "value": 0.64581,
+     "median": 0.47779,
+     "rank": 10,
+     "of": 47,
+     "source": "h30-shihyo"
+    },
+    {
+     "year": 2019,
+     "value": 0.6545,
+     "median": 0.48284,
+     "rank": 9,
+     "of": 47,
+     "source": "r1-shihyo"
+    },
+    {
+     "year": 2020,
+     "value": 0.6582,
+     "median": 0.48457,
+     "rank": 8,
+     "of": 47,
+     "source": "r2-shihyo"
+    },
+    {
+     "year": 2021,
+     "value": 0.62808,
+     "median": 0.46068,
+     "rank": 9,
+     "of": 47,
+     "source": "r3-shihyo"
+    },
+    {
+     "year": 2022,
+     "value": 0.62027,
+     "median": 0.45137,
+     "rank": 9,
+     "of": 47,
+     "source": "r4-shihyo"
+    },
+    {
+     "year": 2023,
+     "value": 0.61396,
+     "median": 0.44787,
+     "rank": 9,
+     "of": 47,
+     "source": "r5-shihyo"
+    },
+    {
+     "year": 2024,
+     "value": 0.63618,
+     "median": 0.46593,
+     "rank": 8,
+     "of": 47,
+     "source": "r6-shihyo"
+    }
+   ]
+  },
+  {
+   "key": "current_balance",
+   "label": "経常収支比率",
+   "unit": "%",
+   "good": "low",
+   "threshold": null,
+   "values": [
+    {
+     "year": 2016,
+     "value": 98.4,
+     "median": 95.9,
+     "rank": 42,
+     "of": 47,
+     "source": "h28-shihyo"
+    },
+    {
+     "year": 2017,
+     "value": 96.8,
+     "median": 96.1,
+     "rank": 36,
+     "of": 47,
+     "source": "h29-shihyo"
+    },
+    {
+     "year": 2018,
+     "value": 97.5,
+     "median": 95.1,
+     "rank": 42,
+     "of": 47,
+     "source": "h30-shihyo"
+    },
+    {
+     "year": 2019,
+     "value": 98.3,
+     "median": 95.9,
+     "rank": 41,
+     "of": 47,
+     "source": "r1-shihyo"
+    },
+    {
+     "year": 2020,
+     "value": 97.1,
+     "median": 95.0,
+     "rank": 40,
+     "of": 47,
+     "source": "r2-shihyo"
+    },
+    {
+     "year": 2021,
+     "value": 89.2,
+     "median": 88.3,
+     "rank": 33,
+     "of": 47,
+     "source": "r3-shihyo"
+    },
+    {
+     "year": 2022,
+     "value": 96.2,
+     "median": 93.8,
+     "rank": 40,
+     "of": 47,
+     "source": "r4-shihyo"
+    },
+    {
+     "year": 2023,
+     "value": 97.3,
+     "median": 92.6,
+     "rank": 43,
+     "of": 47,
+     "source": "r5-shihyo"
+    },
+    {
+     "year": 2024,
+     "value": 95.6,
+     "median": 93.8,
+     "rank": 35,
+     "of": 47,
+     "source": "r6-shihyo"
+    }
+   ]
+  },
+  {
+   "key": "debt_service",
+   "label": "実質公債費比率",
+   "unit": "%",
+   "good": "low",
+   "threshold": 25.0,
+   "values": [
+    {
+     "year": 2016,
+     "value": 12.1,
+     "median": 12.8,
+     "rank": 22,
+     "of": 47,
+     "source": "h28-shihyo"
+    },
+    {
+     "year": 2017,
+     "value": 11.8,
+     "median": 12.3,
+     "rank": 22,
+     "of": 47,
+     "source": "h29-shihyo"
+    },
+    {
+     "year": 2018,
+     "value": 11.8,
+     "median": 11.8,
+     "rank": 23,
+     "of": 47,
+     "source": "h30-shihyo"
+    },
+    {
+     "year": 2019,
+     "value": 11.7,
+     "median": 11.2,
+     "rank": 26,
+     "of": 47,
+     "source": "r1-shihyo"
+    },
+    {
+     "year": 2020,
+     "value": 11.5,
+     "median": 10.8,
+     "rank": 28,
+     "of": 47,
+     "source": "r2-shihyo"
+    },
+    {
+     "year": 2021,
+     "value": 11.1,
+     "median": 10.7,
+     "rank": 26,
+     "of": 47,
+     "source": "r3-shihyo"
+    },
+    {
+     "year": 2022,
+     "value": 11.2,
+     "median": 11.0,
+     "rank": 27,
+     "of": 47,
+     "source": "r4-shihyo"
+    },
+    {
+     "year": 2023,
+     "value": 11.3,
+     "median": 10.9,
+     "rank": 27,
+     "of": 47,
+     "source": "r5-shihyo"
+    },
+    {
+     "year": 2024,
+     "value": 11.9,
+     "median": 11.0,
+     "rank": 32,
+     "of": 47,
+     "source": "r6-shihyo"
+    }
+   ]
+  },
+  {
+   "key": "future_burden",
+   "label": "将来負担比率",
+   "unit": "%",
+   "good": "low",
+   "threshold": 400.0,
+   "values": [
+    {
+     "year": 2016,
+     "value": 243.8,
+     "median": 188.4,
+     "rank": 41,
+     "of": 47,
+     "source": "h28-shihyo"
+    },
+    {
+     "year": 2017,
+     "value": 257.8,
+     "median": 191.0,
+     "rank": 43,
+     "of": 47,
+     "source": "h29-shihyo"
+    },
+    {
+     "year": 2018,
+     "value": 260.9,
+     "median": 190.1,
+     "rank": 43,
+     "of": 47,
+     "source": "h30-shihyo"
+    },
+    {
+     "year": 2019,
+     "value": 263.3,
+     "median": 189.9,
+     "rank": 43,
+     "of": 47,
+     "source": "r1-shihyo"
+    },
+    {
+     "year": 2020,
+     "value": 262.5,
+     "median": 187.9,
+     "rank": 43,
+     "of": 47,
+     "source": "r2-shihyo"
+    },
+    {
+     "year": 2021,
+     "value": 245.6,
+     "median": 170.4,
+     "rank": 43,
+     "of": 47,
+     "source": "r3-shihyo"
+    },
+    {
+     "year": 2022,
+     "value": 250.7,
+     "median": 169.9,
+     "rank": 43,
+     "of": 47,
+     "source": "r4-shihyo"
+    },
+    {
+     "year": 2023,
+     "value": 248.4,
+     "median": 164.6,
+     "rank": 43,
+     "of": 47,
+     "source": "r5-shihyo"
+    },
+    {
+     "year": 2024,
+     "value": 245.3,
+     "median": 159.7,
+     "rank": 43,
+     "of": 47,
+     "source": "r6-shihyo"
+    }
+   ]
+  }
+ ]
+}

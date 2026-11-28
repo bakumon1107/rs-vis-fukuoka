@@ -20,7 +20,9 @@
 | 決算書・事項別明細書・決算概要説明書・主要施策の成果 | `/contents/kessan.html` |
 | 決算及び財政状況の公表（H19〜） | `/contents/kessan-zaiseijoukyou.html` |
 | 財政事情の公表（年2回） | `/contents/zaiseijijou.html` |
-| 財政状況資料集（Excel） | `/contents/zaiseijyoukyoushiryou-r6.html` |
+| 財政状況資料集（Excel） | `/contents/zaiseijyoukyoushiryou-r6.html`（都道府県分は総務省 `https://www.soumu.go.jp/iken/zaisei/jyoukyou_shiryou/r06/index.html`） |
+| 基金の積立状況（年度ごとの基金積立状況。H29〜） | 財政のページ `/life/8/54/` の「基金」（R7 版 `/uploaded/life/834889_63010204_misc.pdf`）。財政改革プランの三基金（財源調整分）の内訳がある |
+| 財政の指標（全都道府県の比較） | 総務省「地方公共団体の主要財政指標一覧」 `https://www.soumu.go.jp/iken/shihyo_ichiran.html`（年度ごとのページの「全都道府県の主要財政指標」xlsx） |
 | 決算カード（H13〜） | `/contents/kessancard.html` |
 | 財務書類 | `/contents/zaimusyorui.html` |
 | 固定資産台帳（Excel） | `/contents/koteisisandaityour6nenndo.html` |
@@ -54,6 +56,9 @@
   項・目は資料にないので行にせず、画像で確かめた値を `scripts/local-gov/fukuoka-pref/ocr/corrections/r8-previous-only-kan.json` に書き、
   ファイルの `previous_only_kan` に書き出す。書き出しが会計ごとに前年度の歳入 = 歳出を確かめ、合わなければ止まる
   （設計: [前年度にだけあった款をデータに足す設計](../tasks/20261128_1339_前年度にだけあった款をデータに足す設計.md)）
+- **財政改革プランの「財政調整基金等三基金（財源調整分）」**は、財政調整基金（通常分）＋減債基金（通常分）＋公共施設整備基金。
+  交付税精算分等・減債基金の公債管理特別会計分（満期一括償還の備え）を含まない。基金積立状況の表は段の行が年度で違う（ノウハウ 2章）。
+  目標と見込みは当初予算の概要（R8: `277131` の PDF 2ページ目。目標 400〜500億円・R8 末見込み 714億円）
 
 ## 調査の記録
 

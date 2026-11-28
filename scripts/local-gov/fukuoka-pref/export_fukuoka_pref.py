@@ -5,12 +5,16 @@
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/export_fukuoka_pref.py --work <作業ディレクトリ> --pdf-dir <原本の置き場所> \
-        --out public/data/local-gov/fukuoka-pref
+        --xlsx-dir <表計算の資料の置き場所> --out public/data/local-gov/fukuoka-pref
+    （回帰テストは --allow-missing-fiscal を付ける: fiscal.json がない・読めない・確かめが通っていない・形が崩れているときも、
+     財政の指標を書かずに続ける）
 
 <作業ディレクトリ> は回帰テストの出力（tests/regression.py --keep <dir>）。リポジトリには入れない。使うもの:
     cross.json・cross-toku.json … 一般会計・特別会計の cross_check.py の出力（OCR＋修正表＋文字層との突き合わせ）
     setsumeisho-{ocr,v4,tl}.json・setsumeisho-toku{,-v4,-tl}.json … 多数決に使う3つの読み取り
     yosansho.json・keijougaku.json・kessan-kmk.json（R6 決算。名前の照合に使う）
+    fiscal.json … 三基金の推移と見込み・財政の指標（extract_fiscal.py。fiscal-indicators.json にする。--xlsx-dir が要る。
+                  ない・読めない・fails がある・形が崩れていると止まる。--allow-missing-fiscal のときは書かずに続ける）
 回帰テストの最後のステップとしても流れる（書き出しの要約が変わったら気づける）。
 
 書き出すもの:
@@ -35,6 +39,7 @@ import difflib
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
@@ -677,21 +682,130 @@ def sha256(path):
     return h.hexdigest()
 
 
+# 財政の指標の種類と、早期健全化基準のある指標（validate.ts の FISCAL_KEYS・FISCAL_THRESHOLD_KEYS と同じ。
+# 食い違うと画面の検証が公開データを拒む。tests/local-gov-fiscal.test.ts が書き出した実データで確かめる）
+FISCAL_KEYS = ("fiscal_capacity", "current_balance", "debt_service", "future_burden")
+FISCAL_THRESHOLD_KEYS = {"debt_service", "future_burden"}
+# 指標ごとの単位と良い方の向き（extract_fiscal.py の INDICATORS と同じ）
+FISCAL_UNIT_GOOD = {"fiscal_capacity": ("", "high"), "current_balance": ("%", "low"),
+                    "debt_service": ("%", "low"), "future_burden": ("%", "low")}
+
+
+def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
+    """fiscal.json（extract_fiscal.py の出力）を書き出せない理由（書き出せるなら None）。
+    画面は実績・見込み・目標と4つの指標があることを前提に描く（validate.ts の validateFiscalFile と同じ条件の一部）"""
+    if not isinstance(fiscal, dict):
+        return "fiscal.json の中身が抽出の出力の形でない"
+    if "fails" not in fiscal:
+        return "fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）"
+    if not isinstance(fiscal["fails"], list):
+        return "fiscal.json の fails が一覧でない（形が崩れている）"
+    if fiscal["fails"]:
+        return "抽出の確かめが通っていない:\n" + "\n".join(map(str, fiscal["fails"]))
+    res, inds = fiscal.get("reserve"), fiscal.get("indicators")
+    if not isinstance(res, dict) or not isinstance(inds, list):
+        return "fiscal.json に reserve・indicators がない"
+    def yen(x):  # 円の整数（0 以上。bool は除く）
+        return isinstance(x, int) and not isinstance(x, bool) and x >= 0
+
+    def num(x):  # 有限の数（NaN・Infinity は画面の JSON.parse が読めない）
+        return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+    # 形の崩れ（キーがない・型が違う）は、落ちずに理由を返す
+    try:
+        hist, out, tgt, names = res["history"], res["outlook"], res["target"], res["parts"]
+        if not hist or not out or not tgt:
+            return "三基金の実績・見込み・目標が欠けている"
+        years = [h["year"] for h in hist]
+        if years != list(range(years[0], years[0] + len(years))):
+            return f"三基金の実績の年度が続いていない: {years}"
+        for h in hist:
+            if len(h["parts"]) != len(names) or not all(map(yen, h["parts"])) or not yen(h["total"]) or sum(h["parts"]) != h["total"]:
+                return f"三基金の実績 {h['year']} の内訳（{len(names)} つ・円の整数）と合計が合わない"
+        if out["year"] != years[-1] + 1 or not yen(out["total"]):
+            return "見込みの年度・額がおかしい"
+        if not (yen(tgt["min"]) and yen(tgt["max"]) and tgt["min"] <= tgt["max"]):
+            return "目標の下限・上限がおかしい"
+        keys = sorted(ind["key"] for ind in inds)
+        if keys != sorted(FISCAL_KEYS):
+            return f"指標の種類が {sorted(FISCAL_KEYS)} でない: {keys}"
+        for ind in inds:
+            if (ind["key"] in FISCAL_THRESHOLD_KEYS) != (ind["threshold"] is not None):
+                return f"指標 {ind['key']}: threshold は実質公債費比率・将来負担比率だけ"
+            if ind["threshold"] is not None and not num(ind["threshold"]):
+                return f"指標 {ind['key']}: threshold が数でない"
+            # 画面は単位で桁と % を、向きで良し悪しを決める（財政力指数だけ単位なし・高い方が良い）
+            unit, good = FISCAL_UNIT_GOOD[ind["key"]]
+            if ind["unit"] != unit or ind["good"] != good or not isinstance(ind["label"], str) or not ind["label"]:
+                return f"指標 {ind['key']}: label・unit（{unit!r}）・good（{good}）がおかしい"
+            if not ind["values"]:
+                return f"指標 {ind['key']} の値がない"
+            vy = [v["year"] for v in ind["values"]]
+            if len(set(vy)) != len(vy):
+                return f"指標 {ind['key']} の年度が重複している"
+            for v in ind["values"]:
+                if not all(num(v[k]) for k in ("year", "value", "median", "rank", "of")):
+                    return f"指標 {ind['key']} {v['year']} の値が数でない"
+                if not (isinstance(v["rank"], int) and isinstance(v["of"], int) and 1 <= v["rank"] <= v["of"]):
+                    return f"指標 {ind['key']} {v['year']} の順位が 1〜団体の数でない"
+        used = {h["source"] for h in hist} | {out["source"], tgt["source"]} | {v["source"] for ind in inds for v in ind["values"]}
+        unknown = sorted(used - source_ids, key=str)
+        # 書き出しと同じ厳しさ（NaN・Infinity を許さない）で JSON にできるか。書き込みの途中で止まって前のファイルを壊さないように
+        json.dumps({"reserve": res, "indicators": inds}, allow_nan=False)
+    except (KeyError, TypeError, IndexError, AttributeError, ValueError) as e:
+        return f"fiscal.json の形が崩れている（{type(e).__name__}: {e}）"
+    if unknown:
+        return f"sources.json にない資料: {unknown}"
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--pdf-dir", required=True)
+    # 表計算の資料（sources.json の ext が xlsx。財政の指標の主要財政指標一覧・財政状況資料集）の置き場所
+    ap.add_argument("--xlsx-dir")
+    # 財政の指標（fiscal.json）がなくても書き出す（回帰テスト用。公開データの書き出しでは付けない）
+    ap.add_argument("--allow-missing-fiscal", action="store_true")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
     vote = load_vote()
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
+    # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。回帰テストは抽出が失敗しても標準出力を書くので、
+    # 空・形の違うものもありうる
+    # 既定では、ない・読めないときは止まる（公開データを書き出すときに、三基金・指標の区画が黙って消えないように）。
+    # 回帰テストは --allow-missing-fiscal を渡し、知らせるだけで続ける（xlsx のない環境でも書き出しの回帰を流すため）
+    fiscal = None
+    if os.path.exists(w("fiscal.json")):
+        try:
+            with open(w("fiscal.json"), encoding="utf-8") as f:
+                loaded = json.load(f)
+            problem = fiscal_problem(loaded, {s["id"] for s in source_list})
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+            loaded, problem = None, "fiscal.json が読めない・空か壊れている（抽出が失敗した）"
+        fiscal = None if problem else loaded
+    else:
+        problem = "fiscal.json がない（extract_fiscal.py を流していない）"
+    if problem:
+        if not a.allow_missing_fiscal:
+            sys.exit(f"財政の指標: {problem}\n財政の指標を書かずに書き出すなら --allow-missing-fiscal")
+        print(f"財政の指標: {problem}\n→ fiscal-indicators.json を書かない", file=sys.stderr)
+    # 表計算の資料は財政の指標だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
+    # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
+    need_xlsx = fiscal is not None
     for s in source_list:
-        p = os.path.join(a.pdf_dir, f"{s['file']}.pdf")
+        ext = s.get("ext", "pdf")
+        if ext == "xlsx":
+            if not need_xlsx:
+                continue
+            if not a.xlsx_dir:
+                sys.exit(f"財政の指標を書き出すので、表計算の資料（{s['file']}.xlsx）の --xlsx-dir が要る")
+        p = os.path.join(a.xlsx_dir if ext == "xlsx" else a.pdf_dir, f"{s['file']}.{ext}")
         got = sha256(p)
         if got != s["sha256"]:
             # 手元の原本が一覧と違う（県が資料を差し替えた・取り違えた）。そのまま書き出すと出典の記録と中身が食い違う
-            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.pdf（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
+            sys.exit(f"原本の SHA256 が sources.json と違う: {s['file']}.{ext}（一覧 {s['sha256'][:12]}… / 手元 {got[:12]}…）。"
                      f"資料が差し替わっていないか確かめ、sources.json を更新してから書き出す")
     # 名前の全文検索に使うテキスト資料（説明書・議案は読み取りの側なので入れない。入れると自分自身を見つける）
     corpus = name_evidence.Corpus.from_pdfs({s["id"]: os.path.join(a.pdf_dir, f"{s['file']}.pdf")
@@ -843,6 +957,19 @@ def main():
             f.write("\n")
         hosei_lines += lines
 
+    # 三基金の推移と見込み・財政の指標（上で読んで確かめた fiscal.json）。なければ書かない（index にも載せない）
+    fiscal_file, fiscal_line = None, None
+    if fiscal is not None:
+        res = fiscal["reserve"]
+        fiscal_file = "fiscal-indicators.json"
+        with open(os.path.join(a.out, fiscal_file), "w", encoding="utf-8") as f:
+            json.dump({"schema_version": 1, "gov_id": GOV_ID, "reserve": res, "indicators": fiscal["indicators"]},
+                      f, ensure_ascii=False, indent=1, allow_nan=False)
+            f.write("\n")
+        ys = sorted({v["year"] for ind in fiscal["indicators"] for v in ind["values"]})
+        fiscal_line = (f"財政の指標のファイル: 三基金 {len(res['history'])} 年分・見込み {res['outlook']['total']:,} 円・"
+                       f"指標 {len(fiscal['indicators'])} 種 × {len(ys)} 年")
+
     sources = [{k: s[k] for k in ("id", "title", "url", "sha256", "retrieved")} for s in source_list]
     index = {
         "schema_version": 1,
@@ -854,11 +981,19 @@ def main():
                       "file": settlement_file, "status": "verified" if settlement_ok else "partial"}]
                     + [{"year": export_hosei.YEAR, "label": export_hosei.YEAR_LABEL, "basis": "supplementary",
                         "file": name, "status": "verified" if ok else "partial"} for name, _, ok, _ in hosei_files],
+        **({"fiscal": fiscal_file} if fiscal_file else {}),
         "sources": sources,
     }
+    if fiscal_line:
+        print(fiscal_line, file=sys.stderr)
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
         f.write("\n")
+    # 財政の指標を書かなかったときは、前に書いたファイルを消す（index から指されないファイルが公開されないように）。
+    # index.json を書いた後で消す（途中で止まったときに、前の index.json が消えたファイルを指さないように）
+    stale = os.path.join(a.out, "fiscal-indicators.json")
+    if not fiscal_file and os.path.exists(stale):
+        os.remove(stale)
     total = Counter()
     for r in rows:
         total[(r["account"] == "general", r["side"])] += r["amount"]["v"] or 0
