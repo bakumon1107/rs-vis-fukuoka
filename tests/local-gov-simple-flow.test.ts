@@ -110,6 +110,11 @@ test('実データ R8: 検証は帯の合計の食い違い（款ごと・財源
   assert.ok(
     validateBudgetFile(withSplit([{ kan: 14, amount: res.amount + 5 }, { kan: 10, amount: -5 }])).errors.some(e => e.includes('split に負'))
   );
+  // split の款が歳入にない・概算の帯の款と違う。配列でない split は例外でなく誤りにする
+  const e99 = validateBudgetFile(withSplit([{ kan: 99, amount: res.amount }])).errors;
+  assert.ok(e99.some(e => e.includes('99款が歳入にない')) && e99.some(e => e.includes('概算の帯の款')));
+  const notArray = withSplit({ 14: 1 } as unknown as { kan: number; amount: number }[]);
+  assert.ok(validateBudgetFile(notArray).errors.some(e => e.includes('split が { kan, amount } の配列でない')));
 });
 
 test('実データ R8: 名前が読み取りだけの歳入の款には印（※）を付ける。まとめた款の名前を返す', { skip: !has }, () => {
@@ -126,6 +131,40 @@ test('実データ R8: 名前が読み取りだけの歳入の款には印（※
   assert.deepEqual(simpleFundingFlow(file, fullGraph(file, 'general', 2))!.groupedNames, []);
   const grouped = simpleFundingFlow(file, fullGraph(file, 'general', 2), 0.01)!;
   assert.ok(grouped.groupedNames.length >= 2 && grouped.groupedNames.includes('交通安全対策特別交付金'));
+  // まとめた款の名前は額の大きい順
+  const amt = (name: string) =>
+    file.rows.filter(r => r.account === 'general' && r.side === 'revenue' && r.kan.name === name).reduce((s, r) => s + (r.amount.v ?? 0), 0);
+  const amounts = grouped.groupedNames.map(amt);
+  for (let i = 1; i < amounts.length; i++) assert.ok(amounts[i - 1] >= amounts[i], grouped.groupedNames.join(','));
+  assert.equal(grouped.groupBelow, 0.01);
+  // 概算の分は差し引きの split（帯の額ではない）
+  const split = file.general_fund!.rows.find(r => r.basis === 'residual')!.split!;
+  assert.deepEqual(
+    grouped.estimatedParts.map(p => p.value).sort(),
+    split.map(s => s.amount).sort()
+  );
+  assert.deepEqual(grouped.estimatedParts.map(p => p.name).sort(), ['使用料及び手数料', '諸収入', '財産収入'].sort());
+});
+
+test('実データ R8: 歳入の款の ※ は、押すと開く全会計の見方の歳入の款の箱と同じ', { skip: !has }, () => {
+  const file = read('budget-2026-initial.json');
+  // 特別会計の「諸収入」の名前だけを読み取りにする（全会計の見方の歳入の款「諸収入」は ※ になる）
+  const ocr: LocalBudgetFile = {
+    ...file,
+    rows: file.rows.map(r =>
+      r.account !== 'general' && r.side === 'revenue' && r.kan.name === '諸収入' && (r.amount.v ?? 0) !== 0
+        ? { ...r, kan: { ...r.kan, name_src: 'ocr' as const } }
+        : r
+    ),
+  };
+  const all = fullGraph(ocr, 'all', 1).nodes.find(n => n.id === 'revenue:諸収入')!;
+  assert.ok(all.flags?.includes('name-ocr'));
+  const simple = simpleDisplay(ocr, 'general').graph.nodes.find(n => n.id === 'revenue:諸収入')!;
+  assert.ok(simple.flags?.includes('name-ocr'));
+  for (const n of simpleDisplay(file, 'general').graph.nodes.filter(x => x.col === 'revenue')) {
+    const a = fullGraph(file, 'all', 1).nodes.find(x => x.id === n.id);
+    assert.equal(!!n.flags?.includes('name-ocr'), !!a?.flags?.includes('name-ocr'), n.id);
+  }
 });
 
 test('実データ R8: 3列は一般会計の当初予算だけ（補正後・決算・全会計は今の2列）', { skip: !has }, () => {

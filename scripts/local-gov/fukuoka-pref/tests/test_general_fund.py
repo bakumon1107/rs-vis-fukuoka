@@ -129,5 +129,9 @@ def test_flows_stop_when_totals_do_not_match():
     tiny = {**FLOW_TABLE, "差し引き": {**FLOW_TABLE["差し引き"], "概算": 70}, "差し引きの款ごとの概算": {"14": 80, "10": 80}}
     out, fails = gf.build(FLOW_ROWS, tiny)
     assert out is None and any("負になる" in f for f in fails)
+    # 一番大きい款でない款の概算が負
+    minus = {**FLOW_TABLE, "差し引きの款ごとの概算": {"14": 76, "10": -5}}
+    out, fails = gf.build(FLOW_ROWS, minus)
+    assert out is None and any("負になる（[10]款" in f for f in fails)
     # 表に「歳入の款と財源」がなければ flows を作らない（今までどおり）
     assert "flows" not in gf.build(ROWS, TABLE)[0]

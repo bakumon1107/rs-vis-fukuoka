@@ -39,6 +39,7 @@ export interface LocalGraphDisplay {
     estimated: Set<string>;
     groupedNames: string[];
     estimatedParts: { name: string; value: number }[];
+    groupBelow: number;
   };
 }
 
@@ -281,7 +282,9 @@ export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView, group
   // 一般会計の当初予算で歳入の款 → 財源の帯（general_fund.flows）があれば、歳入の款 → 財源 → 歳出の款の3列にし、財源の色で塗る
   // （設計: かんたんの図に歳入から財源への振り分けを足す設計）。ほかは今の2列
   if (view === 'general') {
-    const flow = simpleFundingFlow(file, fullGraph(file, view, SIMPLE_DEPTH), groupBelow);
+    // 歳入の款の箱の ※ は、押すと開く全会計の見方の歳入の款の箱と同じにする
+    const revenueFlags = new Map(fullGraph(file, 'all', 1).nodes.map(n => [n.id, n.flags]));
+    const flow = simpleFundingFlow(file, fullGraph(file, view, SIMPLE_DEPTH), groupBelow, revenueFlags);
     if (flow) {
       return {
         graph: flow.graph,
@@ -291,6 +294,7 @@ export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView, group
           estimated: flow.estimated,
           groupedNames: flow.groupedNames,
           estimatedParts: flow.estimatedParts,
+          groupBelow: flow.groupBelow,
         },
       };
     }

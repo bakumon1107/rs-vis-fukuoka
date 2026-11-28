@@ -326,7 +326,7 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
             // かんたんの3列の「その他の収入」: 小さい歳入の款をまとめた箱（どの款かを書く。一般の「その他」の説明は当てはまらない）
             const groupedRevenue = aggregate && fc && n.col === 'revenue' && fc.groupedNames.length > 0;
             const aggregateText = groupedRevenue
-              ? `歳入の合計の 1% 未満の款をまとめた箱: ${fc.groupedNames.join('・')}`
+              ? `歳入の合計の ${Math.round(fc.groupBelow * 1000) / 10}% 未満の款をまとめた箱: ${fc.groupedNames.join('・')}`
               : '上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）';
             return (
               <g

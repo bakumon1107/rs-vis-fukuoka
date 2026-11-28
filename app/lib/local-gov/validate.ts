@@ -212,10 +212,14 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     gf.rows.forEach((r, i) => {
       if (!GENERAL_FUND_BASES.includes(r.basis)) err(`general_fund.rows[${i}]: basis が不正（${r.basis}）`);
       // 差し引きの款ごとの内訳: 各額は 0 以上の整数、合計 = 行の額
-      if (r.split) {
-        if (r.split.some(s => !Number.isInteger(s.amount) || s.amount < 0)) err(`general_fund.rows[${i}] ${r.label}: split に負・整数でない額がある`);
-        const t = r.split.reduce((s, x) => s + x.amount, 0);
-        if (t !== r.amount) err(`general_fund.rows[${i}] ${r.label}: split の合計 ${t} ≠ 行の額 ${r.amount}`);
+      if (r.split !== undefined) {
+        if (!Array.isArray(r.split) || r.split.some(s => typeof s !== 'object' || s === null)) {
+          err(`general_fund.rows[${i}] ${r.label}: split が { kan, amount } の配列でない`);
+        } else {
+          if (r.split.some(s => !Number.isInteger(s.amount) || s.amount < 0)) err(`general_fund.rows[${i}] ${r.label}: split に負・整数でない額がある`);
+          const t = r.split.reduce((s, x) => s + x.amount, 0);
+          if (t !== r.amount) err(`general_fund.rows[${i}] ${r.label}: split の合計 ${t} ≠ 行の額 ${r.amount}`);
+        }
       }
       if (!Number.isInteger(r.amount) || r.amount < 0) err(`general_fund.rows[${i}] ${r.label}: 額が 0 以上の整数でない（${r.amount}）`);
       for (const id of r.refs ?? []) if (!rowIds.has(id)) err(`general_fund.rows[${i}] ${r.label}: 組み替えの元の目 ${id} がない`);
@@ -253,6 +257,14 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       });
       for (const [kan, v] of revenueByKan) {
         if ((byKan.get(kan) ?? 0) !== v) err(`general_fund.flows: 歳入の ${kan}款の帯の合計 ${byKan.get(kan) ?? 0} ≠ 款の額 ${v}`);
+      }
+      // 差し引きの split の款 = 概算の帯（estimated）の款。どちらも歳入にある款
+      const rawSplit = gf.rows.find(r => r.basis === 'residual')?.split;
+      const splitKans = new Set((Array.isArray(rawSplit) ? rawSplit : []).filter(s => s && typeof s === 'object').map(s => s.kan));
+      const estKans = new Set(gf.flows.filter(f => f.estimated).map(f => f.kan));
+      for (const k of splitKans) if (!revenueByKan.has(k)) err(`general_fund: 差し引きの split の ${k}款が歳入にない`);
+      if (splitKans.size !== estKans.size || [...splitKans].some(k => !estKans.has(k))) {
+        err(`general_fund: 差し引きの split の款（${[...splitKans].join('・')}）と概算の帯の款（${[...estKans].join('・')}）が違う`);
       }
       for (const k of fundingKeys) {
         const want = expense.reduce((s, r) => s + (r.funding?.[k].v ?? 0), 0);

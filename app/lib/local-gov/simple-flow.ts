@@ -17,8 +17,10 @@ export interface FundingFlowGraph {
   estimated: Set<string>;
   /** 「その他の収入」にまとめた歳入の款の名前（額の大きい順。まとめなければ空） */
   groupedNames: string[];
-  /** 概算の帯の元の款ごとの額（凡例に並べる。まとめた帯は確かな額も含むので、元の款の単位で出す） */
+  /** 概算の分の款ごとの額（差し引きの split。凡例に並べる。帯は確かな分と足し合わさっていることがあるので帯の額は使わない） */
   estimatedParts: { name: string; value: number }[];
+  /** 「その他の収入」にまとめた割合（説明の文に出す） */
+  groupBelow: number;
 }
 
 /** まとめた歳入の款の箱（「その他の収入」）の ID */
@@ -31,7 +33,13 @@ const FUNDING_KEYS = new Set<string>(FUNDING_KINDS.map(f => f.key));
  * （呼ぶ側は今の2列にする）。
  * groupBelow: 歳入の款のうち、額が歳入の合計のこの割合より小さいものを「その他の収入」にまとめる（スマートフォンの幅。0 ならまとめない）
  */
-export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, groupBelow = 0): FundingFlowGraph | null {
+export function simpleFundingFlow(
+  file: LocalBudgetFile,
+  base: LocalGraph,
+  groupBelow = 0,
+  /** 全会計の見方の歳入の款の箱（同じ ID）の印。押すと開く箱と ※ をそろえる（graph-view の fullGraph(file, 'all', 1)） */
+  revenueFlags?: Map<string, string[] | undefined>
+): FundingFlowGraph | null {
   const flows = file.general_fund?.flows;
   if (file.basis !== 'initial' || file.composed || !flows?.length) return null;
   // base: 一般会計の見方の左2列（財源 → 款）の全体のグラフ（graph-view の fullGraph(file, 'general', 2)）
@@ -42,12 +50,18 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
   const kanTotal = new Map<number, number>();
   for (const f of flows) kanTotal.set(f.kan, (kanTotal.get(f.kan) ?? 0) + f.amount);
   const grand = [...kanTotal.values()].reduce((s, v) => s + v, 0);
+  const nameOfKan = new Map(flows.map(f => [f.kan, f.kan_name]));
+  const totalByName = new Map([...kanTotal].map(([k, v]) => [nameOfKan.get(k)!, v]));
   const grouped = (kan: number) => groupBelow > 0 && (kanTotal.get(kan) ?? 0) < grand * groupBelow;
 
-  // 名前が読み取りだけの歳入の款（図の ※。全会計の見方の歳入の款と同じく、款のどれかの目が読み取りなら印を付ける）
-  const ocrKan = new Set(
-    file.rows.filter(r => r.account === 'general' && r.side === 'revenue' && isOcrName(r.kan.name_src)).map(r => r.kan.no)
-  );
+  // 名前が読み取りだけの歳入の款（図の ※）。押すと開く全会計の見方の歳入の款の箱と同じ印にする（渡されないときは一般会計の
+  // 額のある目から: 全会計の見方と同じく 0 円の目の印は混ぜない）
+  const ocrName = (kan: number, name: string) =>
+    revenueFlags
+      ? !!revenueFlags.get(`revenue:${name}`)?.includes('name-ocr')
+      : file.rows.some(
+          r => r.account === 'general' && r.side === 'revenue' && r.kan.no === kan && (r.amount.v ?? 0) !== 0 && isOcrName(r.kan.name_src)
+        );
   const funding = new Map<string, FundingKey>();
   const estimated = new Set<string>();
   const groupedNames: string[] = [];
@@ -73,7 +87,7 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
     const node = revNodes.get(id);
     if (node) node.value += f.amount;
     else {
-      const flags = id === OTHER_REVENUE_ID ? ['aggregate'] : ocrKan.has(f.kan) ? ['name-ocr'] : undefined;
+      const flags = id === OTHER_REVENUE_ID ? ['aggregate'] : ocrName(f.kan, f.kan_name) ? ['name-ocr'] : undefined;
       revNodes.set(id, {
         id,
         col: 'revenue',
@@ -112,7 +126,12 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
     },
     funding,
     estimated,
-    groupedNames,
-    estimatedParts: flows.filter(f => f.estimated).sort((a, b) => b.amount - a.amount).map(f => ({ name: f.kan_name, value: f.amount })),
+    // 額の大きい順（並びの順は主な財源の順なので並べ直す）
+    groupedNames: groupedNames.sort((a, b) => (totalByName.get(b) ?? 0) - (totalByName.get(a) ?? 0)),
+    // 概算の分だけ（差し引きの款ごとの内訳 split）。帯は確かな分と足し合わさっていることがある
+    estimatedParts: (file.general_fund?.rows.find(r => r.basis === 'residual')?.split ?? [])
+      .map(s => ({ name: nameOfKan.get(s.kan) ?? String(s.kan), value: s.amount }))
+      .sort((a, b) => b.value - a.value),
+    groupBelow,
   };
 }
