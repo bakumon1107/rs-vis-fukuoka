@@ -329,8 +329,8 @@ export function LocalDetailPanel({
     );
   }
   return (
-    // パネルの枠（SidePanelChrome）は中身を切り取るだけなので、中身の側でスクロールする
-    <div className="h-full space-y-4 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
+    // スクロールは置く側（page.tsx のシートの枠）が受け持つ（ここでも持つと二重になる）
+    <div className="space-y-4 p-4 text-sm text-mirai-text">
       {head}
       {amounts}
       {funding}

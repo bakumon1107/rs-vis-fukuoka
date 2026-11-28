@@ -19,7 +19,7 @@ const BASIS_LABEL: Record<GeneralFundBasis, string> = {
 
 export function GeneralFundPanel({ fund, aboutHref }: { fund: GeneralFund; aboutHref: string }) {
   return (
-    <div className="h-full space-y-3 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
+    <div className="space-y-3 p-4 text-sm text-mirai-text">
       <div>
         <p className="text-xs text-mirai-text-muted">一般会計 ／ 歳出の財源内訳</p>
         <h2 className="text-base font-bold">一般財源の中身</h2>
