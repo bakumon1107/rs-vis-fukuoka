@@ -97,7 +97,8 @@ function MiniChart({ ind }: { ind: FiscalIndicator }) {
       {tip && active !== null && (
         <div
           className="pointer-events-none absolute z-10 w-44 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
-          style={{ left: Math.min(Math.max(0, x(active) - 88), W - 176), top: 0 }}
+          // 点と反対の側に出す（点の近くの線を隠さないように）
+          style={{ left: x(active) > W / 2 ? PAD.l : W - PAD.r - 176, top: 0 }}
           role="status"
         >
           <div className="font-bold">

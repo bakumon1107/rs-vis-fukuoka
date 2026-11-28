@@ -15,7 +15,9 @@ import { eraLabel } from '@/client/components/local-gov/FundsTrendChart';
 /** 地方版の主色（ラベンダー。app/lib/local-gov/site.ts と同じ） */
 const LINE = '#7a6cc0';
 const H = 260;
-const PAD = { l: 56, r: 20, t: 16, b: 30 };
+const PAD = { l: 56, r: 20, t: 16, b: 40 };
+/** ツールチップの幅（px）。点と反対の側に出す（点の近くの線を隠さないように） */
+const TIP_W = 224;
 
 export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
   const { ref, width } = useElementWidth<HTMLDivElement>(640);
@@ -91,7 +93,12 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
               {showYear(i) && (
                 <text x={x(i)} y={H - PAD.b + 16} textAnchor="middle" className="fill-mirai-text-muted text-[11px]">
                   {eraLabel(p.year)}
-                  {p.kind === 'outlook' ? '見込' : ''}
+                  {/* 見込みは2行目に（隣の年度のラベルと詰まらないように） */}
+                  {p.kind === 'outlook' && (
+                    <tspan x={x(i)} dy={12}>
+                      見込
+                    </tspan>
+                  )}
                 </text>
               )}
             </g>
@@ -128,8 +135,8 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
         </svg>
         {tip && active !== null && (
           <div
-            className="pointer-events-none absolute z-10 w-56 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
-            style={{ left: Math.min(Math.max(0, x(active) - 112), W - 224), top: 4 }}
+            className="pointer-events-none absolute z-10 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
+            style={{ width: TIP_W, left: x(active) > W / 2 ? PAD.l + 4 : W - PAD.r - TIP_W, top: 4 }}
             role="status"
           >
             <div className="font-bold">
