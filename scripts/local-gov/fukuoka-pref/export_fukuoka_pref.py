@@ -620,7 +620,10 @@ def previous_only_kan(rows, accounts, entries):
         if e["会計"] not in ids:
             fails.append(f"前年度にだけあった款: 会計 {e['会計']} がない（修正表が古い）")
             continue
-        side = {"歳入": "revenue", "歳出": "expense"}[e["side"]]
+        side = {"歳入": "revenue", "歳出": "expense"}.get(e.get("side"))
+        if side is None:
+            fails.append(f"前年度にだけあった款: {e['会計']} の「{e.get('款名')}」の side が不正（{e.get('side')!r}。歳入・歳出）")
+            continue
         if any(r["account"] == e["会計"] and r["side"] == side and r["kan"]["name"] == e["款名"] for r in rows):
             fails.append(f"前年度にだけあった款: {e['会計']} の「{e['款名']}」に本年度の行がある（前年度にだけの款ではない）")
             continue

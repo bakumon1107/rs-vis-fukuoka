@@ -305,6 +305,12 @@ test('前年度にだけあった款: 当初予算だけ。会計・款の名前
   assert.ok(errs({ pages: [] }).some(e => e.includes('出典のページ')));
   assert.ok(errs({ side: 'expense', kan: { name: '総務費' } }).some(e => e.includes('本年度の行に同じ款')));
   assert.ok(errs({}, { basis: 'settlement' }).some(e => e.includes('当初予算のファイルだけ')));
+  // 同じ款が2つあると前年度を二重に足す。公営企業会計には付けない（画面が数えない）
+  assert.ok(
+    validateBudgetFile(file([row()], { previous_only_kan: [k, k] })).errors.some(e => e.includes('同じ款が2つ'))
+  );
+  const ent = { accounts: [{ id: 'general', kind: 'general' as const, name: '一般会計' }, { id: 'enterprise:x', kind: 'enterprise' as const, name: '病院' }] };
+  assert.ok(errs({ account: 'enterprise:x' }, ent).some(e => e.includes('公営企業会計には付けない')));
 });
 
 test('検算の要約の行数が実際の行数と合う', () => {
@@ -358,6 +364,10 @@ test('index との突き合わせ: 資料の一覧にない出典・名前の資
   withShortfall.accounts.push({ id: 'enterprise:byoin', kind: 'enterprise', name: '病院事業会計',
     enterprise: { capital_shortfall: { amount: 0, items: [], source: { source: 'r8-gian-x', page: 1 } } } });
   assert.ok(validateAgainstIndex(withShortfall, index, name).some(e => e.includes('補填財源の出典 r8-gian-x')));
+  // 前年度にだけあった款の出典も資料の一覧にあること
+  const onlyKan = file([row()], { previous_only_kan: [{ account: 'general', side: 'revenue', kan: { name: '財産収入' },
+    previous: v(2_530_000, 'correction'), pages: [{ source: 'r8-setsumeisho-tok', page: 93 }] }] });
+  assert.ok(validateAgainstIndex(onlyKan, index, name).some(e => e.includes('previous_only_kan general 財産収入: 出典 r8-setsumeisho-tok')));
   assert.ok(validateAgainstIndex(file([row()], { gov_id: 'other' }), index, name).some(e => e.includes('gov_id')));
   // 推定の値がある・全検算が一致しないのに verified
   assert.ok(validateAgainstIndex(file([row({ previous: v(1, 'inferred') })]), index, name).some(e => e.includes('推定の値')));

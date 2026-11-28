@@ -541,7 +541,13 @@ function LocalGovContent() {
 
         {simple && shown && (
           <div className="mt-3">
-            <SimpleRanking graph={shown.graph} deltas={deltas} previous={previous} onSelect={id => setQuery({ mode: 'detail', sel: id })} />
+            <SimpleRanking
+              graph={shown.graph}
+              deltas={deltas}
+              previous={previous}
+              previousOnlyIn={previous ? id => previousOnlyKanIn(file, id) : undefined}
+              onSelect={id => setQuery({ mode: 'detail', sel: id })}
+            />
           </div>
         )}
 

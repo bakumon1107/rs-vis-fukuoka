@@ -205,9 +205,16 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
   if (file.revenue_by_kan && file.basis !== 'settlement') err('revenue_by_kan は決算のファイルだけ');
 
   // 前年度にだけあった款: 当初予算だけ。本年度の行に同じ会計・歳入歳出・款の名前があれば前年度にだけの款ではない
+  // 公営企業会計は前年度の額を持たない（画面も数えない）。同じ会計・歳入歳出・款が2つあると前年度を二重に足す
+  const enterpriseIds = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  const onlyKeys = new Set<string>();
   (file.previous_only_kan ?? []).forEach((k, i) => {
     const where = `previous_only_kan[${i}] ${k.account} ${k.kan?.name}`;
     if (!accountIds.has(k.account)) err(`${where}: 会計 ${k.account} が accounts にない`);
+    if (enterpriseIds.has(k.account)) err(`${where}: 公営企業会計には付けない（前年度の額を持たない）`);
+    const key = `${k.account}/${k.side}/${k.kan?.name}`;
+    if (onlyKeys.has(key)) err(`${where}: 同じ款が2つある`);
+    onlyKeys.add(key);
     if (!SIDES.includes(k.side)) err(`${where}: side が不正（${k.side}）`);
     if (!k.kan?.name) err(`${where}: 款の名前がない`);
     checkValue(`${where} previous`, k.previous, true);
@@ -357,6 +364,11 @@ export function validateAgainstIndex(file: LocalBudgetFile, index: LocalGovIndex
   }
   for (const st of file.funds?.statements ?? []) {
     if (!ids.has(st.source)) errors.push(`funds: ${st.label} の調書 ${st.source} が index の sources にない`);
+  }
+  for (const k of file.previous_only_kan ?? []) {
+    for (const p of k.pages) {
+      if (!ids.has(p.source)) errors.push(`previous_only_kan ${k.account} ${k.kan.name}: 出典 ${p.source} が index の sources にない`);
+    }
   }
   return errors;
 }

@@ -10,7 +10,7 @@ import type { Breakdown } from '@/app/lib/local-gov/breakdown';
 import { DELTA_COLUMNS, shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import type { Yen } from '@/types/local-gov';
-import { PREVIOUS_NOTE, PreviousLine, RankedList, deltaColor } from './RankedList';
+import { PREVIOUS_NOTE, PreviousLine, RankedList, deltaColor, previousOnlyNote } from './RankedList';
 
 interface Props {
   breakdown: Breakdown;
@@ -53,10 +53,7 @@ export function BoxBreakdown({ breakdown: b, deltas, parentDelta, previous, prev
   // 財源の箱は前年度の額がない（目ごとの財源内訳は本年度だけ）
   const fundingNoPrevious = !!previous && b.parent.id.startsWith('funding:');
   // 前年度にだけあった款は本年度の行がないので、表の行の前年度を足しても計の前年度にならない。その分を書く
-  const onlyNote =
-    parentPrevious !== undefined && previousOnly.length > 0
-      ? `前年度には、本年度はない${previousOnly.map(k => `${k.account}の${k.kan}（${formatBudgetFromYen(k.previous)}）`).join('・')}を含みます。`
-      : '';
+  const onlyNote = parentPrevious !== undefined ? previousOnlyNote(previousOnly) : '';
   const pd = parentDelta && (parentDelta.added ? '新' : shortDelta(parentDelta.delta));
   return (
     <div className="p-3">

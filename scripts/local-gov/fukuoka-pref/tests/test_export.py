@@ -261,6 +261,9 @@ def test_previous_only_kan_stops_when_stale():
     rows = FUTO_ROWS + [_prev_row(FUTO, "revenue", "財産収入", 0)]
     _, fails, _ = ex.previous_only_kan(rows, ACCOUNTS, [FUTO_ENTRY])
     assert any("本年度の行がある" in f for f in fails)
+    # side の書き間違い（前後の空白など）は例外でなく、どの款かを書いて止まる
+    _, fails, _ = ex.previous_only_kan(FUTO_ROWS, ACCOUNTS, [{**FUTO_ENTRY, "side": "歳入 "}])
+    assert any("side が不正" in f and "財産収入" in f for f in fails)
 
 
 def test_previous_only_kan_skips_unread_previous_and_enterprise():
