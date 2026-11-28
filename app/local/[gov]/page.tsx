@@ -9,8 +9,8 @@
  */
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import LoadingSpinner from '@/client/components/LoadingSpinner';
+import { useParams, useSearchParams } from 'next/navigation';
+import { LocalPageLoading } from '@/client/components/local-gov/LocalPageLoading';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
@@ -69,7 +69,7 @@ type ChartMode = 'simple' | 'detail';
 
 export default function LocalGovPage() {
   return (
-    <Suspense fallback={<LoadingSpinner fullscreen />}>
+    <Suspense fallback={<LocalPageLoading />}>
       <LocalGovContent />
     </Suspense>
   );
@@ -78,7 +78,6 @@ export default function LocalGovPage() {
 function LocalGovContent() {
   const { gov } = useParams<{ gov: string }>();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const qv = searchParams.get('view');
   const selectedId = searchParams.get('sel');
   // 当初・補正後・決算（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
@@ -154,9 +153,13 @@ function LocalGovContent() {
         const nextDefault: ChartMode = simpleFirst && !q.get('sel') ? 'simple' : 'detail';
         if (nextDefault !== mode) q.set('mode', mode);
       }
-      router.replace(`?${q.toString()}`, { scroll: false });
+      // 同じページの中でクエリだけを変えるので、ブラウザの履歴だけを書き換える（Next.js は useSearchParams をこれに合わせる）。
+      // router.replace だと押すたびに画面のデータ（index.txt）を取りに行き、通信が失敗すると Next.js 15.5 が
+      // `…/index.txt?…` へ移動して中身の文字をそのまま出していた（静的に書き出したサイトでの不具合）。取りに行かなければ起きない
+      // 第1引数は Next.js の説明どおり null（Next.js が自分の状態を補う）
+      window.history.replaceState(null, '', `?${q.toString()}`);
     },
-    [router, searchParams, basis, simpleFirst, simpleOk, view, mode]
+    [searchParams, basis, simpleFirst, simpleOk, view, mode]
   );
 
   // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
@@ -271,7 +274,7 @@ function LocalGovContent() {
     return state.index.sources.filter(s => used.has(s.id)).map(s => s.title).join('・');
   }, [state]);
 
-  if (state.status === 'loading') return <LoadingSpinner fullscreen />;
+  if (state.status === 'loading') return <LocalPageLoading />;
   if (state.status === 'error') {
     // ヘッダーは固定で重なるので、エラーのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
     return (
@@ -430,6 +433,8 @@ function LocalGovContent() {
               {v.label}
             </button>
           ))}
+          {/* 見方の説明（列の並び・財源の断り）はくわしくの図のもの。かんたんの図は列が違い、図の上に自分の説明を出すので出さない */}
+          {!simple && (
           <span className="text-xs text-mirai-text-muted">
             {views.find(v => v.key === view)?.note}
             {view === 'all' && file.basis === 'initial' && (
@@ -473,6 +478,7 @@ function LocalGovContent() {
               </>
             )}
           </span>
+          )}
         </div>
 
         {/* 選択中の表示と、選択の解除（全部の流れを見る）を常に出す */}

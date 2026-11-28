@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import LoadingSpinner from '@/client/components/LoadingSpinner';
+import { LocalPageLoading } from '@/client/components/local-gov/LocalPageLoading';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
@@ -53,7 +53,7 @@ function srcNote(src: ValueSource) {
 
 export default function LocalGovAboutPage() {
   return (
-    <Suspense fallback={<LoadingSpinner fullscreen />}>
+    <Suspense fallback={<LocalPageLoading />}>
       <LocalGovAboutContent />
     </Suspense>
   );
@@ -101,7 +101,7 @@ function LocalGovAboutContent() {
     el?.focus({ preventScroll: true });
   }, [ready]);
 
-  if (state.status === 'loading') return <LoadingSpinner fullscreen />;
+  if (state.status === 'loading') return <LocalPageLoading />;
   if (state.status === 'error') {
     // ヘッダーは固定で重なるので、エラーのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
     return (
