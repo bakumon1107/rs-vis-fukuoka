@@ -6,14 +6,15 @@
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/export_fukuoka_pref.py --work <作業ディレクトリ> --pdf-dir <原本の置き場所> \
         --xlsx-dir <表計算の資料の置き場所> --out public/data/local-gov/fukuoka-pref
-    （回帰テストは --allow-missing-fiscal を付ける: fiscal.json がない・読めなくても、財政の指標を書かずに続ける）
+    （回帰テストは --allow-missing-fiscal を付ける: fiscal.json がない・読めない・確かめが通っていない・形が崩れているときも、
+     財政の指標を書かずに続ける）
 
 <作業ディレクトリ> は回帰テストの出力（tests/regression.py --keep <dir>）。リポジトリには入れない。使うもの:
     cross.json・cross-toku.json … 一般会計・特別会計の cross_check.py の出力（OCR＋修正表＋文字層との突き合わせ）
     setsumeisho-{ocr,v4,tl}.json・setsumeisho-toku{,-v4,-tl}.json … 多数決に使う3つの読み取り
     yosansho.json・keijougaku.json・kessan-kmk.json（R6 決算。名前の照合に使う）
     fiscal.json … 三基金の推移と見込み・財政の指標（extract_fiscal.py。fiscal-indicators.json にする。--xlsx-dir が要る。
-                  ない・読めないと止まる。--allow-missing-fiscal のときは書かずに続ける）
+                  ない・読めない・fails がある・形が崩れていると止まる。--allow-missing-fiscal のときは書かずに続ける）
 回帰テストの最後のステップとしても流れる（書き出しの要約が変わったら気づける）。
 
 書き出すもの:
@@ -692,15 +693,40 @@ def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
     res, inds = fiscal.get("reserve"), fiscal.get("indicators")
     if not isinstance(res, dict) or not isinstance(inds, list):
         return "fiscal.json に reserve・indicators がない"
-    if not res.get("history") or not res.get("outlook") or not res.get("target") or len(inds) != 4 \
-            or any(not isinstance(ind, dict) or not ind.get("values") for ind in inds):
-        return "三基金の実績・見込み・目標か、4つの指標の値が欠けている"
-    used = {h["source"] for h in res["history"]} | {res["outlook"]["source"], res["target"]["source"]} | \
-           {v["source"] for ind in inds for v in ind["values"]}
+    # 形の崩れ（キーがない・型が違う）は、落ちずに理由を返す
+    try:
+        hist, out, tgt = res["history"], res["outlook"], res["target"]
+        if not hist or not out or not tgt:
+            return "三基金の実績・見込み・目標が欠けている"
+        years = [h["year"] for h in hist]
+        if years != list(range(years[0], years[0] + len(years))):
+            return f"三基金の実績の年度が続いていない: {years}"
+        if any(sum(h["parts"]) != h["total"] or not isinstance(h["total"], int) for h in hist):
+            return "三基金の実績の内訳の計が合計と合わない"
+        if out["year"] != years[-1] + 1 or not isinstance(out["total"], int):
+            return "見込みの年度・額がおかしい"
+        if not (isinstance(tgt["min"], int) and isinstance(tgt["max"], int) and tgt["min"] <= tgt["max"]):
+            return "目標の下限・上限がおかしい"
+        keys = sorted(ind["key"] for ind in inds)
+        if keys != sorted(FISCAL_KEYS):
+            return f"指標の種類が {sorted(FISCAL_KEYS)} でない: {keys}"
+        for ind in inds:
+            if not ind["values"]:
+                return f"指標 {ind['key']} の値がない"
+            for v in ind["values"]:
+                if not all(isinstance(v[k], (int, float)) for k in ("year", "value", "median", "rank", "of")):
+                    return f"指標 {ind['key']} の値が数でない"
+        used = {h["source"] for h in hist} | {out["source"], tgt["source"]} | {v["source"] for ind in inds for v in ind["values"]}
+    except (KeyError, TypeError, IndexError, AttributeError) as e:
+        return f"fiscal.json の形が崩れている（{type(e).__name__}: {e}）"
     unknown = sorted(used - source_ids)
     if unknown:
         return f"sources.json にない資料: {unknown}"
     return None
+
+
+# 財政の指標の種類（validate.ts の FISCAL_KEYS と同じ）
+FISCAL_KEYS = ("fiscal_capacity", "current_balance", "debt_service", "future_burden")
 
 
 def main():
@@ -725,8 +751,8 @@ def main():
         try:
             loaded = json.load(open(w("fiscal.json"), encoding="utf-8"))
             problem = fiscal_problem(loaded, {s["id"] for s in source_list})
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            loaded, problem = None, "fiscal.json が空か壊れている（抽出が失敗した）"
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+            loaded, problem = None, "fiscal.json が読めない・空か壊れている（抽出が失敗した）"
         fiscal = None if problem else loaded
     else:
         problem = "fiscal.json がない（extract_fiscal.py を流していない）"

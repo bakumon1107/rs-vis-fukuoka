@@ -275,11 +275,14 @@ def test_previous_only_kan_skips_unread_previous_and_enterprise():
 
 
 def _fiscal(**over):
-    ind = lambda k: {"key": k, "values": [{"year": 2024, "source": "r6-shihyo"}]}  # noqa: E731
+    ind = lambda k: {"key": k, "values": [{"year": 2024, "value": 1.0, "median": 1.0, "rank": 1, "of": 47,  # noqa: E731
+                                           "source": "r6-shihyo"}]}
     base = {"fails": [],
-            "reserve": {"history": [{"year": 2025, "source": "r7-kikin"}],
-                        "outlook": {"source": "r8-gaiyou"}, "target": {"source": "r8-gaiyou"}},
-            "indicators": [ind(k) for k in ("a", "b", "c", "d")]}
+            "reserve": {"history": [{"year": 2024, "total": 3, "parts": [1, 2], "source": "r7-kikin"},
+                                    {"year": 2025, "total": 4, "parts": [2, 2], "source": "r7-kikin"}],
+                        "outlook": {"year": 2026, "total": 5, "source": "r8-gaiyou"},
+                        "target": {"min": 1, "max": 2, "source": "r8-gaiyou"}},
+            "indicators": [ind(k) for k in ex.FISCAL_KEYS]}
     return {**base, **over}
 
 
@@ -291,5 +294,15 @@ def test_fiscal_problem_accepts_a_complete_output_and_names_each_problem():
     assert "fails がない" in ex.fiscal_problem({}, ids)
     assert "確かめが通っていない" in ex.fiscal_problem(_fiscal(fails=["x"]), ids)
     assert "reserve" in ex.fiscal_problem({"fails": []}, ids)
-    assert "欠けている" in ex.fiscal_problem(_fiscal(indicators=[]), ids)
+    assert "指標の種類" in ex.fiscal_problem(_fiscal(indicators=[]), ids)
     assert "sources.json にない" in ex.fiscal_problem(_fiscal(), {"r7-kikin"})
+    # 形の崩れは落ちずに理由を返す
+    bad = _fiscal()
+    bad["reserve"] = {**bad["reserve"], "outlook": "n/a"}
+    assert "形が崩れている" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["reserve"] = {**bad["reserve"], "outlook": {"year": 2027, "total": 5, "source": "r8-gaiyou"}}
+    assert "見込み" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["reserve"]["history"][1] = {"year": 2025, "total": 5, "parts": [2, 2], "source": "r7-kikin"}
+    assert "内訳の計" in ex.fiscal_problem(bad, ids)
