@@ -10,6 +10,7 @@
  */
 import type { LocalBudgetFile, LocalGraph } from '@/types/local-gov';
 import { buildLocalGraph, edgeKey, type EnterpriseSection, type FundingKey, type LocalGraphFilter, type LocalGraphView } from './graph';
+import { simpleFundingFlow } from './simple-flow';
 
 /** 最初に出す列の数（深い列は選んだときだけ開く） */
 export const BASE_DEPTH = 3;
@@ -29,6 +30,17 @@ export interface LocalGraphDisplay {
   note: string | null;
   /** 列を絞ったとき（windowColumns）に外した左の列の数。列の色を広い幅と同じにするため、描画は元の列の位置で色を決める */
   colorOffset?: number;
+  /**
+   * 帯・箱を財源の色で塗る（かんたんの図の3列だけ。列の色の代わり）。funding: 帯のキー・財源の箱の ID → 財源、
+   * estimated: 概算の帯のキー（縁を点線にする）。ない箱（歳入・歳出の款）は灰色
+   */
+  fundingColors?: {
+    funding: Map<string, FundingKey>;
+    estimated: Set<string>;
+    groupedNames: string[];
+    estimatedParts: { name: string; value: number }[];
+    groupBelow: number;
+  };
 }
 
 // 帯のキーは graph.ts と同じもの（描画・テストからはここ経由でも使える）
@@ -255,22 +267,39 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   };
 }
 
-/** かんたんの図の列の数（見方の左から。一般会計は 財源 → 款、全会計は 歳入の款 → 会計。公営企業会計の見方には出さない） */
+/**
+ * かんたんの図の列の数（見方の左から。一般会計は 財源 → 款、全会計は 歳入の款 → 会計。公営企業会計の見方には出さない）。
+ * 一般会計の当初予算で歳入の款 → 財源の帯があるときは、左に歳入の款を足して3列（simpleDisplay）
+ */
 export const SIMPLE_DEPTH = 2;
 
 /**
  * かんたんの図（設計: スマートフォンのサンキー図と簡易表示 2.3 案A）。見方の左の2列だけの、絞り込まない全体のグラフ。
  * 箱・帯の額はくわしくの図と同じ（推計しない）。選択はなく、箱を押すとくわしくの図でその箱を選ぶ（page.tsx）
  */
-export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView): LocalGraphDisplay {
-  return {
-    graph: fullGraph(file, view, SIMPLE_DEPTH),
-    selected: null,
-    highlight: new Map(),
-    highlightNodes: new Set(),
-    row: null,
-    note: null,
-  };
+export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView, groupBelow = 0): LocalGraphDisplay {
+  const empty = { selected: null, highlight: new Map(), highlightNodes: new Set<string>(), row: null, note: null };
+  // 一般会計の当初予算で歳入の款 → 財源の帯（general_fund.flows）があれば、歳入の款 → 財源 → 歳出の款の3列にし、財源の色で塗る
+  // （設計: かんたんの図に歳入から財源への振り分けを足す設計）。ほかは今の2列
+  if (view === 'general') {
+    // 歳入の款の箱の ※ は、押すと開く全会計の見方の歳入の款の箱と同じにする
+    const revenueFlags = new Map(fullGraph(file, 'all', 1).nodes.map(n => [n.id, n.flags]));
+    const flow = simpleFundingFlow(file, fullGraph(file, view, SIMPLE_DEPTH), groupBelow, revenueFlags);
+    if (flow) {
+      return {
+        graph: flow.graph,
+        ...empty,
+        fundingColors: {
+          funding: flow.funding,
+          estimated: flow.estimated,
+          groupedNames: flow.groupedNames,
+          estimatedParts: flow.estimatedParts,
+          groupBelow: flow.groupBelow,
+        },
+      };
+    }
+  }
+  return { graph: fullGraph(file, view, SIMPLE_DEPTH), ...empty };
 }
 
 /** fullGraph の覚え書き（データごとに、`見方:深さ` → グラフ） */

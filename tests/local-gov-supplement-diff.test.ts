@@ -143,14 +143,22 @@ test('実データ R8: 図の箱の増減 = 補正後の箱の額 − 当初の�
     // 見出しの総計の増減 = 補正後の総計 − 当初の総計
     assert.equal(grossDelta(initial, view, after.totals.gross), after.totals.gross - initialGraph.totals.gross);
   }
-  // かんたんの図: 見方の左2列だけで、総計・箱の額はくわしくの図と同じ（推計しない）
+  // かんたんの図: 見方の左2列で、総計・箱の額はくわしくの図と同じ（推計しない）。
+  // 一般会計の当初予算だけ、左に歳入の款の列が付く（歳入の款 → 財源 → 歳出の款。simple-flow のテスト）
   for (const file of [initial, composed]) {
     for (const view of ['general', 'all'] as const) {
       const s = simpleDisplay(file, view).graph;
       const full = buildLocalGraph(file, { view });
-      assert.deepEqual(s.columns.map(c => c.key), full.columns.slice(0, SIMPLE_DEPTH).map(c => c.key));
+      const three = view === 'general' && file === initial;
+      assert.deepEqual(
+        s.columns.map(c => c.key),
+        [...(three ? ['revenue'] : []), ...full.columns.slice(0, SIMPLE_DEPTH).map(c => c.key)]
+      );
       assert.equal(s.totals.gross, full.totals.gross, `${view} かんたんの総計`);
-      for (const n of s.nodes) assert.equal(n.value, full.nodes.find(x => x.id === n.id)?.value, `${view} ${n.id}`);
+      for (const n of s.nodes) {
+        if (three && n.col === 'revenue') continue;
+        assert.equal(n.value, full.nodes.find(x => x.id === n.id)?.value, `${view} ${n.id}`);
+      }
     }
   }
   // 一般会計の歳出の増減 = 一般会計の歳出の増減の表の合計

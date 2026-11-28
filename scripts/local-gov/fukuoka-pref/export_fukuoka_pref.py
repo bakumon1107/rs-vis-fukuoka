@@ -874,6 +874,10 @@ def main():
     if gfund:
         print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
               file=sys.stderr)
+        if "flows" in gfund:
+            fl = gfund["flows"]
+            print(f"歳入の款 → 財源: 帯 {len(fl)} 本（うち概算 {sum(1 for x in fl if x.get('estimated'))} 本）・"
+                  f"財源ごとの合計は歳出の財源内訳と一致", file=sys.stderr)
     print(f"前年度にだけあった款 {len(prev_only_kan)} 件 {sum(k['previous']['v'] for k in prev_only_kan):,} 円。"
           f"前年度の歳入 = 歳出を確かめた会計 {prev_checked} 件", file=sys.stderr)
     for line in settlement_lines + hosei_lines:

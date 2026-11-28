@@ -232,6 +232,16 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (!Array.isArray(gf.notes) || gf.notes.some(n => typeof n !== 'string')) err('general_fund.notes が文字列の配列でない');
     gf.rows.forEach((r, i) => {
       if (!GENERAL_FUND_BASES.includes(r.basis)) err(`general_fund.rows[${i}]: basis が不正（${r.basis}）`);
+      // 差し引きの款ごとの内訳: 各額は 0 以上の整数、合計 = 行の額
+      if (r.split !== undefined) {
+        if (!Array.isArray(r.split) || r.split.some(s => typeof s !== 'object' || s === null)) {
+          err(`general_fund.rows[${i}] ${r.label}: split が { kan, amount } の配列でない`);
+        } else {
+          if (r.split.some(s => !Number.isInteger(s.amount) || s.amount < 0)) err(`general_fund.rows[${i}] ${r.label}: split に負・整数でない額がある`);
+          const t = r.split.reduce((s, x) => s + x.amount, 0);
+          if (t !== r.amount) err(`general_fund.rows[${i}] ${r.label}: split の合計 ${t} ≠ 行の額 ${r.amount}`);
+        }
+      }
       if (!Number.isInteger(r.amount) || r.amount < 0) err(`general_fund.rows[${i}] ${r.label}: 額が 0 以上の整数でない（${r.amount}）`);
       for (const id of r.refs ?? []) if (!rowIds.has(id)) err(`general_fund.rows[${i}] ${r.label}: 組み替えの元の目 ${id} がない`);
     });
@@ -244,6 +254,47 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     }
     const general = expense.reduce((s, r) => s + (r.funding?.general.v ?? 0), 0);
     if (gf.total !== general) err(`general_fund: total ${gf.total} ≠ 一般会計の歳出の財源内訳の一般財源の合計 ${general}`);
+    // 歳入の款 → 財源 の帯（かんたんの図の3列）: 帯は正の整数。財源ごとの合計 = 歳出の財源内訳の合計、款ごとの合計 = 歳入の款の額
+    if (gf.flows) {
+      const fundingKeys = ['national', 'bond', 'other', 'general'] as const;
+      const revenueByKan = new Map<number, number>();
+      const kanName = new Map<number, string>();
+      for (const r of file.rows) {
+        if (r.account === 'general' && r.side === 'revenue') {
+          revenueByKan.set(r.kan.no, (revenueByKan.get(r.kan.no) ?? 0) + (r.amount.v ?? 0));
+          kanName.set(r.kan.no, r.kan.name);
+        }
+      }
+      const byKan = new Map<number, number>();
+      const byFunding = new Map<string, number>();
+      gf.flows.forEach((f, i) => {
+        if (!fundingKeys.includes(f.funding)) err(`general_fund.flows[${i}]: funding が不正（${f.funding}）`);
+        if (!Number.isInteger(f.amount) || f.amount <= 0) err(`general_fund.flows[${i}] ${f.kan_name}: 額が正の整数でない（${f.amount}）`);
+        if (!revenueByKan.has(f.kan)) err(`general_fund.flows[${i}]: 歳入の款 ${f.kan} がない`);
+        // 図の箱の ID は名前（revenue:<款の名前>）なので、行の款の名前と同じであること（違うと全会計の見方の箱に当たらない）
+        else if (kanName.get(f.kan) !== f.kan_name) err(`general_fund.flows[${i}]: 款の名前「${f.kan_name}」が歳入の ${f.kan}款「${kanName.get(f.kan)}」と違う`);
+        byKan.set(f.kan, (byKan.get(f.kan) ?? 0) + f.amount);
+        byFunding.set(f.funding, (byFunding.get(f.funding) ?? 0) + f.amount);
+      });
+      for (const [kan, v] of revenueByKan) {
+        if ((byKan.get(kan) ?? 0) !== v) err(`general_fund.flows: 歳入の ${kan}款の帯の合計 ${byKan.get(kan) ?? 0} ≠ 款の額 ${v}`);
+      }
+      // 差し引きの split の款 = 概算の帯（estimated）の款。どちらも歳入にある款
+      const rawSplit = gf.rows.find(r => r.basis === 'residual')?.split;
+      // 0 円の分は帯にならないので比べない
+      const splitKans = new Set(
+        (Array.isArray(rawSplit) ? rawSplit : []).filter(s => s && typeof s === 'object' && s.amount > 0).map(s => s.kan)
+      );
+      const estKans = new Set(gf.flows.filter(f => f.estimated).map(f => f.kan));
+      for (const k of splitKans) if (!revenueByKan.has(k)) err(`general_fund: 差し引きの split の ${k}款が歳入にない`);
+      if (splitKans.size !== estKans.size || [...splitKans].some(k => !estKans.has(k))) {
+        err(`general_fund: 差し引きの split の款（${[...splitKans].join('・')}）と概算の帯の款（${[...estKans].join('・')}）が違う`);
+      }
+      for (const k of fundingKeys) {
+        const want = expense.reduce((s, r) => s + (r.funding?.[k].v ?? 0), 0);
+        if ((byFunding.get(k) ?? 0) !== want) err(`general_fund.flows: ${k} の帯の合計 ${byFunding.get(k) ?? 0} ≠ 歳出の財源内訳の合計 ${want}`);
+      }
+    }
   }
 
   // 基金: 決算のファイルだけ。区分ごとに 前年度末 + 増減 = 年度末、年度末 + 出納整理 = 出納閉鎖日。基金の額 = 区分の合計。

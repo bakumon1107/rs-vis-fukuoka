@@ -93785,7 +93785,8 @@
     "basis": "matched",
     "refs": [
      "general/revenue/9-2-1"
-    ]
+    ],
+    "kan": 9
    },
    {
     "label": "県債のうち 調整債",
@@ -93793,7 +93794,8 @@
     "basis": "matched",
     "refs": [
      "general/revenue/15-1-12"
-    ]
+    ],
+    "kan": 15
    },
    {
     "label": "繰入金のうち 財政調整基金・減債基金・特別会計繰入金",
@@ -93808,7 +93810,8 @@
      "general/revenue/12-1-4",
      "general/revenue/12-1-5",
      "general/revenue/12-1-6"
-    ]
+    ],
+    "kan": 12
    },
    {
     "label": "寄附金のうち（一般寄附金）",
@@ -93816,12 +93819,27 @@
     "basis": "summed",
     "refs": [
      "general/revenue/11-1-1"
-    ]
+    ],
+    "kan": 11
    },
    {
     "label": "諸収入・財産収入・使用料及び手数料のうち（差し引き）",
     "amount": 15724888000,
-    "basis": "residual"
+    "basis": "residual",
+    "split": [
+     {
+      "kan": 8,
+      "amount": 862021000
+     },
+     {
+      "kan": 10,
+      "amount": 2635509000
+     },
+     {
+      "kan": 14,
+      "amount": 12227358000
+     }
+    ]
    }
   ],
   "total": 1658599628000,
@@ -93833,6 +93851,143 @@
    "このほか、諸収入・財産収入・使用料及び手数料の一部（合わせて約157億円）も一般財源に数えられています。この額は一般財源の合計からほかの中身を引いた差し引きで、財源の名前ごとの足し上げから求めた概算とも合います（違いは約86万円で、財源の名前と金額の組の読み取りの誤差の範囲）。どの収入を一般財源に数えたかは説明書に書かれていません。",
    "その中身は、歳入の説明欄の課ごとの内訳と、歳出の目の財源内訳を突き合わせて調べました。財産収入の約26億円は、歳出の目に受け皿のない県有財産の貸付料・売払代と基金などの利子で、全額の中身を説明できます（分野ごとに足すと差と一致）。諸収入の約122億円（宝くじの益金・県の預金の利子・延滞金など）と使用料及び手数料の約9億円（道路・川・海の占用料など）は、受け皿のない収入から推測した候補で、差の一部（約6〜8割）にとどまります。"
   ],
-  "checked_on": "2026-11-14"
+  "checked_on": "2026-11-14",
+  "flows": [
+   {
+    "kan": 1,
+    "kan_name": "県税",
+    "funding": "general",
+    "amount": 830805619000
+   },
+   {
+    "kan": 2,
+    "kan_name": "地方消費税清算金",
+    "funding": "general",
+    "amount": 298598935000
+   },
+   {
+    "kan": 3,
+    "kan_name": "地方譲与税",
+    "funding": "general",
+    "amount": 126605150000
+   },
+   {
+    "kan": 4,
+    "kan_name": "地方特例交付金",
+    "funding": "general",
+    "amount": 18194489000
+   },
+   {
+    "kan": 5,
+    "kan_name": "地方交付税",
+    "funding": "general",
+    "amount": 314283866000
+   },
+   {
+    "kan": 6,
+    "kan_name": "交通安全対策特別交付金",
+    "funding": "general",
+    "amount": 870606000
+   },
+   {
+    "kan": 7,
+    "kan_name": "分担金及び負担金",
+    "funding": "other",
+    "amount": 4672914000
+   },
+   {
+    "kan": 8,
+    "kan_name": "使用料及び手数料",
+    "funding": "general",
+    "amount": 862021000,
+    "estimated": true
+   },
+   {
+    "kan": 8,
+    "kan_name": "使用料及び手数料",
+    "funding": "other",
+    "amount": 15694504000
+   },
+   {
+    "kan": 9,
+    "kan_name": "国庫支出金",
+    "funding": "general",
+    "amount": 6660172000
+   },
+   {
+    "kan": 9,
+    "kan_name": "国庫支出金",
+    "funding": "national",
+    "amount": 210506089000
+   },
+   {
+    "kan": 10,
+    "kan_name": "財産収入",
+    "funding": "general",
+    "amount": 2635509000,
+    "estimated": true
+   },
+   {
+    "kan": 10,
+    "kan_name": "財産収入",
+    "funding": "other",
+    "amount": 1479383000
+   },
+   {
+    "kan": 11,
+    "kan_name": "寄附金",
+    "funding": "general",
+    "amount": 1059000000
+   },
+   {
+    "kan": 11,
+    "kan_name": "寄附金",
+    "funding": "other",
+    "amount": 603764000
+   },
+   {
+    "kan": 12,
+    "kan_name": "繰入金",
+    "funding": "general",
+    "amount": 32461202000
+   },
+   {
+    "kan": 12,
+    "kan_name": "繰入金",
+    "funding": "other",
+    "amount": 28320076000
+   },
+   {
+    "kan": 13,
+    "kan_name": "繰越金",
+    "funding": "general",
+    "amount": 1000
+   },
+   {
+    "kan": 14,
+    "kan_name": "諸収入",
+    "funding": "general",
+    "amount": 12227358000,
+    "estimated": true
+   },
+   {
+    "kan": 14,
+    "kan_name": "諸収入",
+    "funding": "other",
+    "amount": 224761870000
+   },
+   {
+    "kan": 15,
+    "kan_name": "県債",
+    "funding": "general",
+    "amount": 13335700000
+   },
+   {
+    "kan": 15,
+    "kan_name": "県債",
+    "funding": "bond",
+    "amount": 155388800000
+   }
+  ]
  }
 }

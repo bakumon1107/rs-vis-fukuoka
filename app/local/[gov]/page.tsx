@@ -62,6 +62,8 @@ const VIEWS: Record<Basis, ViewInfo[]> = {
   ],
 };
 const BASIS_LABEL: Record<Basis, string> = { initial: '当初予算', supplementary: '補正予算', settlement: '決算' };
+/** かんたんの3列で、スマートフォンの幅のとき「その他の収入」にまとめる歳入の款（歳入の合計のこの割合より小さい款） */
+const SIMPLE_GROUP_BELOW = 0.01;
 /** かんたん（見方の左2列と金額の大きい順の一覧）／くわしく（今までの図） */
 type ChartMode = 'simple' | 'detail';
 
@@ -164,9 +166,16 @@ function LocalGovContent() {
   );
   // かんたんの図は見方の左2列だけ。スマートフォン（縦・横）のくわしくの図は、選んだ箱の列を真ん中にした3列だけを描く（設計書 4.3）
   const shown = useMemo(() => {
-    if (state.status === 'ready' && simple) return simpleDisplay(state.file, view);
+    // かんたんの3列（一般会計の当初予算）: スマートフォン（縦・指で操作する横）では、歳入の 1% 未満の款を「その他の収入」にまとめる
+    // （名前が詰まるので）。パソコンの高さの低いウィンドウ（landscapePhone に当たる）は幅があるのでまとめない
+    if (state.status === 'ready' && simple) return simpleDisplay(state.file, view, simpleFirstNow ? SIMPLE_GROUP_BELOW : 0);
     return display && compact ? windowColumns(display) : display;
-  }, [state, simple, view, display, compact]);
+  }, [state, simple, view, display, compact, simpleFirstNow]);
+  // かんたんの図・一覧で押した箱を、くわしくの図で選ぶ。歳入の款（3列の左）は一般会計の見方にないので、全会計の見方の歳入の款を開く
+  const openDetail = (id: string) =>
+    id.startsWith('revenue:') && view === 'general'
+      ? setQuery({ mode: 'detail', view: 'all', sel: id })
+      : setQuery({ mode: 'detail', sel: id });
   const row = useMemo(
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
@@ -467,7 +476,10 @@ function LocalGovContent() {
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
           {simple ? (
             <span className="text-mirai-text-muted">
-              {shown?.graph.columns.map(c => c.label).join(' → ')}の大まかな流れ。四角（「その他」を除く）や一覧の名前を押すと、くわしい図でその流れを見られます
+              {shown?.graph.columns.map(c => c.label).join(' → ')}の大まかな流れ。
+              {shown?.fundingColors &&
+                '左が収入、まん中が使い道の自由度（一般財源は使い道が自由、ほかは使い道が決まったお金や借金）、右が使い道です。'}
+              四角（「その他」を除く）や一覧の名前を押すと、くわしい図でその流れを見られます
             </span>
           ) : display?.selected ? (
             <>
@@ -534,7 +546,7 @@ function LocalGovContent() {
               simple={simple}
               deltas={deltas}
               // かんたんの図で押したら、くわしくの図でその箱を選ぶ
-              onSelect={id => (simple ? setQuery({ mode: 'detail', sel: id }) : setQuery({ sel: id === selectedId ? null : id }))}
+              onSelect={id => (simple ? openDetail(id) : setQuery({ sel: id === selectedId ? null : id }))}
             />
           )}
         </div>
@@ -546,7 +558,7 @@ function LocalGovContent() {
               deltas={deltas}
               previous={previous}
               previousOnlyIn={previous ? id => previousOnlyKanIn(file, id) : undefined}
-              onSelect={id => setQuery({ mode: 'detail', sel: id })}
+              onSelect={openDetail}
             />
           </div>
         )}

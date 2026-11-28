@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { computeMOFSankeyLayout, mofRibbonPath, type MOFLayoutLink } from '@/app/lib/mof-sankey-layout';
 import { edgeKey, type LocalGraphDisplay } from '@/app/lib/local-gov/graph-view';
-import { orderEdges } from '@/app/lib/local-gov/graph';
+import { FUNDING_KINDS, orderEdges, type FundingKey } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import { shortAmount, shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
 import type { LocalGraph } from '@/types/local-gov';
@@ -20,6 +20,19 @@ type GraphNode = LocalGraph['nodes'][number];
 /** 列ごとの色（財源 → 款 → 項 → 目 → 事項 のように左から） */
 const COLUMN_COLORS = ['#64748b', '#2aa693', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 const GREY = '#d1d5db';
+/**
+ * 財源の色（かんたんの図の3列。設計: かんたんの図に歳入から財源への振り分けを足す設計 3章）。一般財源はサイトの主色のラベンダー。
+ * 地方債は赤にしない（良い・悪いを感じさせない）。4色のどの組も、色覚の違い（OKLab ΔE ≧ 8）と通常の見え方（≧ 15）で
+ * 見分けられることを dataviz の validate_palette.js（--pairs all・白地）で確かめた（2026-11-28）
+ */
+export const FUNDING_COLORS: Record<FundingKey, string> = {
+  national: '#00b894',
+  bond: '#d28e05',
+  other: '#a0522d',
+  general: '#7a6cc0',
+};
+/** 財源の色で塗る図の、財源でない箱（歳入・歳出の款）の色 */
+const NEUTRAL_NODE = '#9ca3af';
 const NODE_WIDTH = 12;
 const LABEL_MAX = 18;
 /** ラベルの幅の見積もり（12px の文字1字の幅・金額の部分・余白の上限） */
@@ -212,6 +225,22 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
 
   // 列の色は元の列の位置で決める（スマートフォンの幅で左の列を外しても、同じ列は広い幅と同じ色。設計書 4.3）
   const colorOf = (col: number) => COLUMN_COLORS[(col + (display.colorOffset ?? 0)) % COLUMN_COLORS.length];
+  // 財源の色で塗る図（かんたんの3列）: 帯はその帯の財源の色、財源の箱は財源の色、ほかの箱は灰色
+  const fc = display.fundingColors;
+  const linkColor = (k: string, targetColumn: number) => {
+    if (!fc) return colorOf(targetColumn);
+    const f = fc.funding.get(k);
+    return f ? FUNDING_COLORS[f] : GREY;
+  };
+  const nodeColor = (id: string, column: number) => {
+    if (!fc) return colorOf(column);
+    const f = fc.funding.get(id);
+    return f ? FUNDING_COLORS[f] : NEUTRAL_NODE;
+  };
+  const fundingLabel = (k: string) => {
+    const f = fc?.funding.get(k);
+    return f ? FUNDING_KINDS.find(x => x.key === f)!.label : '';
+  };
   const height = Math.max(layout.height, layout.contentHeight);
   // ホバー中の箱が選択の解除などで図から消えると onMouseLeave が来ないので、図にない箱を指すホバーは無視する
   // （残ると全部の帯が薄いままになる）
@@ -239,9 +268,29 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
         <g>
           {layout.links.map(link => {
             const k = edgeKey(link.source.id, link.target.id);
-            const color = colorOf(link.target.column);
+            const color = linkColor(k, link.target.column);
             if (!selected) {
               const dim = hoveredShown !== null && hoveredShown !== link.source.id && hoveredShown !== link.target.id;
+              if (fc) {
+                // 財源の色の図: 帯の説明（どこから・どの財源へ・額）を出し、概算の帯は縁を点線にする
+                const est = fc.estimated.has(k);
+                return (
+                  <path
+                    key={k}
+                    d={mofRibbonPath(visible(link))}
+                    fill={color}
+                    fillOpacity={dim ? 0.08 : 0.38}
+                    stroke={est ? color : 'none'}
+                    strokeOpacity={dim ? 0.2 : 0.95}
+                    strokeWidth={est ? 1.2 : 0}
+                    strokeDasharray={est ? '4 3' : undefined}
+                  >
+                    <title>
+                      {`${link.source.details!.name} → ${link.target.details!.name}（${fundingLabel(k)}）　${formatBudgetFromYen(link.value)}${est ? '\n概算: 歳出の財源内訳を財源の名前ごとに足し上げた額で分けたもの' : ''}`}
+                    </title>
+                  </path>
+                );
+              }
               return <path key={k} d={mofRibbonPath(visible(link))} fill={color} opacity={dim ? 0.08 : 0.3} />;
             }
             const part = highlight.get(k) ?? 0;
@@ -274,13 +323,18 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
             // キーボード・支援技術でも選べるように、選べる箱はボタンとして扱う（Enter・Space で選ぶ）
             // 読み上げにも増減を入れる（aria-label は <title> より優先されるので、ツールチップと同じ文を足す）
             const label = `${n.name} ${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value).replace('\n', '。')}${ocrName ? '（名前は読み取り）' : ''}${isSelected ? '（選択中）' : ''}`;
+            // かんたんの3列の「その他の収入」: 小さい歳入の款をまとめた箱（どの款かを書く。一般の「その他」の説明は当てはまらない）
+            const groupedRevenue = aggregate && fc && n.col === 'revenue' && fc.groupedNames.length > 0;
+            const aggregateText = groupedRevenue
+              ? `歳入の合計の ${Math.round(fc.groupBelow * 1000) / 10}% 未満の款をまとめた箱: ${fc.groupedNames.join('・')}`
+              : '上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）';
             return (
               <g
                 key={node.id}
                 className={aggregate ? undefined : 'local-node'}
                 role={aggregate ? 'img' : 'button'}
                 tabIndex={aggregate ? undefined : 0}
-                aria-label={aggregate ? `${label}。上位以外の項目をまとめた箱` : label}
+                aria-label={aggregate ? `${label}。${groupedRevenue ? aggregateText : '上位以外の項目をまとめた箱'}` : label}
                 aria-pressed={aggregate ? undefined : isSelected}
                 onClick={aggregate ? undefined : select}
                 onKeyDown={
@@ -298,7 +352,7 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                 style={{ cursor: aggregate ? 'default' : 'pointer' }}
               >
                 <title>
-                  {`${n.name}　${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）' : ''}`}
+                  {`${n.name}　${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? `\n${aggregateText}` : ''}`}
                 </title>
                 <rect
                   x={node.x}
@@ -306,7 +360,7 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                   width={node.width}
                   height={node.height}
                   rx={2}
-                  fill={lit ? colorOf(node.column) : GREY}
+                  fill={lit ? nodeColor(node.id, node.column) : GREY}
                   stroke={isSelected ? '#111827' : 'none'}
                   strokeWidth={isSelected ? 2 : 0}
                 />
@@ -402,6 +456,31 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
           })}
         </g>
       </svg>
+      {fc && (
+        // 凡例（色だけに頼らない: 区分の名前と、概算の帯の点線の意味）
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-xs text-mirai-text-muted">
+          {FUNDING_KINDS.slice()
+            .reverse()
+            .map(f => (
+              <span key={f.key} className="inline-flex items-center gap-1.5">
+                <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: FUNDING_COLORS[f.key] }} />
+                {f.label}
+                {f.key === 'general' && '（使い道が自由）'}
+              </span>
+            ))}
+          {fc.estimated.size > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <svg aria-hidden="true" width="16" height="10">
+                <rect x="1" y="1" width="14" height="8" fill="none" stroke="#6b7280" strokeWidth="1.2" strokeDasharray="4 3" />
+              </svg>
+              点線の縁は概算の帯（一般財源のうち、資料に歳入の款ごとの分け方がない分を、財源内訳の足し上げで分けたもの）:{' '}
+              {/* 帯の説明はホバーでしか出ないので、タップ・読み上げでも分かるよう、概算の帯の額をここに並べる */}
+              {fc.estimatedParts.map(p => `${p.name} ${formatBudgetFromYen(p.value)}`).join('・')}
+            </span>
+          )}
+          {fc.groupedNames.length > 0 && <span>その他の収入: {fc.groupedNames.join('・')}</span>}
+        </div>
+      )}
     </div>
   );
 }

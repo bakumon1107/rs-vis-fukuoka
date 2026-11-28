@@ -222,10 +222,26 @@ export interface GeneralFundRow {
   kan?: number;
   /** 組み替えの元の歳入の目の ID */
   refs?: string[];
+  /** 差し引き（residual）の款ごとの内訳（款の番号・円。合計 = amount）。款ごとの概算で分けたもの（かんたんの図の点線の帯） */
+  split?: { kan: number; amount: number }[];
+}
+
+/** 歳入の款 → 財源 の帯（かんたんの図の3列。general_fund.py の build_flows） */
+export interface GeneralFundFlow {
+  /** 一般会計の歳入の款の番号と名前 */
+  kan: number;
+  kan_name: string;
+  funding: 'national' | 'bond' | 'other' | 'general';
+  /** 円 */
+  amount: number;
+  /** 概算（差し引きを款ごとの概算で分けた帯） */
+  estimated?: true;
 }
 
 export interface GeneralFund {
   rows: GeneralFundRow[];
+  /** 歳入の款 → 財源 の帯。財源ごとの合計 = 歳出の財源内訳の合計、款ごとの合計 = 歳入の款の額（書き出しと validate.ts で確かめる） */
+  flows?: GeneralFundFlow[];
   /** 円。一般会計の歳出の目の財源内訳の一般財源の合計と一致する */
   total: number;
   /** 組み替えの説明（「データについて」に出す） */
