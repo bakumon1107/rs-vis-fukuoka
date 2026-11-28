@@ -684,6 +684,8 @@ def main():
     ap.add_argument("--pdf-dir", required=True)
     # 表計算の資料（sources.json の ext が xlsx。財政の指標の主要財政指標一覧・財政状況資料集）の置き場所
     ap.add_argument("--xlsx-dir")
+    # 財政の指標（fiscal.json）がなくても書き出す（回帰テスト用。公開データの書き出しでは付けない）
+    ap.add_argument("--allow-missing-fiscal", action="store_true")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
@@ -691,12 +693,21 @@ def main():
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
     # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。回帰テストは抽出が失敗しても標準出力を書くので、
     # 空・JSON でないものは「ない」と同じに扱う（要約の「財政の指標のファイル」の行がなくなるので回帰テストで気づける）
+    # 既定では、ない・読めないときは止まる（公開データを書き出すときに、三基金・指標の区画が黙って消えないように）。
+    # 回帰テストは --allow-missing-fiscal を渡し、知らせるだけで続ける（xlsx のない環境でも書き出しの回帰を流すため）
     fiscal = None
+    problem = None
     if os.path.exists(w("fiscal.json")):
         try:
             fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
-        except json.JSONDecodeError:
-            print("財政の指標: fiscal.json が空か壊れている（抽出が失敗した）ので書かない", file=sys.stderr)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            problem = "fiscal.json が空か壊れている（抽出が失敗した）"
+    else:
+        problem = "fiscal.json がない（extract_fiscal.py を流していない）"
+    if problem:
+        if not a.allow_missing_fiscal:
+            sys.exit(f"財政の指標: {problem}。財政の指標を書かずに書き出すなら --allow-missing-fiscal")
+        print(f"財政の指標: {problem}ので fiscal-indicators.json を書かない", file=sys.stderr)
     # 表計算の資料は財政の指標だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
     # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
     need_xlsx = fiscal is not None
@@ -865,14 +876,7 @@ def main():
 
     # 三基金の推移と見込み・財政の指標（上で読んだ fiscal.json）。なければ書かない（index にも載せない）
     fiscal_file, fiscal_line = None, None
-    if fiscal is None:
-        # 公開データを書き出すときに黙って区画が消えないよう知らせ、前に書いたファイルを残さない（index から指されないファイルになる）
-        print("財政の指標: fiscal.json がない（または読めない）ので fiscal-indicators.json を書かない（基金のページの三基金・指標の区画が出なくなる）",
-              file=sys.stderr)
-        stale = os.path.join(a.out, "fiscal-indicators.json")
-        if os.path.exists(stale):
-            os.remove(stale)
-    else:
+    if fiscal is not None:
         if "fails" not in fiscal:
             sys.exit("財政の指標: fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）")
         if fiscal["fails"]:

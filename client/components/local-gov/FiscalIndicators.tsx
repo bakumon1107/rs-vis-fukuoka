@@ -10,6 +10,7 @@ import type { FiscalIndicator, LocalFiscalFile } from '@/types/local-gov';
 import { formatIndicator, latestChange } from '@/app/lib/local-gov/fiscal';
 import { useElementWidth } from '@/client/hooks/useElementWidth';
 import { eraLabel } from '@/client/components/local-gov/FundsTrendChart';
+import { tipStyle } from '@/client/components/local-gov/ReserveOutlookChart';
 
 const LINE = '#7a6cc0';
 const MEDIAN = '#9ca3af';
@@ -98,9 +99,9 @@ function MiniChart({ ind }: { ind: FiscalIndicator }) {
       </svg>
       {tip && active !== null && (
         <div
-          className="pointer-events-none absolute z-10 w-44 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
-          // 点と反対の側に出す（点の近くの線を隠さないように）
-          style={{ left: Math.max(0, x(active) > W / 2 ? PAD.l : W - PAD.r - 176), top: 0 }}
+          className="pointer-events-none absolute z-10 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
+          // 点と反対の側に出し、図の幅に収める
+          style={tipStyle(x(active), W, Math.min(176, W), PAD.l, PAD.r, 0)}
           role="status"
         >
           <div className="font-bold">

@@ -138,7 +138,7 @@ STEPS = [
      "fiscal.json", [r"^三基金", r"^見込み", r"^財政の指標", r"団体中", r"^FAIL"]),
     # 共通 JSON 形式（正規化データ）への書き出し。上のステップの出力（{out:...}）を読む
     ("共通 JSON 形式の書き出し", "export_fukuoka_pref.py",
-     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--xlsx-dir", "{xlsxdir}", "--out", "{tmp:export}"], None,
+     ["--work", "{outdir}", "--pdf-dir", "{pdfdir}", "--xlsx-dir", "{xlsxdir}", "--allow-missing-fiscal", "--out", "{tmp:export}"], None,
      [r"^目 \d+", r"^一般会計 歳入", r"^名前の出典", r"^一般財源の中身", r"^歳入の款 → 財源", r"^前年度にだけあった款", r"^補正 R8",
       r"^FAIL 補正", r"^会計間の繰入れ", r"^公営企業会計 \d", r"^財政の指標のファイル"]),
     # 補正の回の鎖（書き出した当初予算から回の順に補正額を足し、各回の補正前の額と款・項で照合）

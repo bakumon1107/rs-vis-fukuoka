@@ -19,6 +19,15 @@ const PAD = { l: 56, r: 20, t: 16, b: 40 };
 /** ツールチップの幅（px）。点と反対の側に出す（点の近くの線を隠さないように） */
 const TIP_W = 224;
 
+/**
+ * ツールチップの位置: 点が右半分なら左に、左半分なら右に寄せる（点の近くの線を隠さない）。図の幅からはみ出さないように詰める。
+ * 財政の指標の小さなグラフ（FiscalIndicators）でも使う
+ */
+export function tipStyle(px: number, W: number, width: number, padL: number, padR: number, top: number) {
+  const want = px > W / 2 ? padL : W - padR - width;
+  return { width, left: Math.max(0, Math.min(want, W - width)), top };
+}
+
 export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
   const { ref, width } = useElementWidth<HTMLDivElement>(640);
   const [active, setActive] = useState<number | null>(null);
@@ -139,7 +148,7 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
         {tip && active !== null && (
           <div
             className="pointer-events-none absolute z-10 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
-            style={{ width: Math.min(TIP_W, W), left: Math.max(0, x(active) > W / 2 ? PAD.l + 4 : W - PAD.r - TIP_W), top: 4 }}
+            style={tipStyle(x(active), W, Math.min(TIP_W, W), PAD.l + 4, PAD.r, 4)}
             role="status"
           >
             <div className="font-bold">
