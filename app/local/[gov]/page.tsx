@@ -23,6 +23,8 @@ import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
 import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
 import { enterpriseExpense, formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
+import { boxDeltas, initialBoxIds, initialBoxValues, initialGross } from '@/app/lib/local-gov/supplement-diff';
+import { SupplementDiffTable } from '@/client/components/local-gov/SupplementDiffTable';
 import { fundingNotes, sourcesUsed } from '@/app/lib/local-gov/summary';
 import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
@@ -149,6 +151,24 @@ function LocalGovContent() {
   const net = useMemo(() => (state.status === 'ready' && view === 'all' ? netTotal(state.file) : null), [state, view]);
   // 公営企業会計の見方の見出し（第3条・第4条の支出の合計）
   const ent = useMemo(() => (state.status === 'ready' && view === 'enterprise' ? enterpriseExpense(state.file) : null), [state, view]);
+  // 補正後の見方: 当初の図の箱の額（当初のファイルから同じ見方を組み立てる）、箱ごとの増減、見出しの総計の増減
+  // （設計: 補正後予算の当初からの増減の表示 3章。当初のファイルは補正後を組み立てるときに読んだもの）
+  const initialValues = useMemo(
+    () => (state.status === 'ready' && state.initial && view !== 'enterprise' ? initialBoxValues(state.initial, view) : null),
+    [state, view]
+  );
+  // 当初予算のファイルにある箱の ID（「新」の判定。データを読んだときに一度だけ）
+  const initialIds = useMemo(() => (state.status === 'ready' && state.initial ? initialBoxIds(state.initial) : null), [state]);
+  const deltas = useMemo(
+    () => (initialValues && initialIds && shown ? boxDeltas(shown.graph, initialValues, initialIds) : undefined),
+    [initialValues, initialIds, shown]
+  );
+  // 当初の総計は見方ごとに一度だけ求める（選ぶたびに当初の図を組み立て直さない）
+  const initialTotal = useMemo(
+    () => (state.status === 'ready' && state.initial && view !== 'enterprise' ? initialGross(state.initial, view) : null),
+    [state, view]
+  );
+  const totalDelta = initialTotal !== null && display ? display.graph.totals.gross - initialTotal : null;
   // 選んだ款・項・目のうち人件費の節の割合（同 3章）。財源・部局・歳入の箱を選んだときは出さない
   const personnel = useMemo(() => {
     if (state.status !== 'ready' || !display?.selected) return null;
@@ -226,6 +246,12 @@ function LocalGovContent() {
                 : '全会計の歳出（総計・公営企業会計を除く）'}
             {file.basis === 'settlement' ? '（支出済額）' : ''}{' '}
             {formatBudgetFromYen(display?.graph.totals.gross ?? 0)}
+            {/* 補正後: 当初からの増減を短く（「当初から」は書かない。2026-11-27 ユーザー: 見出しが長くなる） */}
+            {totalDelta !== null && totalDelta !== 0 && (
+              <span className={totalDelta > 0 ? 'text-emerald-700' : 'text-red-700'}>
+                {' '}（補正 {totalDelta > 0 ? '+' : '△'}{formatBudgetFromYen(Math.abs(totalDelta))}）
+              </span>
+            )}
             {ent && (
               <>
                 {' '}（収益的支出 {formatBudgetFromYen(ent.revenueSection)}・資本的支出 {formatBudgetFromYen(ent.capitalSection)}）
@@ -342,6 +368,24 @@ function LocalGovContent() {
             <>
               <span>
                 選択中: <b>{display.selected.name}</b>
+                {/* 補正後: 選んだ箱の当初 → 補正後（増減） */}
+                {(() => {
+                  const d = deltas?.get(display.selected.id);
+                  const after = display.graph.nodes.find(n => n.id === display.selected!.id)?.value;
+                  if (!d || after === undefined) return null;
+                  return (
+                    <span className="ml-2 text-xs text-mirai-text-muted">
+                      {d.added
+                        ? `補正で新しくできた項目（補正後 ${formatBudgetFromYen(after)}）`
+                        : `当初 ${formatBudgetFromYen(after - d.delta)} → 補正後 ${formatBudgetFromYen(after)}`}
+                      {!d.added && d.delta !== 0 && (
+                        <span className={d.delta > 0 ? 'text-emerald-700' : 'text-red-700'}>
+                          （{d.delta > 0 ? '+' : '△'}{formatBudgetFromYen(Math.abs(d.delta))}）
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
                 {personnel && (
                   <span className="ml-2 text-xs text-mirai-text-muted">
                     うち人件費 {formatBudgetFromYen(personnel.personnel)}（{formatRatio(personnel.ratio)}。節の報酬・給料・職員手当等・共済費の合計）
@@ -379,9 +423,16 @@ function LocalGovContent() {
 
         <div className="overflow-x-auto rounded-2xl bg-card p-2 shadow-soft">
           {shown && (
-            <LocalSankeyChart display={shown} narrow={isNarrow} onSelect={id => setQuery({ sel: id === selectedId ? null : id })} />
+            <LocalSankeyChart display={shown} narrow={isNarrow} deltas={deltas} onSelect={id => setQuery({ sel: id === selectedId ? null : id })} />
           )}
         </div>
+
+        {/* 補正後: 当初からの増減の表（図の下に折りたたみ。歳出・歳入。2026-11-27 ユーザー決定） */}
+        {file.composed && view !== 'enterprise' && (
+          <div className="mt-3">
+            <SupplementDiffTable file={file} byAccount={view === 'all'} gov={gov} year={file.year} />
+          </div>
+        )}
 
         {hasDetail && !isNarrow && (
           <section

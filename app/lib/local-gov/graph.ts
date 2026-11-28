@@ -206,6 +206,16 @@ const kouId = (r: MokuRow) => `kou:${r.account}:${r.side}:${r.kan.no}-${r.kou.no
 const mokuId = (r: MokuRow) => `moku:${r.id}`;
 
 /**
+ * 行が図のどの箱に入るか（会計・款・項・目、歳入の行は全会計の見方の歳入の款も）。図の箱の ID と同じ形。
+ * 補正後の増減で「当初予算にあった箱か」を決めるのに使う（app/lib/local-gov/supplement-diff.ts）
+ */
+export function rowBoxIds(r: MokuRow): string[] {
+  const ids = [`account:${r.account}`, kanId(r), kouId(r), mokuId(r)];
+  if (r.side === 'revenue') ids.push(`revenue:${r.kan.name}`);
+  return ids;
+}
+
+/**
  * 款 → 項 → 目（→ 事項）の帯を足す。cols は作る列の key の一覧。
  * from: 款へ流し込む左の列のノード（全会計の見方の会計）。null なら款への帯は足さない（一般会計の見方は財源の帯が担う）
  * value: 款 → 項 → 目 に流す額（省略時は目の本年度）。財源で絞り込んだときはその財源の額で、事項は作らない

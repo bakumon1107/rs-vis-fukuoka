@@ -22,7 +22,8 @@ export type LocalBudgetState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   /** dataset: 読んだファイルの datasets の項目（年度・基準で探し直すと、同じ年度の補正が複数回あるときに取り違える） */
-  | { status: 'ready'; index: LocalGovIndex; dataset: LocalDataset; file: LocalBudgetFile };
+  /** initial: 補正後（latest）のとき、足す前の当初のファイル（当初からの増減を出すのに使う。読み直さない） */
+  | { status: 'ready'; index: LocalGovIndex; dataset: LocalDataset; file: LocalBudgetFile; initial?: LocalBudgetFile };
 
 /** URL のクエリの年度（西暦4桁）。なければ・形が違えば undefined（最新の年度を読む） */
 export function yearFromQuery(v: string | null): number | undefined {
@@ -74,16 +75,18 @@ export function useLocalBudget(gov: string, year?: number, basis: BasisChoice = 
           return f;
         };
         let file: LocalBudgetFile;
+        let initial: LocalBudgetFile | undefined;
         if (basis === 'latest') {
           const sups = supplementDatasets(index, ds.year);
           if (sups.length === 0) throw new Error('この年度の補正予算のデータはありません');
           // 当初と補正のファイルは一覧から分かるので、まとめて読む
           const [init, ...supFiles] = await Promise.all([ds, ...sups].map(d => load(d.file)));
           file = composeLatest(init, supFiles);
+          initial = init;
         } else {
           file = await load(ds.file);
         }
-        if (!cancelled) setState({ status: 'ready', index, dataset: ds, file });
+        if (!cancelled) setState({ status: 'ready', index, dataset: ds, file, ...(initial ? { initial } : {}) });
       } catch (e) {
         if (!cancelled) setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
       }
