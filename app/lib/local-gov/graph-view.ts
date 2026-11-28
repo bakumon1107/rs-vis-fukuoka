@@ -255,7 +255,7 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   };
 }
 
-/** かんたんの図の列の数（見方の左から。一般会計は 財源 → 款、全会計は 歳入の款 → 会計） */
+/** かんたんの図の列の数（見方の左から。一般会計は 財源 → 款、全会計は 歳入の款 → 会計。公営企業会計の見方には出さない） */
 export const SIMPLE_DEPTH = 2;
 
 /**

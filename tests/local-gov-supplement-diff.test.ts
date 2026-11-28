@@ -36,7 +36,7 @@ test('短い額（スマートフォンの縦の図の2行目）: 単位の決�
   assert.equal(shortAmount(0), '0円');
 });
 
-test('増減のない行を外す:子の増減が打ち消し合って親の増減が 0 でも、動いた子があれば親ごと残す', () => {
+test('増減のない行を外す: 子の増減が打ち消し合って親の増減が 0 でも、動いた子があれば親ごと残す', () => {
   const node = (key: string, before: number, after: number, children: DiffNode[] = []): DiffNode =>
     ({ key, name: key, level: 'moku', before, after, rounds: [after - before], children });
   const kou = node('kou', 10, 10, [node('a', 5, 10), node('b', 5, 0), node('c', 3, 3)]);

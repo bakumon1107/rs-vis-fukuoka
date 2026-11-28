@@ -35,7 +35,8 @@ export const useIsNarrow = () => useMediaQuery(NARROW_QUERY);
 
 /**
  * スマートフォンの横向き（幅は 640px 以上でも高さが 500px 未満）。パソコンの高さの低いウィンドウも入るが、
- * そこでも全部の列の図（縦に約 1,400px）は見通せないので、同じく3列にしてよい
+ * そこでも全部の列の図（縦に約 1,400px）は見通せないので、同じく3列にしてよい。
+ * 最初にかんたんの図を出すかは、指で操作する画面（pointer: coarse）かも合わせて見る（page.tsx）
  */
 export const LANDSCAPE_PHONE_QUERY = '(min-width: 640px) and (max-height: 499px)';
 export const useIsLandscapePhone = () => useMediaQuery(LANDSCAPE_PHONE_QUERY);

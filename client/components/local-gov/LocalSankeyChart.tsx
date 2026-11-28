@@ -96,6 +96,8 @@ export type ChartSizeKey = keyof typeof SIZES;
 /** 2行目（短い金額「2072億円」）の幅の見積もりと、増減の印（「+67.5億」）の幅 */
 const AMOUNT_LINE_PX = 52;
 const DELTA_LINE_PX = 42;
+/** 3行のラベル（名前・金額・増減）の箱1つの最低の高さ */
+const THREE_LINE_SLOT = 38;
 
 export interface LocalSankeyChartProps {
   display: LocalGraphDisplay;
@@ -159,6 +161,9 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
       right: Math.min(size.maxSide, labelPx(presentCols.at(-1)?.key)),
     };
   }, [graph, size, deltas, hideAmountCols]);
+  // 箱1つの最低の高さ。スマートフォンの縦で増減を出すとき（補正後の見方）は、真ん中の列のラベルが3行（約 34px）になるので広げる
+  // （小さい箱が隣り合うと、名前と隣の箱の増減の行が重なる）
+  const slot = size.twoLine && deltas && deltas.size > 0 ? THREE_LINE_SLOT : size.slot;
   const layout = useMemo(
     () =>
       computeMOFSankeyLayout<GraphNode>(
@@ -175,11 +180,11 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
           nodeWidth: NODE_WIDTH,
           nodePadding: 3,
           align: 'top',
-          minNodeSlot: size.slot,
+          minNodeSlot: slot,
           columnOf: n => colIndex.get(n.type ?? '') ?? 0,
         }
       ),
-    [graph, width, colIndex, margin, simple, sizeKey, size.slot]
+    [graph, width, colIndex, margin, simple, sizeKey, slot]
   );
 
   // 列の色は元の列の位置で決める（スマートフォンの幅で左の列を外しても、同じ列は広い幅と同じ色。設計書 4.3）
@@ -290,6 +295,8 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                     </tspan>
                   );
                   // 補正後の見方: 当初からの増減（増は緑・減は赤・新しくできた箱は「新」）。金額を出す列だけ
+                  // 真ん中の列の箱は、スマートフォンの縦では増減を3行目に出す（2行目に並べると右の列の箱に重なる）
+                  const ownLine = size.twoLine && !labelLeft && node.column < lastColumn;
                   const delta = showAmount && (() => {
                     const d = deltas?.get(n.id);
                     if (!d) return null;
@@ -298,7 +305,8 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                     const color = !lit ? '#9ca3af' : d.added ? '#b45309' : d.delta > 0 ? '#047857' : '#b91c1c';
                     return (
                       <tspan fill={color} fontWeight={600} fontSize={size.fontSize - 1}>
-                        {' '}
+                        {/* 行の頭に出すときは空けない（名前・金額の行と左をそろえる） */}
+                        {ownLine ? '' : ' '}
                         {text}
                       </tspan>
                     );
@@ -325,7 +333,7 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                       {size.twoLine && showAmount ? (
                         // 2行: 1行目に名前、2行目に小さい字で金額と増減（スマートフォンの縦）。
                         // 真ん中の列は右の列までの間が狭く、金額と増減を横に並べると右の列の箱に重なるので、増減は3行目に
-                        delta && !labelLeft && node.column < lastColumn ? (
+                        delta && ownLine ? (
                           <>
                             <tspan x={tx} dy="-1.1em">{name}</tspan>
                             <tspan x={tx} dy="1.2em" fontSize={size.fontSize - 1}>{amount}</tspan>

@@ -16,7 +16,7 @@ import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
 import { type BasisChoice, pickDataset, supplementDatasets, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import type { Basis } from '@/types/local-gov';
-import { useIsLandscapePhone, useIsNarrow } from '@/client/hooks/useMediaQuery';
+import { useIsLandscapePhone, useIsNarrow, useMediaQuery } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { SimpleRanking } from '@/client/components/local-gov/SimpleRanking';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
@@ -92,9 +92,15 @@ function LocalGovContent() {
   // スマートフォンの横向き（設計: スマートフォンのサンキー図と簡易表示 2.1）。縦と同じく3列だけを描く
   const landscapePhone = useIsLandscapePhone();
   const compact = isNarrow || landscapePhone;
-  // かんたん／くわしく（URL の mode。なければ、スマートフォンで何も選んでいないときはかんたん。同 2.3）
+  // かんたんを既定にする画面: 縦のスマートフォンと、指で操作する横の画面（パソコンの高さの低いウィンドウは、3列にはするが
+  // 最初の図はくわしくのまま）
+  const touch = useMediaQuery('(pointer: coarse)');
+  const simpleFirst = isNarrow || (landscapePhone && touch);
+  // かんたん／くわしく（URL の mode。なければ、スマートフォンで何も選んでいないときはかんたん。同 2.3）。
+  // 公営企業会計の見方にはかんたんを出さない（右の列の会計・条は金額を出さない列で、かんたんの図にならない）
+  const simpleOk = view !== 'enterprise';
   const qm = searchParams.get('mode');
-  const mode: ChartMode = qm === 'simple' || qm === 'detail' ? qm : compact && !selectedId ? 'simple' : 'detail';
+  const mode: ChartMode = !simpleOk ? 'detail' : qm === 'simple' || qm === 'detail' ? qm : simpleFirst && !selectedId ? 'simple' : 'detail';
   const simple = mode === 'simple';
 
   // 年度・見方・選択・かんたん／くわしくは URL のクエリに持つ（共有できる）
@@ -129,15 +135,15 @@ function LocalGovContent() {
       }
       if (next.mode !== undefined) {
         q.set('mode', next.mode);
-      } else if (!q.has('mode')) {
+      } else if (!q.has('mode') && simpleOk) {
         // URL に mode がなく、今の見え方が変えた後の既定と違うときは、今の見え方を残す
         // （スマートフォンで、くわしくの図で選びを外したときに、かんたんへ戻らないように）
-        const nextDefault: ChartMode = compact && !q.get('sel') ? 'simple' : 'detail';
+        const nextDefault: ChartMode = simpleFirst && !q.get('sel') ? 'simple' : 'detail';
         if (nextDefault !== mode) q.set('mode', mode);
       }
       router.replace(`?${q.toString()}`, { scroll: false });
     },
-    [router, searchParams, basis, compact, mode]
+    [router, searchParams, basis, simpleFirst, simpleOk, mode]
   );
 
   // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
@@ -326,6 +332,7 @@ function LocalGovContent() {
               ))}
             </select>
           )}
+          {simpleOk && (
           <div role="group" aria-label="図の細かさ" className="flex overflow-hidden rounded-full border border-mirai-border">
             {(['simple', 'detail'] as const).map(m => (
               <button
@@ -339,6 +346,7 @@ function LocalGovContent() {
               </button>
             ))}
           </div>
+          )}
           {views.map(v => (
             <button
               key={v.key}
