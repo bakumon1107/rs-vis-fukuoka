@@ -24,7 +24,7 @@ export interface RankedItem {
 /** 前年度の額の断り書き（一覧・内訳の表の上に出す） */
 export const PREVIOUS_NOTE = '前年度は、説明書の「前年度予算額」（前の年度の当初予算）。';
 
-const deltaColor =(v: number) => (v > 0 ? 'text-emerald-700' : v < 0 ? 'text-red-700' : 'text-mirai-text-muted');
+const deltaColor = (v: number) => (v > 0 ? 'text-emerald-700' : v < 0 ? 'text-red-700' : 'text-mirai-text-muted');
 
 /** 前年度の額と増減（「前年度 845.7億円 → +16.6億（+2.0%）」の形。前年度が 0 なら「前年度は計上なし」） */
 export function PreviousLine({ value, previous }: { value: Yen; previous: Yen }) {
@@ -38,7 +38,8 @@ export function PreviousLine({ value, previous }: { value: Yen; previous: Yen })
         <>
           前年度 {formatBudgetFromYen(previous)}
           <span className={`ml-1 font-bold ${deltaColor(diff)}`}>
-            {shortDelta(diff) || '±0'}（{ratio}）
+            {/* 1万円未満の差は短い形（shortDelta）にならないので、円のまま出す（「±0（+5.0%）」と食い違わないように） */}
+            {diff === 0 ? '±0' : shortDelta(diff) || `${diff > 0 ? '+' : '△'}${Math.abs(diff).toLocaleString('ja-JP')}円`}（{ratio}）
           </span>
         </>
       )}

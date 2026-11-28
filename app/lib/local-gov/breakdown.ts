@@ -81,7 +81,10 @@ export function breakdownDeltas(b: Breakdown, before: Map<string, Yen>, initialI
  */
 export function previousBoxValues(file: LocalBudgetFile): Map<string, Yen> {
   const out = new Map<string, Yen>();
+  // 公営企業会計の行は全会計の見方の歳入の款・会計に入らない（graph.ts と同じ）ので足さない
+  const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
   for (const r of file.rows) {
+    if (enterprise.has(r.account)) continue;
     const p = r.previous?.v;
     if (p === null || p === undefined) continue;
     for (const id of rowBoxIds(r)) {
