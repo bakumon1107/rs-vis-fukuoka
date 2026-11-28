@@ -272,3 +272,24 @@ def test_previous_only_kan_skips_unread_previous_and_enterprise():
             _prev_row("enterprise:x", "expense", "営業費用", 5)]
     _, fails, checked = ex.previous_only_kan(rows, ACCOUNTS, [])
     assert fails == [] and checked == 0
+
+
+def _fiscal(**over):
+    ind = lambda k: {"key": k, "values": [{"year": 2024, "source": "r6-shihyo"}]}  # noqa: E731
+    base = {"fails": [],
+            "reserve": {"history": [{"year": 2025, "source": "r7-kikin"}],
+                        "outlook": {"source": "r8-gaiyou"}, "target": {"source": "r8-gaiyou"}},
+            "indicators": [ind(k) for k in ("a", "b", "c", "d")]}
+    return {**base, **over}
+
+
+def test_fiscal_problem_accepts_a_complete_output_and_names_each_problem():
+    ids = {"r7-kikin", "r8-gaiyou", "r6-shihyo"}
+    assert ex.fiscal_problem(_fiscal(), ids) is None
+    assert "形でない" in ex.fiscal_problem([], ids)
+    assert "形でない" in ex.fiscal_problem(None, ids)
+    assert "fails がない" in ex.fiscal_problem({}, ids)
+    assert "確かめが通っていない" in ex.fiscal_problem(_fiscal(fails=["x"]), ids)
+    assert "reserve" in ex.fiscal_problem({"fails": []}, ids)
+    assert "欠けている" in ex.fiscal_problem(_fiscal(indicators=[]), ids)
+    assert "sources.json にない" in ex.fiscal_problem(_fiscal(), {"r7-kikin"})

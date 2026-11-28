@@ -680,6 +680,29 @@ def sha256(path):
     return h.hexdigest()
 
 
+def fiscal_problem(fiscal, source_ids: set[str]) -> str | None:
+    """fiscal.json（extract_fiscal.py の出力）を書き出せない理由（書き出せるなら None）。
+    画面は実績・見込み・目標と4つの指標があることを前提に描く（validate.ts の validateFiscalFile と同じ条件の一部）"""
+    if not isinstance(fiscal, dict):
+        return "fiscal.json の中身が抽出の出力の形でない"
+    if "fails" not in fiscal:
+        return "fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）"
+    if fiscal["fails"]:
+        return "抽出の確かめが通っていない:\n" + "\n".join(map(str, fiscal["fails"]))
+    res, inds = fiscal.get("reserve"), fiscal.get("indicators")
+    if not isinstance(res, dict) or not isinstance(inds, list):
+        return "fiscal.json に reserve・indicators がない"
+    if not res.get("history") or not res.get("outlook") or not res.get("target") or len(inds) != 4 \
+            or any(not isinstance(ind, dict) or not ind.get("values") for ind in inds):
+        return "三基金の実績・見込み・目標か、4つの指標の値が欠けている"
+    used = {h["source"] for h in res["history"]} | {res["outlook"]["source"], res["target"]["source"]} | \
+           {v["source"] for ind in inds for v in ind["values"]}
+    unknown = sorted(used - source_ids)
+    if unknown:
+        return f"sources.json にない資料: {unknown}"
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
@@ -698,26 +721,19 @@ def main():
     # 既定では、ない・読めないときは止まる（公開データを書き出すときに、三基金・指標の区画が黙って消えないように）。
     # 回帰テストは --allow-missing-fiscal を渡し、知らせるだけで続ける（xlsx のない環境でも書き出しの回帰を流すため）
     fiscal = None
-    problem = None
     if os.path.exists(w("fiscal.json")):
         try:
-            fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
+            loaded = json.load(open(w("fiscal.json"), encoding="utf-8"))
+            problem = fiscal_problem(loaded, {s["id"] for s in source_list})
         except (json.JSONDecodeError, UnicodeDecodeError):
-            problem = "fiscal.json が空か壊れている（抽出が失敗した）"
-        if fiscal is not None and not isinstance(fiscal, dict):
-            fiscal, problem = None, "fiscal.json の中身が抽出の出力の形でない"
-        elif fiscal is None and not problem:
-            problem = "fiscal.json の中身が null"
+            loaded, problem = None, "fiscal.json が空か壊れている（抽出が失敗した）"
+        fiscal = None if problem else loaded
     else:
         problem = "fiscal.json がない（extract_fiscal.py を流していない）"
     if problem:
         if not a.allow_missing_fiscal:
-            sys.exit(f"財政の指標: {problem}。財政の指標を書かずに書き出すなら --allow-missing-fiscal")
-        print(f"財政の指標: {problem}ので fiscal-indicators.json を書かない", file=sys.stderr)
-        # 前に書いたファイルを残さない（index から指されないファイルが公開されないように）
-        stale = os.path.join(a.out, "fiscal-indicators.json")
-        if os.path.exists(stale):
-            os.remove(stale)
+            sys.exit(f"財政の指標: {problem}\n財政の指標を書かずに書き出すなら --allow-missing-fiscal")
+        print(f"財政の指標: {problem}\n→ fiscal-indicators.json を書かない", file=sys.stderr)
     # 表計算の資料は財政の指標だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
     # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
     need_xlsx = fiscal is not None
@@ -884,23 +900,10 @@ def main():
             f.write("\n")
         hosei_lines += lines
 
-    # 三基金の推移と見込み・財政の指標（上で読んだ fiscal.json）。なければ書かない（index にも載せない）
+    # 三基金の推移と見込み・財政の指標（上で読んで確かめた fiscal.json）。なければ書かない（index にも載せない）
     fiscal_file, fiscal_line = None, None
     if fiscal is not None:
-        if "fails" not in fiscal:
-            sys.exit("財政の指標: fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）")
-        if fiscal["fails"]:
-            sys.exit("財政の指標: 抽出の確かめが通っていない:\n" + "\n".join(fiscal["fails"]))
         res = fiscal["reserve"]
-        # 画面は実績・見込み・目標があることを前提に描く（validate.ts の validateFiscalFile と同じ条件の一部）
-        if not res["history"] or not res["outlook"] or not res["target"] or len(fiscal["indicators"]) != 4 \
-                or any(not ind["values"] for ind in fiscal["indicators"]):
-            sys.exit("財政の指標: 三基金の実績・見込み・目標か、4つの指標の値が欠けている")
-        used = {h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
-               {v["source"] for ind in fiscal["indicators"] for v in ind["values"]}
-        unknown = sorted(used - {s["id"] for s in source_list})
-        if unknown:
-            sys.exit(f"財政の指標: sources.json にない資料: {unknown}")
         fiscal_file = "fiscal-indicators.json"
         with open(os.path.join(a.out, fiscal_file), "w", encoding="utf-8") as f:
             json.dump({"schema_version": 1, "gov_id": GOV_ID, "reserve": res, "indicators": fiscal["indicators"]},
@@ -929,6 +932,11 @@ def main():
     with open(os.path.join(a.out, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
         f.write("\n")
+    # 財政の指標を書かなかったときは、前に書いたファイルを消す（index から指されないファイルが公開されないように）。
+    # index.json を書いた後で消す（途中で止まったときに、前の index.json が消えたファイルを指さないように）
+    stale = os.path.join(a.out, "fiscal-indicators.json")
+    if not fiscal_file and os.path.exists(stale):
+        os.remove(stale)
     total = Counter()
     for r in rows:
         total[(r["account"] == "general", r["side"])] += r["amount"]["v"] or 0
