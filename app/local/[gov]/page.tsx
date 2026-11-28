@@ -132,7 +132,9 @@ function LocalGovContent() {
       const qbNow = q.get('basis');
       const basis: BasisChoice = qbNow === 'settlement' || qbNow === 'latest' ? qbNow : 'initial';
       const qvNow = q.get('view');
-      const view: LocalGraphView = qvNow === 'all' ? 'all' : qvNow === 'enterprise' && enterpriseOk ? 'enterprise' : 'general';
+      // 公営企業会計の見方は当初予算だけ（種類を替えた直後で、描画の時点の enterpriseOk が前の種類のファイルのものでも当てはまるように）
+      const view: LocalGraphView =
+        qvNow === 'all' ? 'all' : qvNow === 'enterprise' && enterpriseOk && basis === 'initial' ? 'enterprise' : 'general';
       const simpleOk = view !== 'enterprise';
       const qmNow = q.get('mode');
       const mode: ChartMode = !simpleOk
@@ -487,7 +489,8 @@ function LocalGovContent() {
             {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
             {/* かんたんの3列（財源の色の図）は左の列が歳入の款（財源ではない）なので、「左端の財源は…」の文は出さない。
                 かんたんでも2列の図（補正後など。左の列が財源）には出す */}
-            {view !== 'enterprise' && !(simple && shown?.fundingColors) && (fundingNotes(file).length > 0 || file.general_fund) && (
+            {/* 決算の図の左の列は部局なので出さない（今の決算のファイルには general_fund も funding_notes もないが、念のため） */}
+            {view !== 'enterprise' && file.basis !== 'settlement' && !(simple && shown?.fundingColors) && (fundingNotes(file).length > 0 || file.general_fund) && (
               <>
                 {view === 'all'
                   ? '（調べた内訳は'
