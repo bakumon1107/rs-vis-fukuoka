@@ -28,6 +28,8 @@ function NameMark({ src }: { src?: NameSource }) {
 /**
  * layout: side = 縦に1列（スマートフォンの下からのシート）。below = 図の下に横長で置く（広い画面。左に名前・金額・財源内訳・出典、
  * 中に説明欄の事項、右に節の3列）。横に置くと図が縮んで名前が重なったので、広い画面は図の下に出す（2026-11-14 ユーザー決定）
+ * side ではこの部品はスクロールしない。置く側が高さの決まった overflow-y-auto の枠で包むこと
+ * （SidePanelChrome の中身は切り取るだけ。包まないと下が切れる）
  */
 export function LocalDetailPanel({
   row,
