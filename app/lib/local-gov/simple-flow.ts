@@ -7,7 +7,7 @@
  * - 帯の色を財源で塗るため、帯・箱ごとの財源（funding）と、概算の帯（estimated）も返す
  */
 import type { LocalBudgetFile, LocalGraph } from '@/types/local-gov';
-import { edgeKey, FUNDING_KINDS, type FundingKey } from './graph';
+import { edgeKey, FUNDING_KINDS, isOcrName, type FundingKey } from './graph';
 
 export interface FundingFlowGraph {
   graph: LocalGraph;
@@ -15,6 +15,10 @@ export interface FundingFlowGraph {
   funding: Map<string, FundingKey>;
   /** 概算の帯（縁を点線にする）のキー */
   estimated: Set<string>;
+  /** 「その他の収入」にまとめた歳入の款の名前（額の大きい順。まとめなければ空） */
+  groupedNames: string[];
+  /** 概算の帯の元の款ごとの額（凡例に並べる。まとめた帯は確かな額も含むので、元の款の単位で出す） */
+  estimatedParts: { name: string; value: number }[];
 }
 
 /** まとめた歳入の款の箱（「その他の収入」）の ID */
@@ -40,8 +44,13 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
   const grand = [...kanTotal.values()].reduce((s, v) => s + v, 0);
   const grouped = (kan: number) => groupBelow > 0 && (kanTotal.get(kan) ?? 0) < grand * groupBelow;
 
+  // 名前が読み取りだけの歳入の款（図の ※。全会計の見方の歳入の款と同じく、款のどれかの目が読み取りなら印を付ける）
+  const ocrKan = new Set(
+    file.rows.filter(r => r.account === 'general' && r.side === 'revenue' && isOcrName(r.kan.name_src)).map(r => r.kan.no)
+  );
   const funding = new Map<string, FundingKey>();
   const estimated = new Set<string>();
+  const groupedNames: string[] = [];
   const edgeValue = new Map<string, { source: string; target: string; value: number }>();
   const revNodes = new Map<string, LocalGraph['nodes'][number]>();
   // 歳入の款の並び: 一番多く流れる財源の順（財源の箱の並び）→ 額の大きい順。帯の交差を減らす（「その他の収入」は最後）
@@ -60,16 +69,19 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
   );
   for (const f of sorted) {
     const id = grouped(f.kan) ? OTHER_REVENUE_ID : `revenue:${f.kan_name}`;
+    if (id === OTHER_REVENUE_ID && !groupedNames.includes(f.kan_name)) groupedNames.push(f.kan_name);
     const node = revNodes.get(id);
     if (node) node.value += f.amount;
-    else
+    else {
+      const flags = id === OTHER_REVENUE_ID ? ['aggregate'] : ocrKan.has(f.kan) ? ['name-ocr'] : undefined;
       revNodes.set(id, {
         id,
         col: 'revenue',
         name: id === OTHER_REVENUE_ID ? 'その他の収入' : f.kan_name,
         value: f.amount,
-        ...(id === OTHER_REVENUE_ID ? { flags: ['aggregate'] } : {}),
+        ...(flags ? { flags } : {}),
       });
+    }
     const target = `funding:${f.funding}`;
     const k = edgeKey(id, target);
     const e = edgeValue.get(k);
@@ -100,5 +112,7 @@ export function simpleFundingFlow(file: LocalBudgetFile, base: LocalGraph, group
     },
     funding,
     estimated,
+    groupedNames,
+    estimatedParts: flows.filter(f => f.estimated).sort((a, b) => b.amount - a.amount).map(f => ({ name: f.kan_name, value: f.amount })),
   };
 }

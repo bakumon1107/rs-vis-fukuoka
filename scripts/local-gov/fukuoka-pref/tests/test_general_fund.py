@@ -124,5 +124,10 @@ def test_flows_stop_when_totals_do_not_match():
     stale = {**FLOW_TABLE, "歳入の款と財源": {"国庫支出金": "national", "地方債": "bond", "県債": "loan"}}
     _, fails = gf.build(FLOW_ROWS, stale)
     assert any("款「地方債」が歳入にない" in f for f in fails) and any("県債 の財源が不正" in f for f in fails)
+    # 差し引きの実額が概算の合計より小さすぎて、一番大きい款の分が負になる
+    # （実額 70 千円・概算 80 + 80。差の -90 を 80 の款で吸収すると -10）
+    tiny = {**FLOW_TABLE, "差し引き": {**FLOW_TABLE["差し引き"], "概算": 70}, "差し引きの款ごとの概算": {"14": 80, "10": 80}}
+    out, fails = gf.build(FLOW_ROWS, tiny)
+    assert out is None and any("負になる" in f for f in fails)
     # 表に「歳入の款と財源」がなければ flows を作らない（今までどおり）
     assert "flows" not in gf.build(ROWS, TABLE)[0]

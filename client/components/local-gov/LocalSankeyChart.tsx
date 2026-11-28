@@ -323,13 +323,18 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
             // キーボード・支援技術でも選べるように、選べる箱はボタンとして扱う（Enter・Space で選ぶ）
             // 読み上げにも増減を入れる（aria-label は <title> より優先されるので、ツールチップと同じ文を足す）
             const label = `${n.name} ${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value).replace('\n', '。')}${ocrName ? '（名前は読み取り）' : ''}${isSelected ? '（選択中）' : ''}`;
+            // かんたんの3列の「その他の収入」: 小さい歳入の款をまとめた箱（どの款かを書く。一般の「その他」の説明は当てはまらない）
+            const groupedRevenue = aggregate && fc && n.col === 'revenue' && fc.groupedNames.length > 0;
+            const aggregateText = groupedRevenue
+              ? `歳入の合計の 1% 未満の款をまとめた箱: ${fc.groupedNames.join('・')}`
+              : '上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）';
             return (
               <g
                 key={node.id}
                 className={aggregate ? undefined : 'local-node'}
                 role={aggregate ? 'img' : 'button'}
                 tabIndex={aggregate ? undefined : 0}
-                aria-label={aggregate ? `${label}。上位以外の項目をまとめた箱` : label}
+                aria-label={aggregate ? `${label}。${groupedRevenue ? aggregateText : '上位以外の項目をまとめた箱'}` : label}
                 aria-pressed={aggregate ? undefined : isSelected}
                 onClick={aggregate ? undefined : select}
                 onKeyDown={
@@ -347,7 +352,7 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                 style={{ cursor: aggregate ? 'default' : 'pointer' }}
               >
                 <title>
-                  {`${n.name}　${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? '\n上位以外の項目をまとめています（選んでいるときは、選んだものの分の大きい順）' : ''}`}
+                  {`${n.name}　${formatBudgetFromYen(n.value)}${deltaTooltip(deltas?.get(n.id), n.value)}${ocrName ? '\n※名前は読み取り（資料で裏付けが取れていない）' : ''}${aggregate ? `\n${aggregateText}` : ''}`}
                 </title>
                 <rect
                   x={node.x}
@@ -468,9 +473,12 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
               <svg aria-hidden="true" width="16" height="10">
                 <rect x="1" y="1" width="14" height="8" fill="none" stroke="#6b7280" strokeWidth="1.2" strokeDasharray="4 3" />
               </svg>
-              点線の縁は概算の帯（一般財源のうち、資料に歳入の款ごとの分け方がない分）
+              点線の縁は概算の帯（一般財源のうち、資料に歳入の款ごとの分け方がない分を、財源内訳の足し上げで分けたもの）:{' '}
+              {/* 帯の説明はホバーでしか出ないので、タップ・読み上げでも分かるよう、概算の帯の額をここに並べる */}
+              {fc.estimatedParts.map(p => `${p.name} ${formatBudgetFromYen(p.value)}`).join('・')}
             </span>
           )}
+          {fc.groupedNames.length > 0 && <span>その他の収入: {fc.groupedNames.join('・')}</span>}
         </div>
       )}
     </div>

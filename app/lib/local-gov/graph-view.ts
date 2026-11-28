@@ -34,7 +34,12 @@ export interface LocalGraphDisplay {
    * 帯・箱を財源の色で塗る（かんたんの図の3列だけ。列の色の代わり）。funding: 帯のキー・財源の箱の ID → 財源、
    * estimated: 概算の帯のキー（縁を点線にする）。ない箱（歳入・歳出の款）は灰色
    */
-  fundingColors?: { funding: Map<string, FundingKey>; estimated: Set<string> };
+  fundingColors?: {
+    funding: Map<string, FundingKey>;
+    estimated: Set<string>;
+    groupedNames: string[];
+    estimatedParts: { name: string; value: number }[];
+  };
 }
 
 // 帯のキーは graph.ts と同じもの（描画・テストからはここ経由でも使える）
@@ -277,7 +282,18 @@ export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView, group
   // （設計: かんたんの図に歳入から財源への振り分けを足す設計）。ほかは今の2列
   if (view === 'general') {
     const flow = simpleFundingFlow(file, fullGraph(file, view, SIMPLE_DEPTH), groupBelow);
-    if (flow) return { graph: flow.graph, ...empty, fundingColors: { funding: flow.funding, estimated: flow.estimated } };
+    if (flow) {
+      return {
+        graph: flow.graph,
+        ...empty,
+        fundingColors: {
+          funding: flow.funding,
+          estimated: flow.estimated,
+          groupedNames: flow.groupedNames,
+          estimatedParts: flow.estimatedParts,
+        },
+      };
+    }
   }
   return { graph: fullGraph(file, view, SIMPLE_DEPTH), ...empty };
 }

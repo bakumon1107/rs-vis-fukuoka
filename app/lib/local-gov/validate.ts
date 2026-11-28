@@ -211,6 +211,12 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (!Array.isArray(gf.notes) || gf.notes.some(n => typeof n !== 'string')) err('general_fund.notes が文字列の配列でない');
     gf.rows.forEach((r, i) => {
       if (!GENERAL_FUND_BASES.includes(r.basis)) err(`general_fund.rows[${i}]: basis が不正（${r.basis}）`);
+      // 差し引きの款ごとの内訳: 各額は 0 以上の整数、合計 = 行の額
+      if (r.split) {
+        if (r.split.some(s => !Number.isInteger(s.amount) || s.amount < 0)) err(`general_fund.rows[${i}] ${r.label}: split に負・整数でない額がある`);
+        const t = r.split.reduce((s, x) => s + x.amount, 0);
+        if (t !== r.amount) err(`general_fund.rows[${i}] ${r.label}: split の合計 ${t} ≠ 行の額 ${r.amount}`);
+      }
       if (!Number.isInteger(r.amount) || r.amount < 0) err(`general_fund.rows[${i}] ${r.label}: 額が 0 以上の整数でない（${r.amount}）`);
       for (const id of r.refs ?? []) if (!rowIds.has(id)) err(`general_fund.rows[${i}] ${r.label}: 組み替えの元の目 ${id} がない`);
     });
@@ -227,8 +233,12 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     if (gf.flows) {
       const fundingKeys = ['national', 'bond', 'other', 'general'] as const;
       const revenueByKan = new Map<number, number>();
+      const kanName = new Map<number, string>();
       for (const r of file.rows) {
-        if (r.account === 'general' && r.side === 'revenue') revenueByKan.set(r.kan.no, (revenueByKan.get(r.kan.no) ?? 0) + (r.amount.v ?? 0));
+        if (r.account === 'general' && r.side === 'revenue') {
+          revenueByKan.set(r.kan.no, (revenueByKan.get(r.kan.no) ?? 0) + (r.amount.v ?? 0));
+          kanName.set(r.kan.no, r.kan.name);
+        }
       }
       const byKan = new Map<number, number>();
       const byFunding = new Map<string, number>();
@@ -236,6 +246,8 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
         if (!fundingKeys.includes(f.funding)) err(`general_fund.flows[${i}]: funding が不正（${f.funding}）`);
         if (!Number.isInteger(f.amount) || f.amount <= 0) err(`general_fund.flows[${i}] ${f.kan_name}: 額が正の整数でない（${f.amount}）`);
         if (!revenueByKan.has(f.kan)) err(`general_fund.flows[${i}]: 歳入の款 ${f.kan} がない`);
+        // 図の箱の ID は名前（revenue:<款の名前>）なので、行の款の名前と同じであること（違うと全会計の見方の箱に当たらない）
+        else if (kanName.get(f.kan) !== f.kan_name) err(`general_fund.flows[${i}]: 款の名前「${f.kan_name}」が歳入の ${f.kan}款「${kanName.get(f.kan)}」と違う`);
         byKan.set(f.kan, (byKan.get(f.kan) ?? 0) + f.amount);
         byFunding.set(f.funding, (byFunding.get(f.funding) ?? 0) + f.amount);
       });

@@ -96,6 +96,36 @@ test('実データ R8: 検証は帯の合計の食い違い（款ごと・財源
   assert.ok(validateBudgetFile(zero).errors.some(e => e.includes('正の整数でない')));
   const bad = withFlows(fl => fl!.map((x, i) => (i === 0 ? { ...x, funding: 'loan' as 'general' } : x)));
   assert.ok(validateBudgetFile(bad).errors.some(e => e.includes('funding が不正')));
+  // 款の名前が行と違う（箱の ID が全会計の見方の箱に当たらない）
+  const renamed = withFlows(fl => fl!.map((x, i) => (i === 0 ? { ...x, kan_name: '旧い名前' } : x)));
+  assert.ok(validateBudgetFile(renamed).errors.some(e => e.includes('款の名前「旧い名前」')));
+  // 差し引きの split の合計が行の額と違う・負
+  const gf = file.general_fund!;
+  const withSplit = (split: { kan: number; amount: number }[]) => ({
+    ...file,
+    general_fund: { ...gf, rows: gf.rows.map(r => (r.basis === 'residual' ? { ...r, split } : r)) },
+  });
+  const res = gf.rows.find(r => r.basis === 'residual')!;
+  assert.ok(validateBudgetFile(withSplit([{ kan: 14, amount: res.amount - 1 }])).errors.some(e => e.includes('split の合計')));
+  assert.ok(
+    validateBudgetFile(withSplit([{ kan: 14, amount: res.amount + 5 }, { kan: 10, amount: -5 }])).errors.some(e => e.includes('split に負'))
+  );
+});
+
+test('実データ R8: 名前が読み取りだけの歳入の款には印（※）を付ける。まとめた款の名前を返す', { skip: !has }, () => {
+  const file = read('budget-2026-initial.json');
+  const ocr: LocalBudgetFile = {
+    ...file,
+    rows: file.rows.map(r =>
+      r.account === 'general' && r.side === 'revenue' && r.kan.name === '県税' ? { ...r, kan: { ...r.kan, name_src: 'ocr' as const } } : r
+    ),
+  };
+  const flow = simpleFundingFlow(ocr, fullGraph(ocr, 'general', 2))!;
+  assert.ok(flow.graph.nodes.find(n => n.id === 'revenue:県税')?.flags?.includes('name-ocr'));
+  assert.ok(!flow.graph.nodes.find(n => n.id === 'revenue:地方交付税')?.flags?.includes('name-ocr'));
+  assert.deepEqual(simpleFundingFlow(file, fullGraph(file, 'general', 2))!.groupedNames, []);
+  const grouped = simpleFundingFlow(file, fullGraph(file, 'general', 2), 0.01)!;
+  assert.ok(grouped.groupedNames.length >= 2 && grouped.groupedNames.includes('交通安全対策特別交付金'));
 });
 
 test('実データ R8: 3列は一般会計の当初予算だけ（補正後・決算・全会計は今の2列）', { skip: !has }, () => {

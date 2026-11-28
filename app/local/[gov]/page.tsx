@@ -166,10 +166,11 @@ function LocalGovContent() {
   );
   // かんたんの図は見方の左2列だけ。スマートフォン（縦・横）のくわしくの図は、選んだ箱の列を真ん中にした3列だけを描く（設計書 4.3）
   const shown = useMemo(() => {
-    // かんたんの3列（一般会計の当初予算）: スマートフォンの幅では、歳入の 1% 未満の款を「その他の収入」にまとめる（名前が詰まるので）
-    if (state.status === 'ready' && simple) return simpleDisplay(state.file, view, compact ? SIMPLE_GROUP_BELOW : 0);
+    // かんたんの3列（一般会計の当初予算）: スマートフォン（縦・指で操作する横）では、歳入の 1% 未満の款を「その他の収入」にまとめる
+    // （名前が詰まるので）。パソコンの高さの低いウィンドウ（landscapePhone に当たる）は幅があるのでまとめない
+    if (state.status === 'ready' && simple) return simpleDisplay(state.file, view, simpleFirstNow ? SIMPLE_GROUP_BELOW : 0);
     return display && compact ? windowColumns(display) : display;
-  }, [state, simple, view, display, compact]);
+  }, [state, simple, view, display, compact, simpleFirstNow]);
   // かんたんの図・一覧で押した箱を、くわしくの図で選ぶ。歳入の款（3列の左）は一般会計の見方にないので、全会計の見方の歳入の款を開く
   const openDetail = (id: string) =>
     id.startsWith('revenue:') && view === 'general'
