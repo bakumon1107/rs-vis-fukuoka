@@ -9,8 +9,9 @@ import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
 import { composeLatest } from '../app/lib/local-gov/supplement';
 import {
-  boxDeltas, diffTotal, grossDelta, initialBoxIds, initialBoxValues, shortDelta, sortDiff, supplementDiffTree, withoutZero, type DiffNode,
+  boxDeltas, diffTotal, grossDelta, initialBoxIds, initialBoxValues, shortAmount, shortDelta, sortDiff, supplementDiffTree, withoutZero, type DiffNode,
 } from '../app/lib/local-gov/supplement-diff';
+import { simpleDisplay, SIMPLE_DEPTH } from '../app/lib/local-gov/graph-view';
 import type { LocalBudgetFile, LocalGraph } from '../types/local-gov';
 
 test('短い増減: 1万円未満は出さない。億は小数1桁、兆は2桁、万は整数。減は △', () => {
@@ -26,7 +27,16 @@ test('短い増減: 1万円未満は出さない。億は小数1桁、兆は2桁
   assert.equal(shortDelta(-999_995_000_000), '△1兆');
 });
 
-test('増減のない行を外す: 子の増減が打ち消し合って親の増減が 0 でも、動いた子があれば親ごと残す', () => {
+test('短い額（スマートフォンの縦の図の2行目）: 単位の決め方は短い増減と同じで、円を付ける', () => {
+  assert.equal(shortAmount(84_567_000_000), '845.7億円');
+  assert.equal(shortAmount(2_310_000_000_000), '2.31兆円');
+  assert.equal(shortAmount(65_934_000), '6593万円');
+  assert.equal(shortAmount(99_995_000), '1億円');
+  assert.equal(shortAmount(5_000), '5000円');
+  assert.equal(shortAmount(0), '0円');
+});
+
+test('増減のない行を外す:子の増減が打ち消し合って親の増減が 0 でも、動いた子があれば親ごと残す', () => {
   const node = (key: string, before: number, after: number, children: DiffNode[] = []): DiffNode =>
     ({ key, name: key, level: 'moku', before, after, rounds: [after - before], children });
   const kou = node('kou', 10, 10, [node('a', 5, 10), node('b', 5, 0), node('c', 3, 3)]);
@@ -132,6 +142,16 @@ test('実データ R8: 図の箱の増減 = 補正後の箱の額 − 当初の�
     }
     // 見出しの総計の増減 = 補正後の総計 − 当初の総計
     assert.equal(grossDelta(initial, view, after.totals.gross), after.totals.gross - initialGraph.totals.gross);
+  }
+  // かんたんの図: 見方の左2列だけで、総計・箱の額はくわしくの図と同じ（推計しない）
+  for (const file of [initial, composed]) {
+    for (const view of ['general', 'all'] as const) {
+      const s = simpleDisplay(file, view).graph;
+      const full = buildLocalGraph(file, { view });
+      assert.deepEqual(s.columns.map(c => c.key), full.columns.slice(0, SIMPLE_DEPTH).map(c => c.key));
+      assert.equal(s.totals.gross, full.totals.gross, `${view} かんたんの総計`);
+      for (const n of s.nodes) assert.equal(n.value, full.nodes.find(x => x.id === n.id)?.value, `${view} ${n.id}`);
+    }
   }
   // 一般会計の歳出の増減 = 一般会計の歳出の増減の表の合計
   const tree = supplementDiffTree(composed, { side: 'expense', byAccount: false });

@@ -12,7 +12,7 @@ import { computeMOFSankeyLayout, mofRibbonPath, type MOFLayoutLink } from '@/app
 import { edgeKey, type LocalGraphDisplay } from '@/app/lib/local-gov/graph-view';
 import { orderEdges } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
-import { shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
+import { shortAmount, shortDelta, type BoxDelta } from '@/app/lib/local-gov/supplement-diff';
 import type { LocalGraph } from '@/types/local-gov';
 
 type GraphNode = LocalGraph['nodes'][number];
@@ -31,7 +31,7 @@ function shorten(s: string, max: number) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-/** 図の幅は枠の幅に合わせる（minWidth より狭くはしない。狭い幅では3列だけを描くので小さくてよい） */
+/** 図の幅は枠の幅に合わせる（minWidth より狭くはしない。スマートフォンでは3列だけを描くので小さくてよい） */
 function useWidth<T extends HTMLElement>(minWidth: number) {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(1200);
@@ -59,23 +59,54 @@ function visible<T extends { width: number; y0: number; y1: number }>(link: T): 
   return { ...link, width: MIN_RIBBON_PX, y0: link.y0 - pad, y1: link.y1 - pad };
 }
 
-/** 狭い幅（スマートフォン）の描き方: 3列だけを描くので、図の最小幅・ラベルの長さ・左右の余白を小さくする（設計書 4.3） */
-const NARROW = { minWidth: 300, labelMax: 6, amountPx: 8, maxSide: 90, fontSize: 11, charPx: 11, showAmount: false };
-const WIDE = {
+interface ChartSize {
+  minWidth: number;
+  labelMax: number;
+  /** 1行のラベルで、名前の後ろの金額の幅の見積もり */
+  amountPx: number;
+  maxSide: number;
+  fontSize: number;
+  charPx: number;
+  /** 金額を名前の下の2行目に出す（スマートフォンの縦。横に並べると3列のラベルが重なる） */
+  twoLine: boolean;
+  /** 箱1つの最低の高さ（ラベルの行が重ならないように） */
+  slot: number;
+}
+
+/**
+ * スマートフォンの縦の描き方: 3列だけを描く。名前は6字までで、金額は名前の下の2行目に小さく出す
+ * （設計: スマートフォンのサンキー図と簡易表示 2.2。前は金額を出していなかった）
+ */
+const NARROW: ChartSize = { minWidth: 300, labelMax: 6, amountPx: 0, maxSide: 110, fontSize: 11, charPx: 11, twoLine: true, slot: 28 };
+/** スマートフォンの横の描き方: 3列だけを描く。幅があるので名前は10字・金額は名前の後ろ（同 2.1） */
+const MEDIUM: ChartSize = { minWidth: 560, labelMax: 10, amountPx: AMOUNT_LABEL_PX, maxSide: 240, fontSize: 12, charPx: 12, twoLine: false, slot: 18 };
+const WIDE: ChartSize = {
   minWidth: 640,
   labelMax: LABEL_MAX,
   amountPx: AMOUNT_LABEL_PX,
   maxSide: MAX_SIDE_MARGIN,
   fontSize: 12,
   charPx: LABEL_CHAR_PX,
-  showAmount: true,
+  twoLine: false,
+  slot: 18,
 };
+const SIZES = { narrow: NARROW, medium: MEDIUM, wide: WIDE } as const;
+export type ChartSizeKey = keyof typeof SIZES;
+
+/** 2行目（短い金額「2072億円」）の幅の見積もりと、増減の印（「+67.5億」）の幅 */
+const AMOUNT_LINE_PX = 52;
+const DELTA_LINE_PX = 42;
 
 export interface LocalSankeyChartProps {
   display: LocalGraphDisplay;
   onSelect: (id: string) => void;
-  /** スマートフォンの幅か（page.tsx が useIsNarrow で決め、表示するグラフも3列に絞って渡す） */
-  narrow?: boolean;
+  /**
+   * 描き方（page.tsx が決め、narrow・medium では表示するグラフも3列に絞って渡す）。
+   * narrow: スマートフォンの縦、medium: スマートフォンの横、wide: パソコン
+   */
+  size?: ChartSizeKey;
+  /** かんたんの図（列が少ないので、図の高さを低くする） */
+  simple?: boolean;
   /**
    * 補正後の見方で、箱ごとの当初からの増減（app/lib/local-gov/supplement-diff.ts の boxDeltas）。
    * 額の後ろに短く添える（増は「+12.3億」、減は「△4.5億」、補正で新しくできた箱は「新」）
@@ -95,9 +126,9 @@ function deltaTooltip(d: BoxDelta | undefined, after: number): string {
   return `\n当初 ${formatBudgetFromYen(after - d.delta)}・補正 ${sign}${formatBudgetFromYen(Math.abs(d.delta))}`;
 }
 
-export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: LocalSankeyChartProps) {
+export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', simple = false, deltas }: LocalSankeyChartProps) {
   const { graph, highlight, highlightNodes, selected } = display;
-  const size = narrow ? NARROW : WIDE;
+  const size = SIZES[sizeKey];
   const { ref, width } = useWidth<HTMLDivElement>(size.minWidth);
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -113,11 +144,14 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
       return !!d && (d.added || shortDelta(d.delta) !== '');
     };
     // 描く条件（金額を出す列だけ）と同じにする
-    const withDelta = (col: string | undefined) =>
-      size.showAmount && deltas && col && !hideAmountCols.has(col) && graph.nodes.some(n => n.col === col && shows(n.id)) ? DELTA_LABEL_PX : 0;
-    const labelPx = (col: string | undefined) =>
-      Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx +
-      size.amountPx + withDelta(col);
+    const withDelta = (col: string | undefined, px: number) =>
+      deltas && col && !hideAmountCols.has(col) && graph.nodes.some(n => n.col === col && shows(n.id)) ? px : 0;
+    const labelPx = (col: string | undefined) => {
+      const namePx = Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx;
+      // 2行のラベル: 名前の行と金額の行の長い方
+      if (size.twoLine) return Math.max(namePx, col && !hideAmountCols.has(col) ? AMOUNT_LINE_PX + withDelta(col, DELTA_LINE_PX) : 0);
+      return namePx + size.amountPx + withDelta(col, DELTA_LABEL_PX);
+    };
     return {
       top: 16,
       bottom: 24,
@@ -135,16 +169,17 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
         },
         {
           width,
-          height: 720,
+          // かんたんの図は箱が少ない（款 14 前後）ので低く描き、スマートフォンでも1画面に収める
+          height: simple ? (sizeKey === 'wide' ? 480 : 360) : 720,
           margin,
           nodeWidth: NODE_WIDTH,
           nodePadding: 3,
           align: 'top',
-          minNodeSlot: 18,
+          minNodeSlot: size.slot,
           columnOf: n => colIndex.get(n.type ?? '') ?? 0,
         }
       ),
-    [graph, width, colIndex, margin]
+    [graph, width, colIndex, margin, simple, sizeKey, size.slot]
   );
 
   // 列の色は元の列の位置で決める（スマートフォンの幅で左の列を外しても、同じ列は広い幅と同じ色。設計書 4.3）
@@ -153,6 +188,7 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
   // ホバー中の箱が選択の解除などで図から消えると onMouseLeave が来ないので、図にない箱を指すホバーは無視する
   // （残ると全部の帯が薄いままになる）
   const hoveredShown = hovered !== null && layout.nodes.some(n => n.id === hovered) ? hovered : null;
+  const lastColumn = Math.max(0, ...layout.nodes.map(n => n.column));
 
   return (
     <div ref={ref} className="w-full">
@@ -244,30 +280,17 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
                   stroke={isSelected ? '#111827' : 'none'}
                   strokeWidth={isSelected ? 2 : 0}
                 />
-                <text
-                  x={labelLeft ? node.x - 6 : node.x + node.width + 6}
-                  y={cy}
-                  textAnchor={labelLeft ? 'end' : 'start'}
-                  dominantBaseline="middle"
-                  fontSize={size.fontSize}
-                  fontWeight={isSelected ? 700 : 500}
-                  fill={lit ? '#1f2937' : '#9ca3af'}
-                  stroke="#ffffff"
-                  strokeWidth={3}
-                  paintOrder="stroke"
-                >
-                  {shorten(n.name, size.labelMax)}
-                  {ocrName && <tspan fill="#b45309">※</tspan>}
-                  {/* 狭い幅では金額を出さない（3列のラベルが重なる。金額はツールチップと詳細パネルで見る） */}
-                  {/* 列によっては広い幅でも出さない（公営企業会計の会計・条。名前が長く支出の項の列に重なる） */}
-                  {size.showAmount && !hideAmountCols.has(n.col) && (
+                {(() => {
+                  const tx = labelLeft ? node.x - 6 : node.x + node.width + 6;
+                  // 列によっては金額を出さない（公営企業会計の会計・条。名前が長く支出の項の列に重なる）
+                  const showAmount = !hideAmountCols.has(n.col);
+                  const amount = showAmount && (
                     <tspan fill={lit ? '#6b7280' : '#9ca3af'} fontWeight={400}>
-                      {' '}
-                      {formatBudgetFromYen(n.value)}
+                      {size.twoLine ? shortAmount(n.value) : ` ${formatBudgetFromYen(n.value)}`}
                     </tspan>
-                  )}
-                  {/* 補正後の見方: 当初からの増減（増は緑・減は赤・新しくできた箱は「新」）。金額を出す列だけ */}
-                  {size.showAmount && !hideAmountCols.has(n.col) && (() => {
+                  );
+                  // 補正後の見方: 当初からの増減（増は緑・減は赤・新しくできた箱は「新」）。金額を出す列だけ
+                  const delta = showAmount && (() => {
                     const d = deltas?.get(n.id);
                     if (!d) return null;
                     const text = d.added ? '新' : shortDelta(d.delta);
@@ -279,8 +302,54 @@ export function LocalSankeyChart({ display, onSelect, narrow = false, deltas }: 
                         {text}
                       </tspan>
                     );
-                  })()}
-                </text>
+                  })();
+                  const name = (
+                    <>
+                      {shorten(n.name, size.labelMax)}
+                      {ocrName && <tspan fill="#b45309">※</tspan>}
+                    </>
+                  );
+                  return (
+                    <text
+                      x={tx}
+                      y={cy}
+                      textAnchor={labelLeft ? 'end' : 'start'}
+                      dominantBaseline="middle"
+                      fontSize={size.fontSize}
+                      fontWeight={isSelected ? 700 : 500}
+                      fill={lit ? '#1f2937' : '#9ca3af'}
+                      stroke="#ffffff"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                    >
+                      {size.twoLine && showAmount ? (
+                        // 2行: 1行目に名前、2行目に小さい字で金額と増減（スマートフォンの縦）。
+                        // 真ん中の列は右の列までの間が狭く、金額と増減を横に並べると右の列の箱に重なるので、増減は3行目に
+                        delta && !labelLeft && node.column < lastColumn ? (
+                          <>
+                            <tspan x={tx} dy="-1.1em">{name}</tspan>
+                            <tspan x={tx} dy="1.2em" fontSize={size.fontSize - 1}>{amount}</tspan>
+                            <tspan x={tx} dy="1.15em" fontSize={size.fontSize - 1}>{delta}</tspan>
+                          </>
+                        ) : (
+                          <>
+                            <tspan x={tx} dy="-0.6em">{name}</tspan>
+                            <tspan x={tx} dy="1.25em" fontSize={size.fontSize - 1}>
+                              {amount}
+                              {delta}
+                            </tspan>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          {name}
+                          {amount}
+                          {delta}
+                        </>
+                      )}
+                    </text>
+                  );
+                })()}
               </g>
             );
           })}
