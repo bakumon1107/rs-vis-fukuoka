@@ -820,6 +820,10 @@ def main():
     if gfund:
         print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
               file=sys.stderr)
+        if "flows" in gfund:
+            fl = gfund["flows"]
+            print(f"歳入の款 → 財源: 帯 {len(fl)} 本（うち概算 {sum(1 for x in fl if x.get('estimated'))} 本）・"
+                  f"財源ごとの合計は歳出の財源内訳と一致", file=sys.stderr)
     for line in settlement_lines + hosei_lines:
         print(line, file=sys.stderr)
     for level, o, n in ex.replaced:

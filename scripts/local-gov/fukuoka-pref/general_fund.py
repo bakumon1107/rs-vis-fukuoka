@@ -68,9 +68,84 @@ def build(rows: list[dict], table: dict) -> tuple[dict | None, list[str]]:
     if rest < 0 or abs(rest - d["概算"] * 1000) > d["許す差"] * 1000:
         fails.append(f"差し引き {rest:,} 円が概算 {d['概算'] * 1000:,} 円から許す差（{d['許す差'] * 1000:,} 円）を超えて違う・負")
     out.append({"label": d["label"], "amount": rest, "basis": "residual"})
+    flows = None
+    if "歳入の款と財源" in table:
+        flows = build_flows(general, out, table, fails)
     if fails:
         return None, fails
-    return {"rows": out, "total": total, "notes": table["注"], "checked_on": table["確認日"]}, []
+    gf = {"rows": out, "total": total, "notes": table["注"], "checked_on": table["確認日"]}
+    if flows is not None:
+        gf["flows"] = flows
+    return gf, []
+
+
+FUNDING_KEYS = ("national", "bond", "other", "general")
+
+
+def build_flows(general: list[dict], gf_rows: list[dict], table: dict, fails: list[str]) -> list[dict]:
+    """歳入の款 → 財源 の帯（かんたんの図の3列。設計: docs/local-gov/tasks/20261128_1408_かんたんの図に歳入から財源への振り分けを足す設計.md）。
+    一般財源へは一般財源の中身の行を元の款へ戻す（款そのもの・組み替えの refs の款・差し引きは款ごとの概算で分ける）。
+    残りは表の「歳入の款と財源」の財源へ（書いていない款は other）。
+    確かめること（合わなければ fails）: 財源ごとの合計 = 歳出の財源内訳の合計、款ごとの合計 = 歳入の款の額、帯が負でない"""
+    revenue = [r for r in general if r["side"] == "revenue"]
+    kan_name = {r["kan"]["no"]: r["kan"]["name"] for r in revenue}
+    kan_total: dict[int, int] = {}
+    for r in revenue:
+        kan_total[r["kan"]["no"]] = kan_total.get(r["kan"]["no"], 0) + (r["amount"]["v"] or 0)
+    row_kan = {r["id"]: r["kan"]["no"] for r in revenue}
+    to_general: dict[int, int] = {}
+    estimated: set[int] = set()
+    for g in gf_rows:
+        if g["basis"] == "revenue_kan":
+            to_general[g["kan"]] = to_general.get(g["kan"], 0) + g["amount"]
+        elif g["basis"] in ("matched", "summed"):
+            kans = {row_kan.get(ref) for ref in g.get("refs", [])}
+            if len(kans) != 1 or None in kans:
+                fails.append(f"歳入の款 → 財源: {g['label']} の元の目が1つの款にまとまらない（{sorted(map(str, kans))}）")
+                continue
+            k = kans.pop()
+            to_general[k] = to_general.get(k, 0) + g["amount"]
+            g["kan"] = k
+        else:  # residual: 款ごとの概算（千円）で分ける。実額との差（読み取りの誤差）は一番大きい款で吸収する
+            est = {int(k): v * 1000 for k, v in table.get("差し引きの款ごとの概算", {}).items() if k != "説明"}
+            if not est:
+                fails.append("歳入の款 → 財源: 差し引きの款ごとの概算がない")
+                continue
+            split = dict(est)
+            big = max(split, key=lambda k: split[k])
+            split[big] += g["amount"] - sum(est.values())
+            g["split"] = [{"kan": k, "amount": v} for k, v in sorted(split.items())]
+            for k, v in split.items():
+                to_general[k] = to_general.get(k, 0) + v
+                estimated.add(k)
+    mapping = {k: v for k, v in table["歳入の款と財源"].items() if k != "説明"}
+    for name, f in mapping.items():
+        if f not in ("national", "bond", "other"):
+            fails.append(f"歳入の款 → 財源: {name} の財源が不正（{f}）")
+        if name not in kan_name.values():
+            fails.append(f"歳入の款 → 財源: 款「{name}」が歳入にない（表が古い）")
+    flows = []
+    for k in sorted(kan_total):
+        gen = to_general.get(k, 0)
+        rest = kan_total[k] - gen
+        if gen < 0 or rest < 0:
+            fails.append(f"歳入の款 → 財源: {k}款 {kan_name[k]} の帯が負（一般財源 {gen:,}・残り {rest:,}）")
+            continue
+        if gen:
+            flows.append({"kan": k, "kan_name": kan_name[k], "funding": "general", "amount": gen,
+                          **({"estimated": True} if k in estimated else {})})
+        if rest:
+            flows.append({"kan": k, "kan_name": kan_name[k], "funding": mapping.get(kan_name[k], "other"), "amount": rest})
+    want = {f: 0 for f in FUNDING_KEYS}
+    for r in general:
+        if r["side"] == "expense":
+            for f in FUNDING_KEYS:
+                want[f] += ((r.get("funding") or {}).get(f) or {}).get("v") or 0
+    got = {f: sum(x["amount"] for x in flows if x["funding"] == f) for f in FUNDING_KEYS}
+    for f in FUNDING_KEYS:
+        if got[f] != want[f]:
+            fails.append(f"歳入の款 → 財源: {f} の合計 {got[f]:,} 円 ≠ 歳出の財源内訳の合計 {want[f]:,} 円（振り分けの定義を見直す）")
+    return flows
 
 
 def build_for(here: str, year: int, basis: str, rows: list[dict]) -> tuple[dict | None, list[str]]:

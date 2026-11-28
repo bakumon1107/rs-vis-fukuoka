@@ -77,3 +77,52 @@ def test_stops_when_table_does_not_match_data():
     # 表の目・節がない
     missing = {**TABLE, "組み替え": [{**TABLE["組み替え"][0], "refs": [{"id": "general/revenue/9-2-1", "setsu": 9}]}]}
     assert gf.build(ROWS, missing)[0] is None
+
+
+# 歳入の款 → 財源（かんたんの図の3列）。差し引き 70,000 は諸収入・財産収入から（概算 60 + 11 = 71 千円。差の -1,000 は大きい諸収入で吸収）
+FLOW_ROWS = [
+    *ROWS[:-1],
+    rev("general/revenue/14-1-1", 14, "諸収入", 80_000),
+    rev("general/revenue/10-1-1", 10, "財産収入", 20_000),
+    exp("general/expense/2-1-1", 1_800_000),
+    # 国庫支出金 300,000 − 臨時交付金 200,000 = 100,000。その他 = 寄附金 20,000 + 諸収入 21,000 + 財産収入 9,000
+    {**exp("general/expense/2-1-2", 0), "funding": {"national": v(100_000), "bond": v(0), "other": v(50_000), "general": v(0)}},
+]
+FLOW_TABLE = {**TABLE, "歳入の款と財源": {"説明": "x", "国庫支出金": "national"}, "差し引きの款ごとの概算": {"説明": "x", "14": 60, "10": 11}}
+
+
+def test_flows_return_general_fund_to_revenue_kan():
+    out, fails = gf.build(FLOW_ROWS, FLOW_TABLE)
+    assert fails == []
+    flows = [(x["kan_name"], x["funding"], x["amount"], x.get("estimated", False)) for x in out["flows"]]
+    assert flows == [
+        ("県税", "general", 1_500_000, False),
+        ("国庫支出金", "general", 200_000, False),
+        ("国庫支出金", "national", 100_000, False),
+        ("財産収入", "general", 11_000, True),
+        ("財産収入", "other", 9_000, False),
+        ("寄附金", "general", 30_000, False),
+        ("寄附金", "other", 20_000, False),
+        ("諸収入", "general", 59_000, True),
+        ("諸収入", "other", 21_000, False),
+    ]
+    residual = out["rows"][-1]
+    assert residual["split"] == [{"kan": 10, "amount": 11_000}, {"kan": 14, "amount": 59_000}]
+    assert out["rows"][1]["kan"] == 9  # 組み替えの行に元の款
+
+
+def test_flows_stop_when_totals_do_not_match():
+    # 財源の合計が歳出の財源内訳と合わない（国庫支出金を other にしてしまった）
+    wrong = {**FLOW_TABLE, "歳入の款と財源": {"国庫支出金": "other"}}
+    out, fails = gf.build(FLOW_ROWS, wrong)
+    assert out is None and any("national の合計" in f for f in fails)
+    # 帯が負（概算が款の額より大きい）
+    big = {**FLOW_TABLE, "差し引きの款ごとの概算": {"14": 10, "10": 61}}
+    out, fails = gf.build(FLOW_ROWS, big)
+    assert out is None and any("帯が負" in f for f in fails)
+    # 表の款が歳入にない・財源が不正
+    stale = {**FLOW_TABLE, "歳入の款と財源": {"国庫支出金": "national", "地方債": "bond", "県債": "loan"}}
+    _, fails = gf.build(FLOW_ROWS, stale)
+    assert any("款「地方債」が歳入にない" in f for f in fails) and any("県債 の財源が不正" in f for f in fails)
+    # 表に「歳入の款と財源」がなければ flows を作らない（今までどおり）
+    assert "flows" not in gf.build(ROWS, TABLE)[0]

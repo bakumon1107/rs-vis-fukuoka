@@ -223,6 +223,30 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
     }
     const general = expense.reduce((s, r) => s + (r.funding?.general.v ?? 0), 0);
     if (gf.total !== general) err(`general_fund: total ${gf.total} ≠ 一般会計の歳出の財源内訳の一般財源の合計 ${general}`);
+    // 歳入の款 → 財源 の帯（かんたんの図の3列）: 帯は正の整数。財源ごとの合計 = 歳出の財源内訳の合計、款ごとの合計 = 歳入の款の額
+    if (gf.flows) {
+      const fundingKeys = ['national', 'bond', 'other', 'general'] as const;
+      const revenueByKan = new Map<number, number>();
+      for (const r of file.rows) {
+        if (r.account === 'general' && r.side === 'revenue') revenueByKan.set(r.kan.no, (revenueByKan.get(r.kan.no) ?? 0) + (r.amount.v ?? 0));
+      }
+      const byKan = new Map<number, number>();
+      const byFunding = new Map<string, number>();
+      gf.flows.forEach((f, i) => {
+        if (!fundingKeys.includes(f.funding)) err(`general_fund.flows[${i}]: funding が不正（${f.funding}）`);
+        if (!Number.isInteger(f.amount) || f.amount <= 0) err(`general_fund.flows[${i}] ${f.kan_name}: 額が正の整数でない（${f.amount}）`);
+        if (!revenueByKan.has(f.kan)) err(`general_fund.flows[${i}]: 歳入の款 ${f.kan} がない`);
+        byKan.set(f.kan, (byKan.get(f.kan) ?? 0) + f.amount);
+        byFunding.set(f.funding, (byFunding.get(f.funding) ?? 0) + f.amount);
+      });
+      for (const [kan, v] of revenueByKan) {
+        if ((byKan.get(kan) ?? 0) !== v) err(`general_fund.flows: 歳入の ${kan}款の帯の合計 ${byKan.get(kan) ?? 0} ≠ 款の額 ${v}`);
+      }
+      for (const k of fundingKeys) {
+        const want = expense.reduce((s, r) => s + (r.funding?.[k].v ?? 0), 0);
+        if ((byFunding.get(k) ?? 0) !== want) err(`general_fund.flows: ${k} の帯の合計 ${byFunding.get(k) ?? 0} ≠ 歳出の財源内訳の合計 ${want}`);
+      }
+    }
   }
 
   // 基金: 決算のファイルだけ。区分ごとに 前年度末 + 増減 = 年度末、年度末 + 出納整理 = 出納閉鎖日。基金の額 = 区分の合計。
