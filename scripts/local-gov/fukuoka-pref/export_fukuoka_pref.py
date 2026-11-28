@@ -605,6 +605,55 @@ def apply_name_corrections(rows, fixes, unresolved):
     return n
 
 
+# 前年度にだけあった款（総括表にだけ載る。画像で確かめた値）。年度ごと
+PREVIOUS_ONLY_KAN = os.path.join(HERE, "ocr", "corrections", f"r{YEAR - 2018}-previous-only-kan.json")
+
+
+def previous_only_kan(rows, accounts, entries):
+    """前年度にだけあった款（修正表の「款」）を previous_only_kan の形にし、会計ごとに
+    「歳入の前年度 + 前年度にだけあった款 = 歳出の前年度」を確かめる（予算は歳入 = 歳出。前年度も同じ）。
+    返り値: (書き出す一覧, 合わない会計の説明の一覧, 確かめた会計の数)。公営企業会計は前年度の額を持たないので外す。
+    合わなければ、前年度にだけあった款・目の取りこぼしか、前年度の読み違い。"""
+    ids = {a["id"] for a in accounts}
+    out, fails, checked = [], [], 0
+    for e in entries:
+        if e["会計"] not in ids:
+            fails.append(f"前年度にだけあった款: 会計 {e['会計']} がない（修正表が古い）")
+            continue
+        side = {"歳入": "revenue", "歳出": "expense"}.get(e.get("side"))
+        if side is None:
+            fails.append(f"前年度にだけあった款: {e['会計']} の「{e.get('款名')}」の side が不正（{e.get('side')!r}。歳入・歳出）")
+            continue
+        if any(r["account"] == e["会計"] and r["side"] == side and r["kan"]["name"] == e["款名"] for r in rows):
+            fails.append(f"前年度にだけあった款: {e['会計']} の「{e['款名']}」に本年度の行がある（前年度にだけの款ではない）")
+            continue
+        out.append({"account": e["会計"], "side": side, "kan": {"name": e["款名"]},
+                    "previous": val(e["前年度"], "correction", None, e["根拠"]),
+                    "pages": [{"source": e["source"], "page": e["page"]}]})
+    for a in accounts:
+        if a.get("kind") == "enterprise":
+            continue
+        total = {"revenue": 0, "expense": 0}
+        unread = 0
+        for r in rows:
+            if r["account"] == a["id"]:
+                v = (r.get("previous") or {}).get("v")
+                unread += v is None
+                total[r["side"]] += v or 0
+        if unread:
+            # 読めない前年度があると合計を比べられない（画面も、その箱の前年度比を出さない）
+            continue
+        for k in out:
+            if k["account"] == a["id"]:
+                total[k["side"]] += k["previous"]["v"]
+        checked += 1
+        if total["revenue"] != total["expense"]:
+            fails.append(f"{a['id']}: 前年度の歳入 {total['revenue']:,} 円 ≠ 歳出 {total['expense']:,} 円"
+                         f"（差 {total['expense'] - total['revenue']:,} 円。前年度にだけあった款・目を総括表で探し、"
+                         f"{os.path.basename(PREVIOUS_ONLY_KAN)} に書く）")
+    return out, fails, checked
+
+
 def name_source_counts(rows):
     """名前の出典ごとの件数（款・項・目は目の行ごと、事項・節・細節は1件ずつ）。"""
     c = Counter()
@@ -725,6 +774,10 @@ def main():
     gfund, gfund_fails = general_fund.build_for(HERE, YEAR, "initial", rows)
     if gfund_fails:
         sys.exit("一般財源の中身が組み替えの表と合わない:\n" + "\n".join(gfund_fails))
+    # 前年度にだけあった款（総括表にだけ載る）。会計ごとの前年度の歳入 = 歳出を確かめる（公営企業会計を足す前の行・会計で）
+    prev_only_kan, prev_fails, prev_checked = previous_only_kan(rows, accounts, json.load(open(PREVIOUS_ONLY_KAN, encoding="utf-8"))["款"])
+    if prev_fails:
+        sys.exit("前年度の額が合わない:\n" + "\n".join(prev_fails))
     # 公営企業会計（予算実施計画。公開前のサンキー図の足しの設計 4.3）。一般会計・特別会計の検算（上の外部の検算）の後に足す
     kigyo_accounts, kigyo_rows, kigyo_lines, kigyo_fails, kigyo_external = export_kigyo.build(a.work)
     if kigyo_fails:
@@ -756,6 +809,7 @@ def main():
     budget = {
         "schema_version": 1, "gov_id": GOV_ID, "year": YEAR, "year_label": YEAR_LABEL, "basis": "initial",
         "unit_source": "千円", "accounts": accounts, "rows": rows,
+        **({"previous_only_kan": prev_only_kan} if prev_only_kan else {}),
         "checks": {
             "rows": len(rows), "all_ok": stats["ok"],
             "rules": {"A_説明欄": rule_counts["A"], "B_財源": rule_counts["B"], "C_比較": rule_counts["C"], "D_節": rule_counts["D"]},
@@ -820,6 +874,8 @@ def main():
     if gfund:
         print(f"一般財源の中身: {len(gfund['rows'])} 行・合計 {gfund['total']:,} 円（差し引き {gfund['rows'][-1]['amount']:,} 円）",
               file=sys.stderr)
+    print(f"前年度にだけあった款 {len(prev_only_kan)} 件 {sum(k['previous']['v'] for k in prev_only_kan):,} 円。"
+          f"前年度の歳入 = 歳出を確かめた会計 {prev_checked} 件", file=sys.stderr)
     for line in settlement_lines + hosei_lines:
         print(line, file=sys.stderr)
     for level, o, n in ex.replaced:

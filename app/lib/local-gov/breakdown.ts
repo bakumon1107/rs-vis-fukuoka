@@ -76,7 +76,8 @@ export function breakdownDeltas(b: Breakdown, before: Map<string, Yen>, initialI
 
 /**
  * 箱ごとの前年度の額（箱の ID → 額）。説明書の目の「前年度予算額」を、目の入る箱（会計・款・項・目・歳入の款）へ足す。
- * 前年度にだけあった目も足す（款・項の前年度の額に入る）。会計の箱は歳出の目だけで足す（歳入も足すと二重になる）。
+ * 前年度にだけあった目も足す（款・項の前年度の額に入る）。前年度にだけあった款（previous_only_kan）も足す。
+ * 会計の箱は歳出の目だけで足す（歳入も足すと二重になる）。
  * 財源の箱は目ごとの財源内訳に前年度がないので入らない。前年度の額のある目が1つもないデータ（補正・決算・公営企業会計）は空
  */
 export function previousBoxValues(file: LocalBudgetFile): Map<string, Yen> {
@@ -94,25 +95,39 @@ export function previousBoxValues(file: LocalBudgetFile): Map<string, Yen> {
       else out.set(id, (out.get(id) ?? 0) + p);
     }
   }
+  // 前年度にだけあった款（行がない。総括表にだけ載る）。番号がなく款の箱には入らないので、歳入は歳入の款の箱、歳出は会計の箱に足す
+  for (const k of previousOnlyKanBoxes(file)) {
+    for (const id of k.boxIds) {
+      if (k.previous === null) incomplete.add(id);
+      else out.set(id, (out.get(id) ?? 0) + k.previous);
+    }
+  }
   for (const id of incomplete) out.delete(id);
   return out;
 }
 
+/** 前年度にだけあった款と、その前年度の額が入る箱（previousBoxValues と同じ決め方） */
+function previousOnlyKanBoxes(file: LocalBudgetFile) {
+  const enterprise = new Set(file.accounts.filter(a => a.kind === 'enterprise').map(a => a.id));
+  return (file.previous_only_kan ?? [])
+    .filter(k => !enterprise.has(k.account))
+    .map(k => ({
+      account: k.account,
+      name: k.kan.name,
+      previous: k.previous.v,
+      boxIds: k.side === 'revenue' ? [`revenue:${k.kan.name}`] : [`account:${k.account}`],
+    }));
+}
+
 /**
- * 前年度の歳入の足りない額（会計ごとの 歳出の前年度 − 歳入の前年度 の合計）。前年度にだけあった款は総括表にしか載らず
- * 行がないので、その分だけ歳入の款の前年度が小さくなる（R8: 県営埠頭施設の財産収入 2,530千円）。0 なら抜けはない
+ * 選んだ箱の前年度に入っている、前年度にだけあった款（会計の名前・款の名前・前年度の額）。内訳の表の断り書き用
+ * （本年度の行がないので、表の行の前年度の合計と計の前年度が合わない）
  */
-export function previousRevenueGap(file: LocalBudgetFile): Yen {
-  const sums = new Map<string, { revenue: Yen; expense: Yen }>();
-  for (const a of file.accounts) if (a.kind !== 'enterprise') sums.set(a.id, { revenue: 0, expense: 0 });
-  for (const r of file.rows) {
-    const s = sums.get(r.account);
-    const p = r.previous?.v;
-    if (s && p !== null && p !== undefined) s[r.side] += p;
-  }
-  let gap = 0;
-  for (const s of sums.values()) if (s.revenue > 0 && s.expense > s.revenue) gap += s.expense - s.revenue;
-  return gap;
+export function previousOnlyKanIn(file: LocalBudgetFile, boxId: string): { account: string; kan: string; previous: Yen }[] {
+  const nameOf = new Map(file.accounts.map(a => [a.id, a.name]));
+  return previousOnlyKanBoxes(file)
+    .filter(k => k.previous !== null && k.boxIds.includes(boxId))
+    .map(k => ({ account: nameOf.get(k.account) ?? k.account, kan: k.name, previous: k.previous! }));
 }
 
 /** 前年度からの増減の割合（「+5.1%」「△2.3%」）。前年度が 0 なら null */

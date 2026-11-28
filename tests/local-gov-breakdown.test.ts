@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildLocalGraph } from '../app/lib/local-gov/graph';
-import { boxBreakdown, breakdownDeltas, previousBoxValues, previousRatio, previousRevenueGap } from '../app/lib/local-gov/breakdown';
+import { boxBreakdown, breakdownDeltas, previousBoxValues, previousOnlyKanIn, previousRatio } from '../app/lib/local-gov/breakdown';
 import { composeLatest } from '../app/lib/local-gov/supplement';
 import { initialBoxIds, initialBoxValues } from '../app/lib/local-gov/supplement-diff';
 import type { LocalBudgetFile } from '../types/local-gov';
@@ -74,23 +74,41 @@ test('実データ R8: 箱の前年度の額 = その箱に入る目の前年度
     sumOf(r => r.account === 'general' && r.side === 'expense' && r.kan.no === 2 && r.kou.no === 1)
   );
   assert.equal(prev.get('revenue:県税'), sumOf(r => r.side === 'revenue' && r.kan.name === '県税'));
+  // 前年度にだけあった款の前年度が読めない（null）なら、その歳入の款の箱は外す
+  const unreadOnly: LocalBudgetFile = {
+    ...initial,
+    previous_only_kan: initial.previous_only_kan!.map(k => ({ ...k, previous: { ...k.previous, v: null } })),
+  };
+  assert.equal(previousBoxValues(unreadOnly).has('revenue:財産収入'), false);
   // 一般会計の歳出の款の前年度の合計 = 一般会計の歳出の前年度
   const kanSum = [...prev].filter(([id]) => id.startsWith('kan:general:expense:')).reduce((s, [, v]) => s + v, 0);
   assert.equal(kanSum, prev.get('account:general'));
   assert.ok(![...prev.keys()].some(id => id.startsWith('funding:')));
   // 実装と別の性質で: 予算は歳入 = 歳出なので、前年度（前の年度の当初予算）も会計ごとに歳入の合計 = 歳出の合計
-  // （目の前年度の読み取り・前年度にだけあった目の取りこぼしがあれば合わない）
-  // 既知の抜け: 前年度にだけあった款は、本年度 0 円で明細のページがなく、行にならない（総括表にだけ載る）。
-  // 県営埠頭施設: 款「財産収入」前年度 2,530千円（特別会計の説明書 p.93 の総括表。本年度 0・比較 △2,530）
-  const missingRevenue: Record<string, number> = { 'special:kenei-futo-shisetsu': 2_530_000 };
+  // （目の前年度の読み取り・前年度にだけあった目・款の取りこぼしがあれば合わない）。
+  // 前年度にだけあった款は行がなく previous_only_kan にある（総括表にだけ載る。R8: 県営埠頭施設の財産収入 2,530千円）
+  const onlyKan = initial.previous_only_kan ?? [];
+  assert.deepEqual(
+    onlyKan.map(k => [k.account, k.side, k.kan.name, k.previous.v]),
+    [['special:kenei-futo-shisetsu', 'revenue', '財産収入', 2_530_000]]
+  );
   for (const acc of initial.accounts.filter(a => a.kind !== 'enterprise')) {
-    const rev = sumOf(r => r.account === acc.id && r.side === 'revenue');
-    const exp = sumOf(r => r.account === acc.id && r.side === 'expense');
+    const only = (side: string) => onlyKan.filter(k => k.account === acc.id && k.side === side).reduce((s, k) => s + (k.previous.v ?? 0), 0);
+    const rev = sumOf(r => r.account === acc.id && r.side === 'revenue') + only('revenue');
+    const exp = sumOf(r => r.account === acc.id && r.side === 'expense') + only('expense');
     assert.ok(exp > 0, `${acc.id} の前年度がない`);
-    assert.equal(rev + (missingRevenue[acc.id] ?? 0), exp, `${acc.id} の前年度の歳入と歳出`);
+    assert.equal(rev, exp, `${acc.id} の前年度の歳入と歳出`);
   }
-  // 足りない額は previousRevenueGap で分かる（画面の断り書き）
-  assert.equal(previousRevenueGap(initial), 2_530_000);
+  // 前年度にだけあった款は歳入の款の箱に入る（行の前年度 + 2,530千円）。内訳の表の断り書きに出す
+  assert.equal(prev.get('revenue:財産収入'), sumOf(r => r.side === 'revenue' && r.kan.name === '財産収入') + 2_530_000);
+  assert.deepEqual(previousOnlyKanIn(initial, 'revenue:財産収入'), [
+    { account: '県営埠頭施設整備運営事業特別会計', kan: '財産収入', previous: 2_530_000 },
+  ]);
+  assert.deepEqual(previousOnlyKanIn(initial, 'revenue:県税'), []);
+  // 全会計の歳入の款の前年度の合計 = 全会計（公営企業会計を除く）の歳出の前年度の合計
+  const revBoxes = [...prev].filter(([id]) => id.startsWith('revenue:')).reduce((s, [, v]) => s + v, 0);
+  const accBoxes = [...prev].filter(([id]) => id.startsWith('account:')).reduce((s, [, v]) => s + v, 0);
+  assert.equal(revBoxes, accBoxes);
   // 前年度の額のないデータ（決算）は空
   assert.equal(previousBoxValues(read('settlement-2024.json')).size, 0);
   // 前年度の読めない目（null）を含む箱は外す（足りない額で前年度比を出さない）。ほかの箱は残る
