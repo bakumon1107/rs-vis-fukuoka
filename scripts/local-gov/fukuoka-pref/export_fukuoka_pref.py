@@ -6,12 +6,14 @@
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/export_fukuoka_pref.py --work <作業ディレクトリ> --pdf-dir <原本の置き場所> \
         --xlsx-dir <表計算の資料の置き場所> --out public/data/local-gov/fukuoka-pref
+    （回帰テストは --allow-missing-fiscal を付ける: fiscal.json がない・読めなくても、財政の指標を書かずに続ける）
 
 <作業ディレクトリ> は回帰テストの出力（tests/regression.py --keep <dir>）。リポジトリには入れない。使うもの:
     cross.json・cross-toku.json … 一般会計・特別会計の cross_check.py の出力（OCR＋修正表＋文字層との突き合わせ）
     setsumeisho-{ocr,v4,tl}.json・setsumeisho-toku{,-v4,-tl}.json … 多数決に使う3つの読み取り
     yosansho.json・keijougaku.json・kessan-kmk.json（R6 決算。名前の照合に使う）
-    fiscal.json … 三基金の推移と見込み・財政の指標（extract_fiscal.py。あれば fiscal-indicators.json を書き、--xlsx-dir が要る）
+    fiscal.json … 三基金の推移と見込み・財政の指標（extract_fiscal.py。fiscal-indicators.json にする。--xlsx-dir が要る。
+                  ない・読めないと止まる。--allow-missing-fiscal のときは書かずに続ける）
 回帰テストの最後のステップとしても流れる（書き出しの要約が変わったら気づける）。
 
 書き出すもの:
@@ -692,7 +694,7 @@ def main():
     vote = load_vote()
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
     # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。回帰テストは抽出が失敗しても標準出力を書くので、
-    # 空・JSON でないものは「ない」と同じに扱う（要約の「財政の指標のファイル」の行がなくなるので回帰テストで気づける）
+    # 空・形の違うものもありうる
     # 既定では、ない・読めないときは止まる（公開データを書き出すときに、三基金・指標の区画が黙って消えないように）。
     # 回帰テストは --allow-missing-fiscal を渡し、知らせるだけで続ける（xlsx のない環境でも書き出しの回帰を流すため）
     fiscal = None
@@ -702,12 +704,20 @@ def main():
             fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             problem = "fiscal.json が空か壊れている（抽出が失敗した）"
+        if fiscal is not None and not isinstance(fiscal, dict):
+            fiscal, problem = None, "fiscal.json の中身が抽出の出力の形でない"
+        elif fiscal is None and not problem:
+            problem = "fiscal.json の中身が null"
     else:
         problem = "fiscal.json がない（extract_fiscal.py を流していない）"
     if problem:
         if not a.allow_missing_fiscal:
             sys.exit(f"財政の指標: {problem}。財政の指標を書かずに書き出すなら --allow-missing-fiscal")
         print(f"財政の指標: {problem}ので fiscal-indicators.json を書かない", file=sys.stderr)
+        # 前に書いたファイルを残さない（index から指されないファイルが公開されないように）
+        stale = os.path.join(a.out, "fiscal-indicators.json")
+        if os.path.exists(stale):
+            os.remove(stale)
     # 表計算の資料は財政の指標だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
     # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
     need_xlsx = fiscal is not None

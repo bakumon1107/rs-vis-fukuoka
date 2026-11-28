@@ -10,6 +10,7 @@ import type { LocalFiscalFile } from '@/types/local-gov';
 import { niceScale, reservePoints } from '@/app/lib/local-gov/fiscal';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 import { useElementWidth } from '@/client/hooks/useElementWidth';
+import { tipStyle } from '@/client/lib/local-gov-tooltip';
 import { eraLabel } from '@/client/components/local-gov/FundsTrendChart';
 
 /** 地方版の主色（ラベンダー。app/lib/local-gov/site.ts と同じ） */
@@ -18,15 +19,6 @@ const H = 260;
 const PAD = { l: 56, r: 20, t: 16, b: 40 };
 /** ツールチップの幅（px）。点と反対の側に出す（点の近くの線を隠さないように） */
 const TIP_W = 224;
-
-/**
- * ツールチップの位置: 点が右半分なら左に、左半分なら右に寄せる（点の近くの線を隠さない）。図の幅からはみ出さないように詰める。
- * 財政の指標の小さなグラフ（FiscalIndicators）でも使う
- */
-export function tipStyle(px: number, W: number, width: number, padL: number, padR: number, top: number) {
-  const want = px > W / 2 ? padL : W - padR - width;
-  return { width, left: Math.max(0, Math.min(want, W - width)), top };
-}
 
 export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
   const { ref, width } = useElementWidth<HTMLDivElement>(640);

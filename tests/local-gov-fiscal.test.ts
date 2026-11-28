@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { formatIndicator, latestChange, niceScale, reservePoints } from '../app/lib/local-gov/fiscal';
 import { validateFiscalFile } from '../app/lib/local-gov/validate';
+import { tipStyle } from '../client/lib/local-gov-tooltip';
 import type { FiscalIndicator, LocalFiscalFile, LocalGovIndex } from '../types/local-gov';
 
 const ind = (key: FiscalIndicator['key'], over: Partial<FiscalIndicator> = {}): FiscalIndicator => ({
@@ -52,6 +53,15 @@ test('三基金の点: 実績を年度順に、見込みは最後の実績の次
   const gap = fiscal();
   gap.reserve.outlook = { ...gap.reserve.outlook!, year: 2027 };
   assert.equal(reservePoints(gap).length, 2);
+});
+
+test('ツールチップの位置: 点と反対の側に寄せ、図の幅に収める', () => {
+  // 右半分の点 → 左寄せ。左半分の点 → 右寄せ
+  assert.deepEqual(tipStyle(500, 640, 224, 60, 20, 4), { width: 224, left: 60, top: 4 });
+  assert.deepEqual(tipStyle(100, 640, 224, 60, 20, 4), { width: 224, left: 396, top: 4 });
+  // 狭い図: 右端からはみ出さない・左端は 0 より左にしない
+  assert.equal(tipStyle(200, 270, 224, 60, 20, 4).left, 46);
+  assert.equal(tipStyle(50, 200, 200, 60, 20, 4).left, 0);
 });
 
 test('目盛り: 1・2・5 の刻みで最大を含む', () => {

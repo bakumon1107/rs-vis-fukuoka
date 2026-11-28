@@ -10,7 +10,7 @@ import type { FiscalIndicator, LocalFiscalFile } from '@/types/local-gov';
 import { formatIndicator, latestChange } from '@/app/lib/local-gov/fiscal';
 import { useElementWidth } from '@/client/hooks/useElementWidth';
 import { eraLabel } from '@/client/components/local-gov/FundsTrendChart';
-import { tipStyle } from '@/client/components/local-gov/ReserveOutlookChart';
+import { tipStyle } from '@/client/lib/local-gov-tooltip';
 
 const LINE = '#7a6cc0';
 const MEDIAN = '#9ca3af';
