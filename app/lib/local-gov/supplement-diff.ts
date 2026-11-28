@@ -57,14 +57,26 @@ export function boxDeltas(graph: LocalGraph, before: Map<string, Yen>, initialId
 export function shortDelta(v: Yen): string {
   const a = Math.abs(v);
   if (a < 10_000) return '';
-  const sign = v > 0 ? '+' : '△';
+  return `${v > 0 ? '+' : '△'}${shortUnit(a)}`;
+}
+
+/**
+ * 短い額（「845.7億円」「2.31兆円」「6593万円」）。スマートフォンの縦の図の2行目（列の間が狭く、小数2桁の額だと隣の列に重なる）。
+ * 正確な額はツールチップ・詳細で見る
+ */
+export function shortAmount(v: Yen): string {
+  return Math.abs(v) < 10_000 ? `${v}円` : `${v < 0 ? '-' : ''}${shortUnit(Math.abs(v))}円`;
+}
+
+/** 1万円以上の額を、億は小数1桁（.0 は外す）、兆は小数2桁、万は整数で（単位まで。「円」は付けない） */
+function shortUnit(a: Yen): string {
   const trim = (s: string) => s.replace(/\.0+$/, '');
   // 丸めてから単位を決める（丸めると次の単位に届く額が「10000万」「10000億」にならないように）
   const oku = Number((a / 1e8).toFixed(1));
-  if (oku >= 10000) return `${sign}${trim((a / 1e12).toFixed(2))}兆`;
+  if (oku >= 10000) return `${trim((a / 1e12).toFixed(2))}兆`;
   const man = Math.round(a / 1e4);
-  if (man >= 10000) return `${sign}${trim(oku.toFixed(1))}億`;
-  return `${sign}${man}万`;
+  if (man >= 10000) return `${trim(oku.toFixed(1))}億`;
+  return `${man}万`;
 }
 
 /** 増減の表の1行（会計・款・項・目）。子を開くと下の段 */

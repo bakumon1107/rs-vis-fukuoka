@@ -8,7 +8,7 @@
  * グラフの組み立ては app/lib/local-gov（純粋関数）、描画は client/components/local-gov。
  */
 import Link from 'next/link';
-import { Suspense, useCallback, useMemo, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
@@ -16,12 +16,13 @@ import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
 import { type BasisChoice, pickDataset, supplementDatasets, useLocalBudget, yearFromQuery } from '@/client/hooks/useLocalBudget';
 import type { Basis } from '@/types/local-gov';
-import { useIsNarrow } from '@/client/hooks/useMediaQuery';
+import { useIsLandscapePhone, useIsNarrow, useMediaQuery } from '@/client/hooks/useMediaQuery';
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
+import { SimpleRanking } from '@/client/components/local-gov/SimpleRanking';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
-import { composeDisplay, selectionToFilter, windowColumns } from '@/app/lib/local-gov/graph-view';
+import { composeDisplay, selectionToFilter, simpleDisplay, windowColumns } from '@/app/lib/local-gov/graph-view';
 import { enterpriseExpense, formatRatio, netTotal, personnelShare } from '@/app/lib/local-gov/totals';
 import { boxDeltas, initialBoxIds, initialBoxValues, initialGross } from '@/app/lib/local-gov/supplement-diff';
 import { SupplementDiffTable } from '@/client/components/local-gov/SupplementDiffTable';
@@ -59,6 +60,8 @@ const VIEWS: Record<Basis, ViewInfo[]> = {
   ],
 };
 const BASIS_LABEL: Record<Basis, string> = { initial: '当初予算', supplementary: '補正予算', settlement: '決算' };
+/** かんたん（見方の左2列と金額の大きい順の一覧）／くわしく（今までの図） */
+type ChartMode = 'simple' | 'detail';
 
 export default function LocalGovPage() {
   return (
@@ -86,10 +89,31 @@ function LocalGovContent() {
   const view: LocalGraphView = qv === 'all' ? 'all' : qv === 'enterprise' && enterpriseOk ? 'enterprise' : 'general';
   const panel = useSidePanel({ side: 'right' });
   const isNarrow = useIsNarrow();
+  // スマートフォンの横向き（設計: スマートフォンのサンキー図と簡易表示 2.1）。縦と同じく3列だけを描く
+  const landscapePhone = useIsLandscapePhone();
+  const compact = isNarrow || landscapePhone;
+  // かんたんを既定にする画面: 縦のスマートフォンと、指で操作する横の画面（パソコンの高さの低いウィンドウは、3列にはするが
+  // 最初の図はくわしくのまま）
+  // （これらの判定は初回の描画では false だが、図はデータを読み終えてから描くので、くわしく → かんたんとちらつくことはない）
+  const touch = useMediaQuery('(pointer: coarse)');
+  const simpleFirstNow = isNarrow || (landscapePhone && touch);
+  // 既定はデータを読み終えたときに一度だけ決める（URL に mode がないまま、ウィンドウの幅を変えたり画面を回したりしたときに、
+  // かんたんとくわしくが勝手に入れ替わらないように）
+  const [simpleFirstDecided, setSimpleFirstDecided] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (state.status === 'ready' && simpleFirstDecided === null) setSimpleFirstDecided(simpleFirstNow);
+  }, [state.status, simpleFirstDecided, simpleFirstNow]);
+  const simpleFirst = simpleFirstDecided ?? simpleFirstNow;
+  // かんたん／くわしく（URL の mode。なければ、スマートフォンで何も選んでいないときはかんたん。同 2.3）。
+  // 公営企業会計の見方にはかんたんを出さない（右の列の会計・条は金額を出さない列で、かんたんの図にならない）
+  const simpleOk = view !== 'enterprise';
+  const qm = searchParams.get('mode');
+  const mode: ChartMode = !simpleOk ? 'detail' : qm === 'simple' || qm === 'detail' ? qm : simpleFirst && !selectedId ? 'simple' : 'detail';
+  const simple = mode === 'simple';
 
-  // 年度・見方・選択は URL のクエリに持つ（共有できる）
+  // 年度・見方・選択・かんたん／くわしくは URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
-    (next: { basis?: BasisChoice; year?: number | null; view?: LocalGraphView; sel?: string | null }) => {
+    (next: { basis?: BasisChoice; year?: number | null; view?: LocalGraphView; sel?: string | null; mode?: ChartMode }) => {
       const q = new URLSearchParams(searchParams.toString());
       if (next.basis !== undefined) {
         if (next.basis === 'initial') q.delete('basis');
@@ -117,17 +141,30 @@ function LocalGovContent() {
         if (next.sel) q.set('sel', next.sel);
         else q.delete('sel');
       }
+      if (next.mode !== undefined) {
+        q.set('mode', next.mode);
+      } else if (!q.has('mode') && simpleOk && (next.view ?? view) !== 'enterprise') {
+        // URL に mode がなく、今の見え方が変えた後の既定と違うときは、今の見え方を残す
+        // （スマートフォンで、くわしくの図で選びを外したときに、かんたんへ戻らないように）。
+        // 公営企業会計の見方（かんたんがない）から出るとき・へ入るときは残さない（行き帰りの向きで結果が変わらないように）
+        const nextDefault: ChartMode = simpleFirst && !q.get('sel') ? 'simple' : 'detail';
+        if (nextDefault !== mode) q.set('mode', mode);
+      }
       router.replace(`?${q.toString()}`, { scroll: false });
     },
-    [router, searchParams, basis]
+    [router, searchParams, basis, simpleFirst, simpleOk, view, mode]
   );
 
+  // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
   const display = useMemo(
-    () => (state.status === 'ready' ? composeDisplay(state.file, view, selectedId) : null),
-    [state, view, selectedId]
+    () => (state.status === 'ready' ? composeDisplay(state.file, view, simple ? null : selectedId) : null),
+    [state, view, selectedId, simple]
   );
-  // スマートフォンの幅では、選んだ箱の列を真ん中にした3列だけを描く（設計書 4.3）
-  const shown = useMemo(() => (display && isNarrow ? windowColumns(display) : display), [display, isNarrow]);
+  // かんたんの図は見方の左2列だけ。スマートフォン（縦・横）のくわしくの図は、選んだ箱の列を真ん中にした3列だけを描く（設計書 4.3）
+  const shown = useMemo(() => {
+    if (state.status === 'ready' && simple) return simpleDisplay(state.file, view);
+    return display && compact ? windowColumns(display) : display;
+  }, [state, simple, view, display, compact]);
   const row = useMemo(
     () => (state.status === 'ready' && display?.row ? state.file.rows.find(r => r.id === display.row) ?? null : null),
     [state, display]
@@ -135,7 +172,7 @@ function LocalGovContent() {
   // 一般会計の見方で「一般財源」の箱を選んだときは、目の詳細の代わりに一般財源の中身の表を出す（当初予算で中身を調べた年度だけ。
   // 補正後は一般財源の額が変わるので composeLatest が general_fund を外し、表は出ない）
   const fund =
-    state.status === 'ready' && view === 'general' && selectedId === 'funding:general' ? state.file.general_fund ?? null : null;
+    state.status === 'ready' && !simple && view === 'general' && selectedId === 'funding:general' ? state.file.general_fund ?? null : null;
   const hasDetail = !!row || !!fund;
   // 広い幅では詳細は図の下。図が縦に長い（一般会計で約1,400px）ので、選んだときに自動で動かすと押した箱が画面から消える。
   // 「選択中」の行のボタンを押したときだけ詳細まで動かす
@@ -304,6 +341,21 @@ function LocalGovContent() {
               ))}
             </select>
           )}
+          {simpleOk && (
+          <div role="group" aria-label="図の細かさ" className="flex overflow-hidden rounded-full border border-mirai-border">
+            {(['simple', 'detail'] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => setQuery({ mode: m })}
+                className={`px-3 py-1 text-sm ${mode === m ? 'bg-primary-accent font-bold text-white' : 'bg-card'}`}
+              >
+                {m === 'simple' ? 'かんたん' : 'くわしく'}
+              </button>
+            ))}
+          </div>
+          )}
           {views.map(v => (
             <button
               key={v.key}
@@ -364,7 +416,11 @@ function LocalGovContent() {
         {partial && <PartialNotice govId={gov} year={file.year} basis={file.basis} />}
 
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
-          {display?.selected ? (
+          {simple ? (
+            <span className="text-mirai-text-muted">
+              {shown?.graph.columns.map(c => c.label).join(' → ')}の大まかな流れ。四角（「その他」を除く）や一覧の名前を押すと、くわしい図でその流れを見られます
+            </span>
+          ) : display?.selected ? (
             <>
               <span>
                 選択中: <b>{display.selected.name}</b>
@@ -423,9 +479,22 @@ function LocalGovContent() {
 
         <div className="overflow-x-auto rounded-2xl bg-card p-2 shadow-soft">
           {shown && (
-            <LocalSankeyChart display={shown} narrow={isNarrow} deltas={deltas} onSelect={id => setQuery({ sel: id === selectedId ? null : id })} />
+            <LocalSankeyChart
+              display={shown}
+              size={isNarrow ? 'narrow' : landscapePhone ? 'medium' : 'wide'}
+              simple={simple}
+              deltas={deltas}
+              // かんたんの図で押したら、くわしくの図でその箱を選ぶ
+              onSelect={id => (simple ? setQuery({ mode: 'detail', sel: id }) : setQuery({ sel: id === selectedId ? null : id }))}
+            />
           )}
         </div>
+
+        {simple && shown && (
+          <div className="mt-3">
+            <SimpleRanking graph={shown.graph} deltas={deltas} onSelect={id => setQuery({ mode: 'detail', sel: id })} />
+          </div>
+        )}
 
         {/* 補正後: 当初からの増減の表（図の下に折りたたみ。歳出・歳入。2026-11-27 ユーザー決定） */}
         {file.composed && view !== 'enterprise' && (

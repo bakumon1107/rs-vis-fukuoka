@@ -255,6 +255,24 @@ export function windowColumns(display: LocalGraphDisplay, size = 3): LocalGraphD
   };
 }
 
+/** かんたんの図の列の数（見方の左から。一般会計は 財源 → 款、全会計は 歳入の款 → 会計。公営企業会計の見方には出さない） */
+export const SIMPLE_DEPTH = 2;
+
+/**
+ * かんたんの図（設計: スマートフォンのサンキー図と簡易表示 2.3 案A）。見方の左の2列だけの、絞り込まない全体のグラフ。
+ * 箱・帯の額はくわしくの図と同じ（推計しない）。選択はなく、箱を押すとくわしくの図でその箱を選ぶ（page.tsx）
+ */
+export function simpleDisplay(file: LocalBudgetFile, view: LocalGraphView): LocalGraphDisplay {
+  return {
+    graph: fullGraph(file, view, SIMPLE_DEPTH),
+    selected: null,
+    highlight: new Map(),
+    highlightNodes: new Set(),
+    row: null,
+    note: null,
+  };
+}
+
 /** fullGraph の覚え書き（データごとに、`見方:深さ` → グラフ） */
 const fullCache = new WeakMap<LocalBudgetFile, Map<string, LocalGraph>>();
 /**
