@@ -275,10 +275,10 @@ def test_previous_only_kan_skips_unread_previous_and_enterprise():
 
 
 def _fiscal(**over):
-    ind = lambda k: {"key": k, "values": [{"year": 2024, "value": 1.0, "median": 1.0, "rank": 1, "of": 47,  # noqa: E731
-                                           "source": "r6-shihyo"}]}
+    ind = lambda k: {"key": k, "threshold": 25.0 if k in ex.FISCAL_THRESHOLD_KEYS else None,  # noqa: E731
+                     "values": [{"year": 2024, "value": 1.0, "median": 1.0, "rank": 1, "of": 47, "source": "r6-shihyo"}]}
     base = {"fails": [],
-            "reserve": {"history": [{"year": 2024, "total": 3, "parts": [1, 2], "source": "r7-kikin"},
+            "reserve": {"parts": ["a", "b"], "history": [{"year": 2024, "total": 3, "parts": [1, 2], "source": "r7-kikin"},
                                     {"year": 2025, "total": 4, "parts": [2, 2], "source": "r7-kikin"}],
                         "outlook": {"year": 2026, "total": 5, "source": "r8-gaiyou"},
                         "target": {"min": 1, "max": 2, "source": "r8-gaiyou"}},
@@ -305,4 +305,21 @@ def test_fiscal_problem_accepts_a_complete_output_and_names_each_problem():
     assert "見込み" in ex.fiscal_problem(bad, ids)
     bad = _fiscal()
     bad["reserve"]["history"][1] = {"year": 2025, "total": 5, "parts": [2, 2], "source": "r7-kikin"}
-    assert "内訳の計" in ex.fiscal_problem(bad, ids)
+    assert "内訳" in ex.fiscal_problem(bad, ids)
+    # NaN・順位の範囲・年度の重複・基準の値・出典の型の混ざり
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["median"] = float("nan")
+    assert "数でない" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["rank"] = 48
+    assert "順位" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"].append(dict(bad["indicators"][0]["values"][0]))
+    assert "重複" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["threshold"] = 1.0
+    assert "threshold" in ex.fiscal_problem(bad, ids)
+    bad = _fiscal()
+    bad["indicators"][0]["values"][0]["source"] = None
+    bad["indicators"][1]["values"][0]["source"] = "r9-x"
+    assert "sources.json にない" in ex.fiscal_problem(bad, ids)
