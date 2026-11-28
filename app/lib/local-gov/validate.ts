@@ -260,7 +260,10 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
       }
       // 差し引きの split の款 = 概算の帯（estimated）の款。どちらも歳入にある款
       const rawSplit = gf.rows.find(r => r.basis === 'residual')?.split;
-      const splitKans = new Set((Array.isArray(rawSplit) ? rawSplit : []).filter(s => s && typeof s === 'object').map(s => s.kan));
+      // 0 円の分は帯にならないので比べない
+      const splitKans = new Set(
+        (Array.isArray(rawSplit) ? rawSplit : []).filter(s => s && typeof s === 'object' && s.amount > 0).map(s => s.kan)
+      );
       const estKans = new Set(gf.flows.filter(f => f.estimated).map(f => f.kan));
       for (const k of splitKans) if (!revenueByKan.has(k)) err(`general_fund: 差し引きの split の ${k}款が歳入にない`);
       if (splitKans.size !== estKans.size || [...splitKans].some(k => !estKans.has(k))) {

@@ -119,6 +119,8 @@ def build_flows(general: list[dict], gf_rows: list[dict], table: dict, fails: li
                 fails.append(f"歳入の款 → 財源: 差し引きの款ごとの分が負になる（{neg}款。概算が負か、差し引き {g['amount']:,} 円が"
                              f"概算の合計 {sum(est.values()):,} 円より小さすぎる。概算を見直す）")
                 continue
+            # 0 円の分は帯にならない（概算の帯の款とそろえるため split にも書かない）
+            split = {k: v for k, v in split.items() if v > 0}
             g["split"] = [{"kan": k, "amount": v} for k, v in sorted(split.items())]
             for k, v in split.items():
                 to_general[k] = to_general.get(k, 0) + v

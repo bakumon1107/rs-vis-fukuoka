@@ -51,6 +51,8 @@ export function simpleFundingFlow(
   for (const f of flows) kanTotal.set(f.kan, (kanTotal.get(f.kan) ?? 0) + f.amount);
   const grand = [...kanTotal.values()].reduce((s, v) => s + v, 0);
   const nameOfKan = new Map(flows.map(f => [f.kan, f.kan_name]));
+  const revenueName = (kan: number) =>
+    file.rows.find(r => r.account === 'general' && r.side === 'revenue' && r.kan.no === kan)?.kan.name;
   const totalByName = new Map([...kanTotal].map(([k, v]) => [nameOfKan.get(k)!, v]));
   const grouped = (kan: number) => groupBelow > 0 && (kanTotal.get(kan) ?? 0) < grand * groupBelow;
 
@@ -130,7 +132,8 @@ export function simpleFundingFlow(
     groupedNames: groupedNames.sort((a, b) => (totalByName.get(b) ?? 0) - (totalByName.get(a) ?? 0)),
     // 概算の分だけ（差し引きの款ごとの内訳 split）。帯は確かな分と足し合わさっていることがある
     estimatedParts: (file.general_fund?.rows.find(r => r.basis === 'residual')?.split ?? [])
-      .map(s => ({ name: nameOfKan.get(s.kan) ?? String(s.kan), value: s.amount }))
+      .filter(s => s.amount > 0)
+      .map(s => ({ name: nameOfKan.get(s.kan) ?? revenueName(s.kan) ?? `${s.kan}款`, value: s.amount }))
       .sort((a, b) => b.value - a.value),
     groupBelow,
   };
