@@ -49,7 +49,8 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
   // 額の列: 小さい画面でも横にはみ出さないよう、表の幅は画面に合わせ（最小幅を付けない）、基金の名前の列を早めに折り返す。
   // 推移の小さい折れ線はスマートフォンの幅では出さない（行を開くと大きいグラフが出る）
   // とても狭い画面（320px 前後）では額が列に収まらないので、表に最小幅を付けて横にずらせるようにする（390px 前後なら収まる）。
-  // 推移の列はスマートフォンの幅では幅 0（col を display:none にすると、ブラウザによって列の幅の割り当てがずれる）
+  // 推移の列はスマートフォンの幅では幅 0 の col にし、セルは隠さず中身だけ隠す（セルを display:none にすると、table-fixed で
+  // 後ろのセルが1列ずつ前の col に当たり、積み立ての列が幅 0 になって重なった。2026-11-28 に公開後に見つけて直した）
   const num = 'whitespace-nowrap px-1 py-1.5 text-right tabular-nums';
   return (
     <div className="overflow-x-auto">
@@ -65,7 +66,10 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
           <tr className="text-xs text-mirai-text-muted">
             <th className="py-1 text-left align-bottom font-normal">基金</th>
             <AmountHead label="現在高" when={`${asOfLabel}`} />
-            <th className="hidden py-1 text-center align-bottom font-normal sm:table-cell">推移</th>
+            {/* セルは隠さず（display:none にすると列がずれ、右の列が幅 0 の col に当たる）、中身だけをスマートフォンで隠す */}
+            <th className="overflow-hidden p-0 py-1 text-center align-bottom font-normal">
+              <span className="hidden sm:inline">推移</span>
+            </th>
             <AmountHead label="積み立て" when={`${budgetLabel}`} />
             <AmountHead label="取り崩し" when={`${budgetLabel}`} />
           </tr>
@@ -97,7 +101,9 @@ export function FundsTable({ rows, asOfLabel, budgetLabel, gov, plan }: Props) {
                     )}
                   </td>
                   <td className={`${num} font-bold`}>{r.fund ? (r.fund.no_figures ? '記載なし' : yen(r.fund.end)) : '—'}</td>
-                  <td className="hidden py-1.5 text-center sm:table-cell">{r.fund && <Spark values={r.fund.history.map(h => h.end)} />}</td>
+                  <td className="overflow-hidden p-0 py-1.5 text-center">
+                    <span className="hidden sm:inline">{r.fund && <Spark values={r.fund.history.map(h => h.end)} />}</span>
+                  </td>
                   <td className={num}>{planCell(r.deposit)}</td>
                   <td className={num}>{planCell(r.withdraw)}</td>
                 </tr>
