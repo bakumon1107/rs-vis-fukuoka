@@ -8,7 +8,7 @@
  * グラフの組み立ては app/lib/local-gov（純粋関数）、描画は client/components/local-gov。
  */
 import Link from 'next/link';
-import { Suspense, useCallback, useMemo, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import LoadingSpinner from '@/client/components/LoadingSpinner';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
@@ -96,7 +96,14 @@ function LocalGovContent() {
   // 最初の図はくわしくのまま）
   // （これらの判定は初回の描画では false だが、図はデータを読み終えてから描くので、くわしく → かんたんとちらつくことはない）
   const touch = useMediaQuery('(pointer: coarse)');
-  const simpleFirst = isNarrow || (landscapePhone && touch);
+  const simpleFirstNow = isNarrow || (landscapePhone && touch);
+  // 既定はデータを読み終えたときに一度だけ決める（URL に mode がないまま、ウィンドウの幅を変えたり画面を回したりしたときに、
+  // かんたんとくわしくが勝手に入れ替わらないように）
+  const [simpleFirstDecided, setSimpleFirstDecided] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (state.status === 'ready' && simpleFirstDecided === null) setSimpleFirstDecided(simpleFirstNow);
+  }, [state.status, simpleFirstDecided, simpleFirstNow]);
+  const simpleFirst = simpleFirstDecided ?? simpleFirstNow;
   // かんたん／くわしく（URL の mode。なければ、スマートフォンで何も選んでいないときはかんたん。同 2.3）。
   // 公営企業会計の見方にはかんたんを出さない（右の列の会計・条は金額を出さない列で、かんたんの図にならない）
   const simpleOk = view !== 'enterprise';
@@ -411,7 +418,7 @@ function LocalGovContent() {
         <div className="mb-2 flex min-h-8 flex-wrap items-center gap-2 text-sm">
           {simple ? (
             <span className="text-mirai-text-muted">
-              {shown?.graph.columns.map(c => c.label).join(' → ')}の大まかな流れ。四角や一覧の名前を押すと、くわしい図でその流れを見られます
+              {shown?.graph.columns.map(c => c.label).join(' → ')}の大まかな流れ。四角（「その他」を除く）や一覧の名前を押すと、くわしい図でその流れを見られます
             </span>
           ) : display?.selected ? (
             <>

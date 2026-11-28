@@ -341,15 +341,14 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                   let nameMax = size.labelMax;
                   const nextX = columnXs.find(x => x > node.x);
                   if (sizeKey === 'medium' && !labelLeft && nextX !== undefined) {
-                    const room = nextX - tx - 4;
+                    // 選んだ箱は太字なので 2px 余分に空ける（名前の字数は選ぶ前後で変わりにくいように、倍率ではなく幅で）
+                    const room = nextX - tx - 4 - (isSelected ? 2 : 0);
                     const d = deltas?.get(n.id);
-                    // 選んだ箱は太字なので少し広めに見積もる
-                    const bold = isSelected ? 1.1 : 1;
                     const tail =
                       (ocrName ? size.fontSize : 0) +
                       (showAmount ? textPx(` ${formatBudgetFromYen(n.value)}`, size.fontSize) : 0) +
                       (showAmount && d && shows(n.id) ? textPx(` ${d.added ? '新' : shortDelta(d.delta)}`, size.fontSize - 1) : 0);
-                    while (nameMax > 4 && textPx(shorten(n.name, nameMax), size.fontSize) * bold + tail > room) nameMax--;
+                    while (nameMax > 4 && textPx(shorten(n.name, nameMax), size.fontSize) + tail > room) nameMax--;
                   }
                   const name = (
                     <>

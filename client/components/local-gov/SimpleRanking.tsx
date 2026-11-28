@@ -33,7 +33,11 @@ export function SimpleRanking({ graph, deltas, onSelect }: Props) {
             <li key={n.id} className="border-t border-mirai-border first:border-t-0">
               <button type="button" onClick={() => onSelect(n.id)} className="block w-full py-1.5 text-left">
                 <span className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="min-w-0 truncate text-primary-accent">{n.name}</span>
+                  <span className="min-w-0 truncate text-primary-accent">
+                    {n.name}
+                    {/* 図と同じく、読み取りの名前には印（凡例は図の上） */}
+                    {n.flags?.includes('name-ocr') && <span className="text-amber-700">※</span>}
+                  </span>
                   <span className="shrink-0 tabular-nums">
                     {formatBudgetFromYen(n.value)}
                     {dt && (
