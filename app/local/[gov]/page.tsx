@@ -117,7 +117,8 @@ function LocalGovContent() {
   // 年度・見方・選択・かんたん／くわしくは URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
     (next: { basis?: BasisChoice; year?: number | null; view?: LocalGraphView; sel?: string | null; mode?: ChartMode }) => {
-      const q = new URLSearchParams(searchParams.toString());
+      // 今の URL から組み立てる（Next.js は履歴の書き換えを少し遅れて useSearchParams に映すので、続けて押すと前の変更を消してしまう）
+      const q = new URLSearchParams(window.location.search);
       if (next.basis !== undefined) {
         if (next.basis === 'initial') q.delete('basis');
         else q.set('basis', next.basis);
@@ -159,7 +160,7 @@ function LocalGovContent() {
       // 第1引数は Next.js の説明どおり null（Next.js が自分の状態を補う）
       window.history.replaceState(null, '', `?${q.toString()}`);
     },
-    [searchParams, basis, simpleFirst, simpleOk, view, mode]
+    [basis, simpleFirst, simpleOk, view, mode]
   );
 
   // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
@@ -433,10 +434,13 @@ function LocalGovContent() {
               {v.label}
             </button>
           ))}
-          {/* 見方の説明（列の並び・財源の断り）はくわしくの図のもの。かんたんの図は列が違い、図の上に自分の説明を出すので出さない */}
-          {!simple && (
           <span className="text-xs text-mirai-text-muted">
-            {views.find(v => v.key === view)?.note}
+            {/* 列の並び（「財源 → 款 → …」）はくわしくの図のもの。かんたんの図は列が違い、図の上に自分の列を書くので、
+                括弧の中の断り（総計・支出済額など）だけを残す。その後の断り書き（公営企業会計・歳入の資料）はどちらにも出す */}
+            {(() => {
+              const note = views.find(v => v.key === view)?.note ?? '';
+              return simple ? note.replace(/^[^（]*/, '') : note;
+            })()}
             {view === 'all' && file.basis === 'initial' && (
               <>
                 。公営企業会計は含みません
@@ -458,7 +462,8 @@ function LocalGovContent() {
                 '埋めます（予算書の第4条の補填財源）。収入には一般会計からの負担金・補助金を含みます（全会計の見方と重なります）。' +
                 '予算実施計画は目までなので、説明欄・財源内訳・節はありません'}
             {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
-            {view !== 'enterprise' && (fundingNotes(file).length > 0 || file.general_fund) && (
+            {/* かんたんの一般会計の図は左の列が歳入の款（財源ではない）なので、「左端の財源は…」の文は出さない */}
+            {view !== 'enterprise' && !(simple && view !== 'all') && (fundingNotes(file).length > 0 || file.general_fund) && (
               <>
                 {view === 'all'
                   ? '（調べた内訳は'
@@ -478,7 +483,6 @@ function LocalGovContent() {
               </>
             )}
           </span>
-          )}
         </div>
 
         {/* 選択中の表示と、選択の解除（全部の流れを見る）を常に出す */}
