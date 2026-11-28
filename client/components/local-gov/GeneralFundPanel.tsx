@@ -4,6 +4,7 @@
  * 一般財源の中身（表示専用）。一般会計の見方で左端の「一般財源」の箱を押したときに、目の詳細と同じ場所に出す。
  * 図の帯は中身で分けない（按分の推計が要る）。中身は表だけで見せる。
  * 設計: docs/local-gov/tasks/20261114_1320_一般財源の中身の設計.md
+ * この部品はスクロールしない。下からのシートに置くときは、置く側が高さの決まった overflow-y-auto の枠で包むこと（下に内訳の表も続くため）
  */
 import Link from 'next/link';
 import type { GeneralFund, GeneralFundBasis } from '@/types/local-gov';
@@ -19,7 +20,7 @@ const BASIS_LABEL: Record<GeneralFundBasis, string> = {
 
 export function GeneralFundPanel({ fund, aboutHref }: { fund: GeneralFund; aboutHref: string }) {
   return (
-    <div className="h-full space-y-3 overflow-y-auto overscroll-contain p-4 text-sm text-mirai-text">
+    <div className="space-y-3 p-4 text-sm text-mirai-text">
       <div>
         <p className="text-xs text-mirai-text-muted">一般会計 ／ 歳出の財源内訳</p>
         <h2 className="text-base font-bold">一般財源の中身</h2>

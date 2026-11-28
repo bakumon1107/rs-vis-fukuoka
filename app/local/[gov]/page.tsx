@@ -219,6 +219,11 @@ function LocalGovContent() {
     focusRowDetail.current = false;
     (detailRef.current ?? sheetRef.current)?.focus({ preventScroll: true });
   }, [row]);
+  // 下からのシートは選び直しても同じ枠でスクロールするので、中身が替わったら上へ戻す（前の位置のまま開かないように）。
+  // 選んだ箱が同じでも、予算・決算や年度を切り替えると中身（row・breakdown・fund）が替わる
+  useEffect(() => {
+    sheetRef.current?.scrollTo({ top: 0 });
+  }, [selectedId, row, breakdown, fund]);
   // 選んだ箱の前年度に入っている、前年度にだけあった款（本年度の行がない。内訳の表に断り書きを出す）
   const previousOnly = useMemo(
     () => (previous && breakdown && state.status === 'ready' ? previousOnlyKanIn(state.file, breakdown.parent.id) : undefined),
@@ -607,7 +612,8 @@ function LocalGovContent() {
           isResizing={panel.isResizing}
           onResetWidth={panel.resetWidth}
         >
-          <div ref={sheetRef} tabIndex={-1} className="focus:outline-none">
+          {/* シートの枠は中身を切り取るだけなので、ここで高さを決めてスクロールさせる（説明欄の事項が多い目で下が切れていた） */}
+          <div ref={sheetRef} tabIndex={-1} className="h-full overflow-y-auto overscroll-contain focus:outline-none">
             {row ? (
               <LocalDetailPanel row={row} index={index} accountName={accountName} />
             ) : (
