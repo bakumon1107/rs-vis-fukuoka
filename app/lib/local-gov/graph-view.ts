@@ -280,7 +280,7 @@ const fullCache = new WeakMap<LocalBudgetFile, Map<string, LocalGraph>>();
  * データと見方と深さが同じなら選択によらず同じなので覚えておく（選ぶたびに全目を組み立て直さない）。
  * 正規化データは読み込んだ後に変えない前提（同じオブジェクトなら同じ結果）
  */
-function fullGraph(file: LocalBudgetFile, view: LocalGraphView, depth: number): LocalGraph {
+export function fullGraph(file: LocalBudgetFile, view: LocalGraphView, depth: number): LocalGraph {
   let byKey = fullCache.get(file);
   if (!byKey) fullCache.set(file, (byKey = new Map()));
   const key = `${view}:${depth}`;
