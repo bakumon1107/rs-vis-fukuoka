@@ -261,7 +261,7 @@ def _cell(v):
     """指標のセル: 数はそのまま、「－」は DASH（比率が算定されない＝負担がない。例: 将来負担比率）、ほかは None"""
     if isinstance(v, float):
         return v
-    if isinstance(v, str) and v.strip() in ("-", "－", "‐", "ー", "―"):
+    if isinstance(v, str) and re.fullmatch(r"[-－‐ー―−—–]", v.strip()):
         return DASH
     return None
 
@@ -331,13 +331,22 @@ def indicator_series(shihyo: list[tuple[str, dict, str]], jokyo: list[tuple[str,
                 continue
             cells = [t[ind["key"]] for t in table.values()]
             nums = [x for x in cells if isinstance(x, float)]
-            # 「－」（算定されない＝負担がない）の団体は、低い方が良い指標では福岡県より良い方に数える。中央値は数のある団体だけで求める
             dashes = sum(1 for x in cells if x == DASH)
-            better = sum(1 for x in nums if (x > v if ind["good"] == "high" else x < v)) + (dashes if ind["good"] == "low" else 0)
+            # 「－」は将来負担比率だけ意味が決まっている（算定されない＝将来負担がない。いちばん良い）。順位では福岡県より良い方に、
+            # 中央値では 0 として数える。ほかの指標の「－」は意味が分からないので FAIL
+            if dashes and ind["key"] != "future_burden":
+                fails.append(f"{short_era(fy)} {ind['label']}: 「－」の団体が {dashes} 件（将来負担比率のほかは扱いを決めていない）")
+            if ind["key"] == "future_burden":
+                nums_for_median = nums + [0.0] * dashes
+                better_dash = dashes
+            else:
+                nums_for_median, better_dash = nums, 0
+            better = sum(1 for x in nums if (x > v if ind["good"] == "high" else x < v)) + better_dash
             unknown = sum(1 for x in cells if x is None)
             if unknown:
                 fails.append(f"{short_era(fy)} {ind['label']}: 値の読めない団体が {unknown} 件")
-            values.append({"year": fy, "value": v, "median": median(nums), "rank": better + 1, "of": len(nums) + dashes, "source": src})
+            values.append({"year": fy, "value": v, "median": median(nums_for_median), "rank": better + 1,
+                           "of": len(nums) + better_dash, "source": src})
         series.append({"key": ind["key"], "label": ind["label"], "unit": ind["unit"], "good": ind["good"],
                        "threshold": ind["threshold"], "values": values})
     return series, fails, {"checked": checked, "years": sorted(by_year)}

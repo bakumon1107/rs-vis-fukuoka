@@ -100,7 +100,7 @@ function MiniChart({ ind }: { ind: FiscalIndicator }) {
         <div
           className="pointer-events-none absolute z-10 w-44 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
           // 点と反対の側に出す（点の近くの線を隠さないように）
-          style={{ left: x(active) > W / 2 ? PAD.l : W - PAD.r - 176, top: 0 }}
+          style={{ left: Math.max(0, x(active) > W / 2 ? PAD.l : W - PAD.r - 176), top: 0 }}
           role="status"
         >
           <div className="font-bold">
@@ -134,11 +134,11 @@ export function FiscalIndicators({ file }: { file: LocalFiscalFile }) {
           47都道府県の中央値
         </span>
       </div>
-      {/* min-w-0: カードが中の図（測る前の幅）に引っぱられて広がり、狭い画面ではみ出すのを防ぐ */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {file.indicators.map(ind => {
           const c = latestChange(ind);
           return (
+            // min-w-0: カードが中の図（測る前の幅）に引っぱられて広がり、狭い画面ではみ出すのを防ぐ
             <section key={ind.key} className="min-w-0 space-y-1 rounded-2xl bg-card p-3 shadow-soft">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                 <h3 className="text-sm font-bold">{ind.label}</h3>

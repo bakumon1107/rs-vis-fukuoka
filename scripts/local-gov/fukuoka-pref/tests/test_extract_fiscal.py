@@ -113,13 +113,21 @@ def test_indicator_series_median_rank_and_cross_check():
     assert fc["rank"] == 1 and fc["of"] == 47 and fc["median"] == pytest.approx(0.53)
     cb = next(s for s in series if s["key"] == "current_balance")["values"][0]
     assert cb["rank"] == 47
-    # 「－」（負担がない）の団体は低い方が良い指標で良い方に数える（中央値は数のある 46 団体で）。同じ値は同じ順位
+    # 将来負担比率の「－」（負担がない）の団体は良い方に数え、中央値では 0 として数える（0・101〜145・146 の 47 件の真ん中は 123）。同じ値は同じ順位
     fb = next(s for s in series if s["key"] == "future_burden")["values"][0]
-    assert fb["of"] == 47 and fb["rank"] == 47 and fb["median"] == pytest.approx(123.5)
+    assert fb["of"] == 47 and fb["rank"] == 47 and fb["median"] == pytest.approx(123.0)
     ds = next(s for s in series if s["key"] == "debt_service")["values"][0]
     assert ds["rank"] == 1
     # 総括表との突き合わせ: 前年度（R5）は主要財政指標一覧がないので数えない。本年度の4つは一致
     assert n["checked"] == 4 and fails == []
+
+
+def test_indicator_series_fails_on_a_dash_outside_future_burden():
+    names = [f"県{i:02d}県" for i in range(46)] + ["福岡県"]
+    table = {n: {"fiscal_capacity": 0.5, "current_balance": fx.DASH if i == 0 else 90.0, "debt_service": 10.0,
+                 "future_burden": 100.0} for i, n in enumerate(names)}
+    _, fails, _ = fx.indicator_series([("R6", table, "r6-shihyo")], [])
+    assert any("current_balance" in f or "経常収支比率" in f for f in fails)
 
 
 def test_indicator_series_fails_on_mismatch_and_missing_prefectures():

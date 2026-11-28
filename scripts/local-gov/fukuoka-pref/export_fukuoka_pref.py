@@ -689,9 +689,17 @@ def main():
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
     vote = load_vote()
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
-    # 表計算の資料は財政の指標（fiscal.json）だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
+    # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。回帰テストは抽出が失敗しても標準出力を書くので、
+    # 空・JSON でないものは「ない」と同じに扱う（要約の「財政の指標のファイル」の行がなくなるので回帰テストで気づける）
+    fiscal = None
+    if os.path.exists(w("fiscal.json")):
+        try:
+            fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
+        except json.JSONDecodeError:
+            print("財政の指標: fiscal.json が空か壊れている（抽出が失敗した）ので書かない", file=sys.stderr)
+    # 表計算の資料は財政の指標だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
     # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
-    need_xlsx = os.path.exists(w("fiscal.json"))
+    need_xlsx = fiscal is not None
     for s in source_list:
         ext = s.get("ext", "pdf")
         if ext == "xlsx":
@@ -855,10 +863,16 @@ def main():
             f.write("\n")
         hosei_lines += lines
 
-    # 三基金の推移と見込み・財政の指標（extract_fiscal.py の fiscal.json）。なければ書かない（index にも載せない）
+    # 三基金の推移と見込み・財政の指標（上で読んだ fiscal.json）。なければ書かない（index にも載せない）
     fiscal_file, fiscal_line = None, None
-    if os.path.exists(w("fiscal.json")):
-        fiscal = json.load(open(w("fiscal.json"), encoding="utf-8"))
+    if fiscal is None:
+        # 公開データを書き出すときに黙って区画が消えないよう知らせ、前に書いたファイルを残さない（index から指されないファイルになる）
+        print("財政の指標: fiscal.json がない（または読めない）ので fiscal-indicators.json を書かない（基金のページの三基金・指標の区画が出なくなる）",
+              file=sys.stderr)
+        stale = os.path.join(a.out, "fiscal-indicators.json")
+        if os.path.exists(stale):
+            os.remove(stale)
+    else:
         if "fails" not in fiscal:
             sys.exit("財政の指標: fiscal.json に fails がない（古い抽出の出力。extract_fiscal.py を流し直す）")
         if fiscal["fails"]:
@@ -868,7 +882,7 @@ def main():
         if not res["history"] or not res["outlook"] or not res["target"] or len(fiscal["indicators"]) != 4 \
                 or any(not ind["values"] for ind in fiscal["indicators"]):
             sys.exit("財政の指標: 三基金の実績・見込み・目標か、4つの指標の値が欠けている")
-        used ={h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
+        used = {h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
                {v["source"] for ind in fiscal["indicators"] for v in ind["values"]}
         unknown = sorted(used - {s["id"] for s in source_list})
         if unknown:

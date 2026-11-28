@@ -139,7 +139,7 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
         {tip && active !== null && (
           <div
             className="pointer-events-none absolute z-10 rounded-lg border border-mirai-border bg-card p-2 text-xs shadow-soft"
-            style={{ width: TIP_W, left: x(active) > W / 2 ? PAD.l + 4 : W - PAD.r - TIP_W, top: 4 }}
+            style={{ width: Math.min(TIP_W, W), left: Math.max(0, x(active) > W / 2 ? PAD.l + 4 : W - PAD.r - TIP_W), top: 4 }}
             role="status"
           >
             <div className="font-bold">
