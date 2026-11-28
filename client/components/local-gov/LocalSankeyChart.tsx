@@ -100,9 +100,6 @@ const WIDE: ChartSize = {
 const SIZES = { narrow: NARROW, medium: MEDIUM, wide: WIDE } as const;
 export type ChartSizeKey = keyof typeof SIZES;
 
-/** 2行目（短い金額「2072億円」）の幅の見積もりと、増減の印（「+67.5億」）の幅 */
-const AMOUNT_LINE_PX = 52;
-const DELTA_LINE_PX = 42;
 /** 3行のラベル（名前・金額・増減）の箱1つの最低の高さ */
 const THREE_LINE_SLOT = 38;
 
@@ -160,8 +157,21 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
       deltas && col && !hideAmountCols.has(col) && graph.nodes.some(n => n.col === col && shows(n.id)) ? px : 0;
     const labelPx = (col: string | undefined) => {
       const namePx = Math.max(0, ...graph.nodes.filter(n => n.col === col).map(n => Math.min(n.name.length, size.labelMax) + 1)) * size.charPx;
-      // 2行のラベル: 名前の行と金額の行の長い方
-      if (size.twoLine) return Math.max(namePx, col && !hideAmountCols.has(col) ? AMOUNT_LINE_PX + withDelta(col, DELTA_LINE_PX) : 0);
+      // 2行のラベル: 名前の行と金額の行の長い方。金額の行は実際の文字列（短い額と増減）から見積もる
+      if (size.twoLine) {
+        if (!col || hideAmountCols.has(col)) return namePx;
+        const amountLine = Math.max(
+          0,
+          ...graph.nodes
+            .filter(n => n.col === col)
+            .map(n => {
+              const d = deltas?.get(n.id);
+              const dt = d && shows(n.id) ? ` ${d.added ? '新' : shortDelta(d.delta)}` : '';
+              return textPx(shortAmount(n.value), size.fontSize - 1) + textPx(dt, size.fontSize - 1);
+            })
+        );
+        return Math.max(namePx, amountLine + 6);
+      }
       return namePx + size.amountPx + withDelta(col, DELTA_LABEL_PX);
     };
     return {
@@ -207,8 +217,8 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
   // （残ると全部の帯が薄いままになる）
   const hoveredShown = hovered !== null && layout.nodes.some(n => n.id === hovered) ? hovered : null;
   const lastColumn = Math.max(0, ...layout.nodes.map(n => n.column));
-  // 列ごとの箱の左端（真ん中の列のラベルを、次の列の箱までに収めるため）
-  const columnX = new Map(layout.nodes.map(n => [n.column, n.x]));
+  // 箱のある列の左端（左から。真ん中の列のラベルを、右隣の箱のある列までに収めるため）
+  const columnXs = [...new Set(layout.nodes.map(n => n.x))].sort((a, b) => a - b);
 
   return (
     <div ref={ref} className="w-full">
@@ -326,17 +336,20 @@ export function LocalSankeyChart({ display, onSelect, size: sizeKey = 'wide', si
                       </tspan>
                     );
                   })();
-                  // 1行のラベルの真ん中の列: 名前・金額・増減が次の列の箱までに収まるよう、名前を縮める（スマートフォンの横で、
-                  // 全会計の会計の名前（10字）と金額・増減を並べると右の列の箱に重なる）。最低4字は残す
+                  // スマートフォンの横の真ん中の列: 名前・金額・増減が次の列の箱までに収まるよう、名前を縮める（全会計の会計の名前（10字）と
+                  // 金額・増減を並べると右の列の箱に重なる）。最低4字は残す。パソコンの幅は今までどおり（列が多く、縮めると名前が読めなくなる）
                   let nameMax = size.labelMax;
-                  const nextX = columnX.get(node.column + 1);
-                  if (!size.twoLine && !labelLeft && nextX !== undefined) {
+                  const nextX = columnXs.find(x => x > node.x);
+                  if (sizeKey === 'medium' && !labelLeft && nextX !== undefined) {
                     const room = nextX - tx - 4;
                     const d = deltas?.get(n.id);
+                    // 選んだ箱は太字なので少し広めに見積もる
+                    const bold = isSelected ? 1.1 : 1;
                     const tail =
+                      (ocrName ? size.fontSize : 0) +
                       (showAmount ? textPx(` ${formatBudgetFromYen(n.value)}`, size.fontSize) : 0) +
                       (showAmount && d && shows(n.id) ? textPx(` ${d.added ? '新' : shortDelta(d.delta)}`, size.fontSize - 1) : 0);
-                    while (nameMax > 4 && textPx(shorten(n.name, nameMax), size.fontSize) + tail > room) nameMax--;
+                    while (nameMax > 4 && textPx(shorten(n.name, nameMax), size.fontSize) * bold + tail > room) nameMax--;
                   }
                   const name = (
                     <>
