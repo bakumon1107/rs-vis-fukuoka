@@ -9,8 +9,8 @@
  */
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import LoadingSpinner from '@/client/components/LoadingSpinner';
+import { useParams, useSearchParams } from 'next/navigation';
+import { LocalPageLoading } from '@/client/components/local-gov/LocalPageLoading';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { SidePanelChrome } from '@/client/components/SidePanelChrome';
 import { SIDE_PANEL_WIDTH_MAX, SIDE_PANEL_WIDTH_MIN, useSidePanel } from '@/client/hooks/useSidePanel';
@@ -33,14 +33,16 @@ import type { LocalGraphView } from '@/app/lib/local-gov/graph';
 import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
 // opens: 選んだときに開く列の案内（graph-view.ts の selectionToFilter の深さ。設計書 4.3・R6 決算の設計 4章）
-type ViewInfo = { key: LocalGraphView; label: string; note: string; opens: string };
+// note: くわしくの図の列の並び。caveat: 列の並びに続けて出す断り（かんたんの図でも出す。かんたんの図は列が違うので note は出さない）
+type ViewInfo = { key: LocalGraphView; label: string; note: string; caveat?: string; opens: string };
 const VIEWS: Record<Basis, ViewInfo[]> = {
   initial: [
     { key: 'general', label: '一般会計', note: '財源 → 款 → 項 → 目 → 事項', opens: '財源・款を選ぶと目、項・目・事項を選ぶと事項まで開きます' },
     {
       key: 'all',
       label: '全会計',
-      note: '歳入の款 → 会計 → 款 → 項 → 目（総計。会計間の繰入れの重複を含む）',
+      note: '歳入の款 → 会計 → 款 → 項 → 目',
+      caveat: '（総計。会計間の繰入れの重複を含む）',
       opens: '会計を選ぶと項、款・項・目を選ぶと目まで開きます',
     },
     {
@@ -52,11 +54,18 @@ const VIEWS: Record<Basis, ViewInfo[]> = {
   ],
   supplementary: [],
   settlement: [
-    { key: 'general', label: '一般会計', note: '部局 → 款 → 項 → 目 → 節（帯は支出済額＝実際に使った額）', opens: '部局・款を選ぶと目、項・目・節を選ぶと節まで開きます' },
+    {
+      key: 'general',
+      label: '一般会計',
+      note: '部局 → 款 → 項 → 目 → 節',
+      caveat: '（帯は支出済額＝実際に使った額）',
+      opens: '部局・款を選ぶと目、項・目・節を選ぶと節まで開きます',
+    },
     {
       key: 'all',
       label: '全会計',
-      note: '会計 → 款 → 項 → 目 → 節（総計。会計間の繰入れの重複を含む。帯は支出済額）',
+      note: '会計 → 款 → 項 → 目 → 節',
+      caveat: '（総計。会計間の繰入れの重複を含む。帯は支出済額）',
       opens: '会計・款・項を選ぶと目、目・節を選ぶと節まで開きます',
     },
   ],
@@ -69,7 +78,7 @@ type ChartMode = 'simple' | 'detail';
 
 export default function LocalGovPage() {
   return (
-    <Suspense fallback={<LoadingSpinner fullscreen />}>
+    <Suspense fallback={<LocalPageLoading />}>
       <LocalGovContent />
     </Suspense>
   );
@@ -78,7 +87,6 @@ export default function LocalGovPage() {
 function LocalGovContent() {
   const { gov } = useParams<{ gov: string }>();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const qv = searchParams.get('view');
   const selectedId = searchParams.get('sel');
   // 当初・補正後・決算（URL の basis。なければ当初予算）と年度（西暦。なければその種類で最新の年度）
@@ -118,7 +126,24 @@ function LocalGovContent() {
   // 年度・見方・選択・かんたん／くわしくは URL のクエリに持つ（共有できる）
   const setQuery = useCallback(
     (next: { basis?: BasisChoice; year?: number | null; view?: LocalGraphView; sel?: string | null; mode?: ChartMode }) => {
-      const q = new URLSearchParams(searchParams.toString());
+      // 今の URL から組み立てる（Next.js は履歴の書き換えを少し遅れて useSearchParams に映すので、続けて押すと前の変更を消してしまう）
+      const q = new URLSearchParams(window.location.search);
+      // 今の種類・見方・見え方も、描画の時点の値でなく今の URL から求める（上の basis・view・mode と同じ決め方）
+      const qbNow = q.get('basis');
+      const basis: BasisChoice = qbNow === 'settlement' || qbNow === 'latest' ? qbNow : 'initial';
+      const qvNow = q.get('view');
+      // 公営企業会計の見方は当初予算だけ（種類を替えた直後で、描画の時点の enterpriseOk が前の種類のファイルのものでも当てはまるように）
+      const view: LocalGraphView =
+        qvNow === 'all' ? 'all' : qvNow === 'enterprise' && enterpriseOk && basis === 'initial' ? 'enterprise' : 'general';
+      const simpleOk = view !== 'enterprise';
+      const qmNow = q.get('mode');
+      const mode: ChartMode = !simpleOk
+        ? 'detail'
+        : qmNow === 'simple' || qmNow === 'detail'
+          ? qmNow
+          : simpleFirst && !q.get('sel')
+            ? 'simple'
+            : 'detail';
       if (next.basis !== undefined) {
         if (next.basis === 'initial') q.delete('basis');
         else q.set('basis', next.basis);
@@ -154,9 +179,13 @@ function LocalGovContent() {
         const nextDefault: ChartMode = simpleFirst && !q.get('sel') ? 'simple' : 'detail';
         if (nextDefault !== mode) q.set('mode', mode);
       }
-      router.replace(`?${q.toString()}`, { scroll: false });
+      // 同じページの中でクエリだけを変えるので、ブラウザの履歴だけを書き換える（Next.js は useSearchParams をこれに合わせる）。
+      // router.replace だと押すたびに画面のデータ（index.txt）を取りに行き、通信が失敗すると Next.js 15.5 が
+      // `…/index.txt?…` へ移動して中身の文字をそのまま出していた（静的に書き出したサイトでの不具合）。取りに行かなければ起きない
+      // 第1引数は Next.js の説明どおり null（Next.js が自分の状態を補う）
+      window.history.replaceState(null, '', `?${q.toString()}`);
     },
-    [router, searchParams, basis, simpleFirst, simpleOk, view, mode]
+    [simpleFirst, enterpriseOk]
   );
 
   // かんたんの図では選択を使わない（URL に sel が残っていても、くわしくへ戻るまで効かせない）
@@ -271,7 +300,7 @@ function LocalGovContent() {
     return state.index.sources.filter(s => used.has(s.id)).map(s => s.title).join('・');
   }, [state]);
 
-  if (state.status === 'loading') return <LoadingSpinner fullscreen />;
+  if (state.status === 'loading') return <LocalPageLoading />;
   if (state.status === 'error') {
     // ヘッダーは固定で重なるので、エラーのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
     return (
@@ -305,6 +334,9 @@ function LocalGovContent() {
   // 見出しの基準の名前（補正後はどの回までを足したか）
   const basisTitle = file.composed ? `補正後予算（${file.composed.through}まで）` : BASIS_LABEL[file.basis];
   const views = VIEWS[file.basis].filter(v => v.key !== 'enterprise' || enterpriseOk);
+  // 見方のボタンの横の説明の書き出し（くわしく: 列の並び＋断り、かんたん: 断りだけ。空のときは後ろの文の「。」を付けない）
+  const viewInfo = views.find(v => v.key === view);
+  const lead = simple ? viewInfo?.caveat ?? '' : `${viewInfo?.note ?? ''}${viewInfo?.caveat ?? ''}`;
   // 「データについて」へのリンク。今の見方・選択（クエリ全体）を back で渡し、「← サンキー図に戻る」で同じ表示に戻れるようにする
   const aboutHref = (hash = '') =>
     `/local/${gov}/about?year=${file.year}${file.basis === 'settlement' ? '&basis=settlement' : ''}` +
@@ -425,13 +457,15 @@ function LocalGovContent() {
               type="button"
               onClick={() => setQuery({ view: v.key })}
               className={`rounded-full border px-3 py-1 text-sm ${view === v.key ? 'border-primary-accent bg-mirai-surface-teal font-bold' : 'border-mirai-border bg-card'}`}
-              title={v.note}
+              title={`${v.note}${v.caveat ?? ''}`}
             >
               {v.label}
             </button>
           ))}
           <span className="text-xs text-mirai-text-muted">
-            {views.find(v => v.key === view)?.note}
+            {/* 列の並び（「財源 → 款 → …」）はくわしくの図のもの。かんたんの図は列が違い、図の上に自分の列を書くので、
+                断り（総計・支出済額など）だけを出す。その後の断り書き（公営企業会計・歳入の資料）はどちらにも出す */}
+            {lead}
             {view === 'all' && file.basis === 'initial' && (
               <>
                 。公営企業会計は含みません
@@ -453,11 +487,14 @@ function LocalGovContent() {
                 '埋めます（予算書の第4条の補填財源）。収入には一般会計からの負担金・補助金を含みます（全会計の見方と重なります）。' +
                 '予算実施計画は目までなので、説明欄・財源内訳・節はありません'}
             {/* 財源内訳と歳入の款の違いを調べた年度（当初は general_fund、補正後は composed.funding_notes に説明がある） */}
-            {view !== 'enterprise' && (fundingNotes(file).length > 0 || file.general_fund) && (
+            {/* かんたんの3列（財源の色の図）は左の列が歳入の款（財源ではない）なので、「左端の財源は…」の文は出さない。
+                かんたんでも2列の図（補正後など。左の列が財源）には出す */}
+            {/* 決算の図の左の列は部局なので出さない（今の決算のファイルには general_fund も funding_notes もないが、念のため） */}
+            {view !== 'enterprise' && file.basis !== 'settlement' && !(simple && shown?.fundingColors) && (fundingNotes(file).length > 0 || file.general_fund) && (
               <>
                 {view === 'all'
                   ? '（調べた内訳は'
-                  : `。左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（${file.general_fund ? '「一般財源」の箱を押すと中身を表で見られます。' : ''}調べた内訳は`}
+                  : `${lead ? '。' : ''}左端の財源（歳出の財源内訳）は歳入の款の額と一致しません（${file.general_fund ? '「一般財源」の箱を押すと中身を表で見られます。' : ''}調べた内訳は`}
                 <Link href={aboutHref('#funding')} className="text-primary-accent underline">
                   データについて
                 </Link>

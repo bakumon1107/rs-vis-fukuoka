@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import { Suspense, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import LoadingSpinner from '@/client/components/LoadingSpinner';
+import { LocalPageLoading } from '@/client/components/local-gov/LocalPageLoading';
 import { LocalHeaderSpacer } from '@/client/components/local-gov/LocalHeaderSpacer';
 import { useLocalBudget } from '@/client/hooks/useLocalBudget';
 import { FundsTrendChart } from '@/client/components/local-gov/FundsTrendChart';
@@ -20,7 +20,7 @@ import { formatBudgetFromYen } from '@/client/lib/formatBudget';
 
 export default function LocalFundsPage() {
   return (
-    <Suspense fallback={<LoadingSpinner fullscreen />}>
+    <Suspense fallback={<LocalPageLoading />}>
       <LocalFundsContent />
     </Suspense>
   );
@@ -41,7 +41,7 @@ function LocalFundsContent() {
   const flows = useMemo(() => (initial.status === 'ready' ? fundFlows(initial.file) : null), [initial]);
   const rows = useMemo(() => (funds ? fundRows(funds, flows) : []), [funds, flows]);
 
-  if (settlement.status === 'loading') return <LoadingSpinner fullscreen />;
+  if (settlement.status === 'loading') return <LocalPageLoading />;
   // ヘッダーは固定で重なるので、エラー・データなしのときも LocalHeaderSpacer を置いて下の余白を作る（ないと文言がヘッダーに隠れる）
   if (settlement.status === 'error' || !funds) {
     return (
