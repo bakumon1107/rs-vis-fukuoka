@@ -293,6 +293,20 @@ test('決算の歳入（会計 × 款）: 調定額 = 収入済 − 過誤納 + 
     .some(e => e.includes('accounts にない')));
 });
 
+test('前年度にだけあった款: 当初予算だけ。会計・款の名前・前年度・出典のページがいる。本年度の行に同じ款があれば誤り', () => {
+  // R8 県営埠頭施設の財産収入の形（総括表にだけ載る）
+  const k = { account: 'general', side: 'revenue' as const, kan: { name: '財産収入' }, previous: v(2_530_000, 'correction'),
+    pages: [{ source: 'r8-setsumeisho-toku', page: 93 }] };
+  assert.deepEqual(validateBudgetFile(file([row()], { previous_only_kan: [k] })).errors, []);
+  const errs = (over: object, f: Partial<LocalBudgetFile> = {}) =>
+    validateBudgetFile(file([row()], { previous_only_kan: [{ ...k, ...over }], ...f })).errors;
+  assert.ok(errs({ account: 'special:x' }).some(e => e.includes('accounts にない')));
+  assert.ok(errs({ previous: v(null) }).some(e => e.includes('金額が不明')));
+  assert.ok(errs({ pages: [] }).some(e => e.includes('出典のページ')));
+  assert.ok(errs({ side: 'expense', kan: { name: '総務費' } }).some(e => e.includes('本年度の行に同じ款')));
+  assert.ok(errs({}, { basis: 'settlement' }).some(e => e.includes('当初予算のファイルだけ')));
+});
+
 test('検算の要約の行数が実際の行数と合う', () => {
   const f = file([row()]);
   f.checks.rows = 2;

@@ -227,3 +227,45 @@ def test_corrected_columns_use_only_readings_with_same_amounts():
 def test_candidate_labels_mark_support_only():
     assert ex.candidate_labels([("用水事業費負担金", "ocr"), ("の用水事業費2負担金", "ndl")]) == \
         ["用水事業費負担金", "の用水事業費2負担金（ndl・支えのみ）"]
+
+
+def _prev_row(account, side, kan, prev):
+    return {"account": account, "side": side, "kan": {"name": kan}, "previous": {"v": prev, "src": "ocr"}}
+
+
+# R8 の県営埠頭施設整備運営事業特別会計: 総括表（説明書 p.93）にだけ、前年度にだけあった款「財産収入」2,530千円がある
+FUTO = "special:kenei-futo-shisetsu"
+FUTO_ROWS = [_prev_row(FUTO, "revenue", "県債", 10_000_000), _prev_row(FUTO, "expense", "公債費", 12_530_000)]
+FUTO_ENTRY = {"会計": FUTO, "side": "歳入", "款名": "財産収入", "前年度": 2530, "source": "r8-setsumeisho-toku", "page": 93, "根拠": "画像で確認"}
+ACCOUNTS = [{"id": FUTO, "kind": "special"}, {"id": "enterprise:x", "kind": "enterprise"}]
+
+
+def test_previous_only_kan_balances_revenue_and_expense():
+    out, fails, checked = ex.previous_only_kan(FUTO_ROWS, ACCOUNTS, [FUTO_ENTRY])
+    assert fails == [] and checked == 1
+    assert out == [{"account": FUTO, "side": "revenue", "kan": {"name": "財産収入"},
+                    "previous": {"v": 2_530_000, "src": "correction", "note": "画像で確認"},
+                    "pages": [{"source": "r8-setsumeisho-toku", "page": 93}]}]
+
+
+def test_previous_only_kan_stops_when_previous_does_not_balance():
+    # 修正表に書いていない（前年度にだけあった款を取りこぼした）: 歳入の前年度が足りない
+    _, fails, _ = ex.previous_only_kan(FUTO_ROWS, ACCOUNTS, [])
+    assert len(fails) == 1 and "差 2,530,000 円" in fails[0]
+
+
+def test_previous_only_kan_stops_when_stale():
+    # 会計がない・本年度にその款の行がある（前年度にだけの款ではない）なら修正表が古い
+    _, fails, _ = ex.previous_only_kan(FUTO_ROWS, ACCOUNTS, [{**FUTO_ENTRY, "会計": "special:none"}])
+    assert any("会計 special:none がない" in f for f in fails)
+    rows = FUTO_ROWS + [_prev_row(FUTO, "revenue", "財産収入", 0)]
+    _, fails, _ = ex.previous_only_kan(rows, ACCOUNTS, [FUTO_ENTRY])
+    assert any("本年度の行がある" in f for f in fails)
+
+
+def test_previous_only_kan_skips_unread_previous_and_enterprise():
+    # 前年度の読めない目（null）がある会計は比べない。公営企業会計は前年度の額を持たないので比べない
+    rows = [_prev_row(FUTO, "revenue", "県債", None), _prev_row(FUTO, "expense", "公債費", 12_530_000),
+            _prev_row("enterprise:x", "expense", "営業費用", 5)]
+    _, fails, checked = ex.previous_only_kan(rows, ACCOUNTS, [])
+    assert fails == [] and checked == 0

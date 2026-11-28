@@ -20,7 +20,7 @@ import { useIsLandscapePhone, useIsNarrow, useMediaQuery } from '@/client/hooks/
 import { LocalSankeyChart } from '@/client/components/local-gov/LocalSankeyChart';
 import { SimpleRanking } from '@/client/components/local-gov/SimpleRanking';
 import { BoxBreakdown } from '@/client/components/local-gov/BoxBreakdown';
-import { boxBreakdown, breakdownDeltas, previousBoxValues, previousRevenueGap } from '@/app/lib/local-gov/breakdown';
+import { boxBreakdown, breakdownDeltas, previousBoxValues, previousOnlyKanIn } from '@/app/lib/local-gov/breakdown';
 import { LocalDetailPanel } from '@/client/components/local-gov/LocalDetailPanel';
 import { GeneralFundPanel } from '@/client/components/local-gov/GeneralFundPanel';
 import { PartialNotice } from '@/client/components/local-gov/PartialNotice';
@@ -210,8 +210,11 @@ function LocalGovContent() {
     focusRowDetail.current = false;
     (detailRef.current ?? sheetRef.current)?.focus({ preventScroll: true });
   }, [row]);
-  // 前年度の歳入の足りない額（総括表にだけ載る前年度の款の分。歳入の款の前年度比に断り書きを出す）
-  const revenueGap = useMemo(() => (previous && state.status === 'ready' ? previousRevenueGap(state.file) : 0), [previous, state]);
+  // 選んだ箱の前年度に入っている、前年度にだけあった款（本年度の行がない。内訳の表に断り書きを出す）
+  const previousOnly = useMemo(
+    () => (previous && breakdown && state.status === 'ready' ? previousOnlyKanIn(state.file, breakdown.parent.id) : undefined),
+    [previous, breakdown, state]
+  );
   // 全会計の純計（会計間の繰入れを除く。設計: 公開前のサンキー図の足し 2章）。繰入れの印のないファイル（決算）は null
   const net = useMemo(() => (state.status === 'ready' && view === 'all' ? netTotal(state.file) : null), [state, view]);
   // 公営企業会計の見方の見出し（第3条・第4条の支出の合計）
@@ -301,7 +304,7 @@ function LocalGovContent() {
       deltas={breakdownDelta}
       parentDelta={deltas?.get(breakdown.parent.id)}
       previous={previous}
-      revenueGap={revenueGap}
+      previousOnly={previousOnly}
       onSelect={id => {
         focusRowDetail.current = true;
         setQuery({ sel: id });

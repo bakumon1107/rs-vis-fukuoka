@@ -204,6 +204,20 @@ export function validateBudgetFile(file: LocalBudgetFile): ValidationResult {
   });
   if (file.revenue_by_kan && file.basis !== 'settlement') err('revenue_by_kan は決算のファイルだけ');
 
+  // 前年度にだけあった款: 当初予算だけ。本年度の行に同じ会計・歳入歳出・款の名前があれば前年度にだけの款ではない
+  (file.previous_only_kan ?? []).forEach((k, i) => {
+    const where = `previous_only_kan[${i}] ${k.account} ${k.kan?.name}`;
+    if (!accountIds.has(k.account)) err(`${where}: 会計 ${k.account} が accounts にない`);
+    if (!SIDES.includes(k.side)) err(`${where}: side が不正（${k.side}）`);
+    if (!k.kan?.name) err(`${where}: 款の名前がない`);
+    checkValue(`${where} previous`, k.previous, true);
+    if (!Array.isArray(k.pages) || k.pages.length === 0) err(`${where}: 出典のページがない`);
+    if (file.rows.some(r => r.account === k.account && r.side === k.side && r.kan.name === k.kan?.name)) {
+      err(`${where}: 本年度の行に同じ款がある`);
+    }
+  });
+  if (file.previous_only_kan && file.basis !== 'initial') err('previous_only_kan は当初予算のファイルだけ');
+
   // 一般財源の中身: 当初予算だけ。行の合計 = total = 一般会計の歳出の目の財源内訳の一般財源の合計。額は 0 以上の整数（円）
   const gf = file.general_fund;
   if (gf) {
