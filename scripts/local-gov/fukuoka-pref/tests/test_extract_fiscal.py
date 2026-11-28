@@ -93,16 +93,18 @@ def _table(rows):
     return {"全都道府県の主要財政指標": [["全都道府県の主要財政指標"], hdr] + [[None, *r] for r in rows]}
 
 
-def test_parse_shihyo_finds_the_header_anywhere_and_keeps_dashes_as_none():
-    t = fx.parse_shihyo(_table([["北海道", 0.46, 99.8, 20.0, 307.0, 99.0], ["東京都", 1.1, 80.0, -1.0, "-", 100.0]]))
+def test_parse_shihyo_finds_the_header_anywhere_and_marks_dashes():
+    t = fx.parse_shihyo(_table([["北海道", 0.46, 99.8, 20.0, 307.0, 99.0], ["東京都", 1.1, 80.0, -1.0, "－", 100.0],
+                                ["大阪府", 0.8, 90.0, 1.0, "?", 100.0]]))
     assert t["北海道"]["fiscal_capacity"] == 0.46
-    assert t["東京都"]["future_burden"] is None
+    assert t["東京都"]["future_burden"] == fx.DASH
+    assert t["大阪府"]["future_burden"] is None
 
 
 def test_indicator_series_median_rank_and_cross_check():
     names = [f"県{i:02d}県" for i in range(46)] + ["福岡県"]
     table = {n: {"fiscal_capacity": 0.3 + i * 0.01, "current_balance": 90.0 + i * 0.1, "debt_service": 10.0,
-                 "future_burden": None if i == 0 else 100.0 + i} for i, n in enumerate(names)}
+                 "future_burden": fx.DASH if i == 0 else 100.0 + i} for i, n in enumerate(names)}
     jokyo = [("R6", (2024, {"fiscal_capacity": (0.76, 0.5), "current_balance": (94.6, 1.0),
                             "debt_service": (10.0, 1.0), "future_burden": (146.0, 1.0)}))]
     series, fails, n = fx.indicator_series([("R6", table, "r6-shihyo")], jokyo)
@@ -111,9 +113,9 @@ def test_indicator_series_median_rank_and_cross_check():
     assert fc["rank"] == 1 and fc["of"] == 47 and fc["median"] == pytest.approx(0.53)
     cb = next(s for s in series if s["key"] == "current_balance")["values"][0]
     assert cb["rank"] == 47
-    # 値のない団体は数えない（将来負担比率は 46 団体）。同じ値は同じ順位
+    # 「－」（負担がない）の団体は低い方が良い指標で良い方に数える（中央値は数のある 46 団体で）。同じ値は同じ順位
     fb = next(s for s in series if s["key"] == "future_burden")["values"][0]
-    assert fb["of"] == 46
+    assert fb["of"] == 47 and fb["rank"] == 47 and fb["median"] == pytest.approx(123.5)
     ds = next(s for s in series if s["key"] == "debt_service")["values"][0]
     assert ds["rank"] == 1
     # 総括表との突き合わせ: 前年度（R5）は主要財政指標一覧がないので数えない。本年度の4つは一致

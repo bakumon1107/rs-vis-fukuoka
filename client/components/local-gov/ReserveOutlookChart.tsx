@@ -25,7 +25,8 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
   const pts = reservePoints(file);
   const target = file.reserve.target;
   if (pts.length === 0) return null;
-  const W = Math.max(300, width);
+  // 枠の幅で描く（下限を付けると、幅 320px の画面で枠からはみ出して横スクロールが出る）
+  const W = width;
   const { top, step } = niceScale(Math.max(...pts.map(p => p.total), target?.max ?? 0));
   const x = (i: number) => PAD.l + ((W - PAD.l - PAD.r) * (i + 0.5)) / pts.length;
   const y = (v: number) => PAD.t + (H - PAD.t - PAD.b) * (1 - v / top);
@@ -41,8 +42,10 @@ export function ReserveOutlookChart({ file }: { file: LocalFiscalFile }) {
 
   return (
     <figure className="space-y-2">
-      <div ref={ref} className="relative w-full">
-        <svg width={W} height={H} role="img" aria-label={`${file.reserve.label}の年度末残高の推移と見込み`} className="block">
+      {/* 測る枠は中身で広がらないようにする（広がると、その幅を測って図を描き、また広がる） */}
+      <div ref={ref} className="relative w-full min-w-0 overflow-hidden">
+        {/* role="img" だと中の点（ボタン）が支援技術から隠れるので group にする */}
+        <svg width={W} height={H} role="group" aria-label={`${file.reserve.label}の年度末残高の推移と見込み`} className="block">
           {ticks.map(t => (
             <g key={t}>
               <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="stroke-mirai-border" strokeWidth={1} />

@@ -5,12 +5,13 @@
 
 使い方:
     python3 -P scripts/local-gov/fukuoka-pref/export_fukuoka_pref.py --work <作業ディレクトリ> --pdf-dir <原本の置き場所> \
-        --out public/data/local-gov/fukuoka-pref
+        --xlsx-dir <表計算の資料の置き場所> --out public/data/local-gov/fukuoka-pref
 
 <作業ディレクトリ> は回帰テストの出力（tests/regression.py --keep <dir>）。リポジトリには入れない。使うもの:
     cross.json・cross-toku.json … 一般会計・特別会計の cross_check.py の出力（OCR＋修正表＋文字層との突き合わせ）
     setsumeisho-{ocr,v4,tl}.json・setsumeisho-toku{,-v4,-tl}.json … 多数決に使う3つの読み取り
     yosansho.json・keijougaku.json・kessan-kmk.json（R6 決算。名前の照合に使う）
+    fiscal.json … 三基金の推移と見込み・財政の指標（extract_fiscal.py。あれば fiscal-indicators.json を書き、--xlsx-dir が要る）
 回帰テストの最後のステップとしても流れる（書き出しの要約が変わったら気づける）。
 
 書き出すもの:
@@ -688,10 +689,16 @@ def main():
     w = lambda name: os.path.join(a.work, name)  # noqa: E731
     vote = load_vote()
     source_list = json.load(open(SOURCES_FILE, encoding="utf-8"))["sources"]
+    # 表計算の資料は財政の指標（fiscal.json）だけが使う。fiscal.json がなければ、xlsx がない環境でも書き出せるよう確かめを飛ばす
+    # （回帰テストが xlsx のない環境で書き出しのステップごと飛ばさないように）
+    need_xlsx = os.path.exists(w("fiscal.json"))
     for s in source_list:
         ext = s.get("ext", "pdf")
-        if ext == "xlsx" and not a.xlsx_dir:
-            sys.exit(f"表計算の資料（{s['file']}.xlsx）があるので --xlsx-dir が要る")
+        if ext == "xlsx":
+            if not need_xlsx:
+                continue
+            if not a.xlsx_dir:
+                sys.exit(f"財政の指標を書き出すので、表計算の資料（{s['file']}.xlsx）の --xlsx-dir が要る")
         p = os.path.join(a.xlsx_dir if ext == "xlsx" else a.pdf_dir, f"{s['file']}.{ext}")
         got = sha256(p)
         if got != s["sha256"]:
@@ -857,7 +864,11 @@ def main():
         if fiscal["fails"]:
             sys.exit("財政の指標: 抽出の確かめが通っていない:\n" + "\n".join(fiscal["fails"]))
         res = fiscal["reserve"]
-        used = {h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
+        # 画面は実績・見込み・目標があることを前提に描く（validate.ts の validateFiscalFile と同じ条件の一部）
+        if not res["history"] or not res["outlook"] or not res["target"] or len(fiscal["indicators"]) != 4 \
+                or any(not ind["values"] for ind in fiscal["indicators"]):
+            sys.exit("財政の指標: 三基金の実績・見込み・目標か、4つの指標の値が欠けている")
+        used ={h["source"] for h in res["history"]} | {x["source"] for x in (res["outlook"], res["target"]) if x} | \
                {v["source"] for ind in fiscal["indicators"] for v in ind["values"]}
         unknown = sorted(used - {s["id"] for s in source_list})
         if unknown:

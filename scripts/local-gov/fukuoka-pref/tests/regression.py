@@ -165,8 +165,9 @@ def _export_deps():
     # funds.json がなければ export_funds.build が基金を書かず、期待値の要約（「基金 N 件」の行）の差で気づける
     with open(os.path.join(ROOT, "sources.json"), encoding="utf-8") as f:
         srcs = json.load(f)["sources"]
-    # 表計算の資料（ext が xlsx）は <dir>/xlsx に置く
-    return [f"{{out:{o}}}" for o in outs] + [f"{{{s.get('ext', 'pdf')}:{s['file']}}}" for s in srcs]
+    # 表計算の資料（ext が xlsx。財政の指標だけが使う）は入れない: xlsx のない環境でも書き出しの回帰を流す
+    # （財政の指標のステップが飛ばされれば fiscal.json がなく、書き出しは xlsx を確かめない。要約の「財政の指標のファイル」の行の差で気づける）
+    return [f"{{out:{o}}}" for o in outs] + [f"{{pdf:{s['file']}}}" for s in srcs if s.get("ext", "pdf") == "pdf"]
 
 
 # ステップの、引数に出てこない入力（{out:...}・{pdf:...}・{tmp:...} の形）。
@@ -218,7 +219,9 @@ def run_all(data, keep=None):
             # 引数に出てこない入力（書き出しが読む前のステップの出力・資料の PDF）は STEP_DEPS で足して確かめる
             deps = [resolve(a, data, outdir, tmpdir) for a in STEP_DEPS.get(name, [])]
             # 引数は原本・前のステップの出力だけを確かめる（{tmp:...} の引数は出力先のこともある）。STEP_DEPS に並べた入力は全部確かめる
-            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and not os.path.exists(a)]
+            # 表計算の資料の置き場所（--xlsx-dir）はなくてよい（財政の指標を書き出さないときは書き出しが使わない）
+            xlsx_dir = os.path.join(data, "xlsx")
+            missing = [a for a in argv if (a.startswith(data) or a.startswith(outdir)) and a != xlsx_dir and not os.path.exists(a)]
             missing += [a for a in deps if not os.path.exists(a)]
             if missing:
                 results[name] = {"skipped": f"入力がない: {', '.join(os.path.basename(m) for m in missing)}"}

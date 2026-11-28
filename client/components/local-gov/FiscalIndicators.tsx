@@ -32,7 +32,8 @@ function MiniChart({ ind }: { ind: FiscalIndicator }) {
   const [active, setActive] = useState<number | null>(null);
   const vs = [...ind.values].sort((a, b) => a.year - b.year);
   if (vs.length === 0) return null;
-  const W = Math.max(260, width);
+  // 枠の幅で描く（下限を付けると狭い画面で枠からはみ出す）
+  const W = width;
   const all = vs.flatMap(v => [v.value, v.median]);
   const lo = Math.min(...all);
   const hi = Math.max(...all);
@@ -47,8 +48,9 @@ function MiniChart({ ind }: { ind: FiscalIndicator }) {
   const tip = active === null ? null : vs[active];
   const fmt = (v: number) => formatIndicator(ind, v);
   return (
-    <div ref={ref} className="relative w-full">
-      <svg width={W} height={H} role="img" aria-label={`${ind.label}の推移（福岡県と47都道府県の中央値）`} className="block">
+    // 測る枠は中身で広がらないようにする（広がると、その幅を測って図を描き、また広がる）
+    <div ref={ref} className="relative w-full min-w-0 overflow-hidden">
+      <svg width={W} height={H} role="group" aria-label={`${ind.label}の推移（福岡県と47都道府県の中央値）`} className="block">
         {[lo, hi].map((t, i) => (
           <g key={i}>
             <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} className="stroke-mirai-border" strokeWidth={1} />
@@ -132,11 +134,12 @@ export function FiscalIndicators({ file }: { file: LocalFiscalFile }) {
           47都道府県の中央値
         </span>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* min-w-0: カードが中の図（測る前の幅）に引っぱられて広がり、狭い画面ではみ出すのを防ぐ */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {file.indicators.map(ind => {
           const c = latestChange(ind);
           return (
-            <section key={ind.key} className="space-y-1 rounded-2xl bg-card p-3 shadow-soft">
+            <section key={ind.key} className="min-w-0 space-y-1 rounded-2xl bg-card p-3 shadow-soft">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                 <h3 className="text-sm font-bold">{ind.label}</h3>
                 {ind.threshold !== null && (

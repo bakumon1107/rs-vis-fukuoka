@@ -118,6 +118,10 @@ function LocalFundsContent() {
             `${nextYearLabel(funds.as_of.year)}末の残高は、${nextYearLabel(funds.as_of.year)}決算の調書が公表されたら（例年12月ごろ）更新します。`}
         </p>
 
+        {/* 読み込みの失敗は、データのない自治体（区画を出さない）と見分けられるように知らせる */}
+        {fiscal.status === 'error' && (
+          <p className="text-xs text-destructive">三基金の見込みと財政の指標を読み込めませんでした: {fiscal.message}</p>
+        )}
         {fiscal.status === 'ready' && (
           <section className="space-y-2">
             <h2 className="text-base font-bold">いざというときの蓄え（{fiscal.file.reserve.label}）</h2>
@@ -204,7 +208,7 @@ function LocalFundsContent() {
                       <SourceLinks
                         ids={[fiscal.file.reserve.outlook.source]}
                         index={fiscal.index}
-                        label={() => `当初予算の概要 p.${fiscal.file.reserve.outlook!.page}`}
+                        label={() => `当初予算の概要（PDF の ${fiscal.file.reserve.outlook!.page} ページ目）`}
                       />
                     </>
                   )}
@@ -214,7 +218,10 @@ function LocalFundsContent() {
                   <SourceLinks
                     ids={[...new Set(fiscal.file.indicators.flatMap(i => i.values.map(v => v.source)))]}
                     index={fiscal.index}
-                    label={id => `${eraLabel(fiscal.file.indicators[0].values.find(v => v.source === id)?.year ?? 0)}`}
+                    label={id => {
+                      const y = fiscal.file.indicators.flatMap(i => i.values).find(v => v.source === id)?.year;
+                      return y ? eraLabel(y) : id;
+                    }}
                   />
                   。福岡県の値は、総務省の財政状況資料集（総括表）の値と突き合わせて確かめています
                 </li>

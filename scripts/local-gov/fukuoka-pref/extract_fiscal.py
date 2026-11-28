@@ -250,8 +250,20 @@ def parse_shihyo(sheets: dict[str, list[list]]) -> dict[str, dict[str, float | N
         name = r[name_j] if name_j < len(r) else None
         if not isinstance(name, str) or not re.search(r"[都道府県]$", name.strip()):
             continue
-        out[name.strip()] = {k: (r[j] if j < len(r) and isinstance(r[j], float) else None) for k, j in cols.items()}
+        out[name.strip()] = {k: _cell(r[j] if j < len(r) else None) for k, j in cols.items()}
     return out
+
+
+DASH = "dash"
+
+
+def _cell(v):
+    """指標のセル: 数はそのまま、「－」は DASH（比率が算定されない＝負担がない。例: 将来負担比率）、ほかは None"""
+    if isinstance(v, float):
+        return v
+    if isinstance(v, str) and v.strip() in ("-", "－", "‐", "ー", "―"):
+        return DASH
+    return None
 
 
 INDICATORS_BY_LABEL = {x["label"]: x["key"] for x in INDICATORS}
@@ -306,7 +318,7 @@ def indicator_series(shihyo: list[tuple[str, dict, str]], jokyo: list[tuple[str,
                     continue
                 got = by_year[y][0][GOV_NAME][key]
                 checked += 1
-                if got is None or abs(got - v) > 1e-9:
+                if not isinstance(got, float) or abs(got - v) > 1e-9:
                     fails.append(f"{short_era(y)} {key}: 主要財政指標一覧 {got} ≠ 財政状況資料集の総括表 {v}")
     series = []
     for ind in INDICATORS:
@@ -314,12 +326,18 @@ def indicator_series(shihyo: list[tuple[str, dict, str]], jokyo: list[tuple[str,
         for fy in sorted(by_year):
             table, src = by_year[fy]
             v = table[GOV_NAME][ind["key"]]
-            if v is None:
+            if not isinstance(v, float):
                 fails.append(f"{short_era(fy)} {ind['label']}: {GOV_NAME}の値がない")
                 continue
-            nums = [t[ind["key"]] for t in table.values() if t[ind["key"]] is not None]
-            better = sum(1 for x in nums if (x > v if ind["good"] == "high" else x < v))
-            values.append({"year": fy, "value": v, "median": median(nums), "rank": better + 1, "of": len(nums), "source": src})
+            cells = [t[ind["key"]] for t in table.values()]
+            nums = [x for x in cells if isinstance(x, float)]
+            # 「－」（算定されない＝負担がない）の団体は、低い方が良い指標では福岡県より良い方に数える。中央値は数のある団体だけで求める
+            dashes = sum(1 for x in cells if x == DASH)
+            better = sum(1 for x in nums if (x > v if ind["good"] == "high" else x < v)) + (dashes if ind["good"] == "low" else 0)
+            unknown = sum(1 for x in cells if x is None)
+            if unknown:
+                fails.append(f"{short_era(fy)} {ind['label']}: 値の読めない団体が {unknown} 件")
+            values.append({"year": fy, "value": v, "median": median(nums), "rank": better + 1, "of": len(nums) + dashes, "source": src})
         series.append({"key": ind["key"], "label": ind["label"], "unit": ind["unit"], "good": ind["good"],
                        "threshold": ind["threshold"], "values": values})
     return series, fails, {"checked": checked, "years": sorted(by_year)}
@@ -353,6 +371,10 @@ def main():
 
     kikin = [(y, pdftext(p), f"{y.lower()}-kikin") for y, p in pairs(a.kikin)]
     hist, fails, kn = reserve_history(kikin)
+    if not hist:
+        fails.append("基金積立状況（--kikin）がない")
+    if not a.shihyo:
+        fails.append("主要財政指標一覧（--shihyo）がない")
     # 「財政改革プランの目標達成状況」は表紙の次（印刷のページ番号 1 = PDF の 2 ページ目）。最初の数ページから探す
     g = None
     for gpage in range(1, 6):

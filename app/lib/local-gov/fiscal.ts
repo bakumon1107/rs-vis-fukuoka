@@ -43,10 +43,10 @@ export function latestChange(ind: FiscalIndicator): {
   if (!latest) return null;
   const previous = vs.at(-2);
   if (!previous) return { latest, direction: null };
-  const d = latest.value - previous.value;
-  // 表示の桁（財政力指数は小数第2位・比率は小数第1位）で同じなら「同じ」
-  const eps = ind.unit === '' ? 0.005 : 0.05;
-  const direction = Math.abs(d) < eps ? 'same' : (d > 0) === (ind.good === 'high') ? 'better' : 'worse';
+  // 表示の桁（財政力指数は小数第2位・比率は小数第1位）に丸めた値で比べる（画面に出る数字と向きが食い違わないように）
+  const digits = ind.unit === '' ? 2 : 1;
+  const d = Number(latest.value.toFixed(digits)) - Number(previous.value.toFixed(digits));
+  const direction = d === 0 ? 'same' : (d > 0) === (ind.good === 'high') ? 'better' : 'worse';
   return { latest, previous, direction };
 }
 
